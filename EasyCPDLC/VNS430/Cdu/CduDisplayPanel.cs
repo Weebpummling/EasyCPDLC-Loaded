@@ -119,17 +119,14 @@ namespace EasyCPDLC.VNS430.Cdu
 
             DrawScreen(g, ToPixels(CduPanelLayout.Screen));
 
-            // EXEC annunciator, drawn explicitly in both states so it always reads: a lit
-            // green bar while a transmit action is armed, an unlit dark bar otherwise.
-            RectangleF execLight = ToPixels(CduPanelLayout.ExecLight);
-            using (SolidBrush exec = new(ExecArmed ? Color.FromArgb(150, 255, 170) : Color.FromArgb(40, 43, 40)))
+            // The artwork draws the EXEC annunciator lit. By default mask it with the
+            // adjacent bezel colour so it reads off; drop the mask when a transmit action
+            // is armed, revealing the artwork's own lit light.
+            if (!ExecArmed)
             {
-                g.FillRectangle(exec, execLight);
-            }
-            if (ExecArmed)
-            {
-                using Pen glow = new(Color.FromArgb(90, 255, 210), Math.Max(1f, execLight.Height * 0.18f));
-                g.DrawRectangle(glow, execLight.X, execLight.Y, execLight.Width, execLight.Height);
+                RectangleF execLight = ToPixels(CduPanelLayout.ExecLight);
+                using SolidBrush mask = new(SampleExecBezel());
+                g.FillRectangle(mask, execLight);
             }
 
             if (pressedRect.HasValue)
@@ -240,6 +237,18 @@ namespace EasyCPDLC.VNS430.Cdu
                 pressedRect = null;
                 Invalidate();
             }
+        }
+
+        // The bezel colour just below the EXEC annunciator, used to mask it off.
+        private static Color SampleExecBezel()
+        {
+            if (panelArt is Bitmap bmp)
+            {
+                int x = (int)Math.Clamp((CduPanelLayout.ExecLight.X + (CduPanelLayout.ExecLight.Width * 0.5f)) * bmp.Width, 0, bmp.Width - 1);
+                int y = (int)Math.Clamp((CduPanelLayout.ExecLight.Y + (CduPanelLayout.ExecLight.Height * 2.2f)) * bmp.Height, 0, bmp.Height - 1);
+                return bmp.GetPixel(x, y);
+            }
+            return Color.FromArgb(52, 54, 52);
         }
 
         // Returns the Win32 hit-test code for a corner zone, or 0 for none.
