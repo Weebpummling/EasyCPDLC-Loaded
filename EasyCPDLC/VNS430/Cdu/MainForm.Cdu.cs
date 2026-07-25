@@ -67,6 +67,7 @@ namespace EasyCPDLC
                 cduDisplayPanel.ScratchpadBackspace += (_, __) => CduScratchpadBackspace();
                 cduDisplayPanel.ScratchpadClear += (_, __) => CduScratchpadClearAll();
                 cduDisplayPanel.DragMoveRequested += (_, __) => BeginWindowDrag();
+                cduDisplayPanel.ResizeRequested += (_, ht) => BeginWindowResize(ht);
                 dcduFrame.Controls.Add(cduDisplayPanel);
             }
 

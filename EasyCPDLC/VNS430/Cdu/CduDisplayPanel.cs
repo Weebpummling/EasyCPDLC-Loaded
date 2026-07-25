@@ -57,6 +57,19 @@ namespace EasyCPDLC.VNS430.Cdu
         // so the host can drag the window. Lets the CDU be moved with no title bar.
         public event EventHandler DragMoveRequested;
 
+        // Raised when the left button is pressed in a corner zone; the int is the
+        // Win32 hit-test code (HTTOPLEFT/HTTOPRIGHT/HTBOTTOMLEFT/HTBOTTOMRIGHT) so the
+        // host can start a native resize. Lets the CDU be resized with no border.
+        public event EventHandler<int> ResizeRequested;
+
+        // Size of the square corner resize zones, in pixels.
+        private const int CornerGrip = 28;
+
+        // Aspect ratio (w/h) of the panel artwork, so the host can lock resizing to it.
+        public float PanelAspect => panelArt != null && panelArt.Height > 0
+            ? (float)panelArt.Width / panelArt.Height
+            : 1f;
+
         public void RefreshDisplay() => Invalidate();
 
         private static Image LoadPanelArt()
@@ -109,6 +122,8 @@ namespace EasyCPDLC.VNS430.Cdu
                 using SolidBrush press = new(Color.FromArgb(120, 0, 0, 0));
                 g.FillRectangle(press, pr);
             }
+
+            DrawCornerHandles(g);
 
             Sink?.Push(Grid.ToWinwingData());
         }
@@ -169,6 +184,14 @@ namespace EasyCPDLC.VNS430.Cdu
                 return;
             }
 
+            // Corner zones start a native resize (the window is borderless).
+            int resizeCode = CornerHitTest(e.Location);
+            if (resizeCode != 0)
+            {
+                ResizeRequested?.Invoke(this, resizeCode);
+                return;
+            }
+
             foreach ((string name, RectangleF rect) in CduPanelLayout.Keys)
             {
                 if (ToPixels(rect).Contains(e.Location))
@@ -192,6 +215,34 @@ namespace EasyCPDLC.VNS430.Cdu
                 pressedRect = null;
                 Invalidate();
             }
+        }
+
+        // Returns the Win32 hit-test code for a corner zone, or 0 for none.
+        private int CornerHitTest(Point p)
+        {
+            bool left = p.X <= CornerGrip;
+            bool right = p.X >= Width - CornerGrip;
+            bool top = p.Y <= CornerGrip;
+            bool bottom = p.Y >= Height - CornerGrip;
+
+            if (top && left) return 13;     // HTTOPLEFT
+            if (top && right) return 14;    // HTTOPRIGHT
+            if (bottom && left) return 16;  // HTBOTTOMLEFT
+            if (bottom && right) return 17; // HTBOTTOMRIGHT
+            return 0;
+        }
+
+        private void DrawCornerHandles(Graphics g)
+        {
+            using Pen pen = new(Color.FromArgb(150, 210, 210, 210), 2f);
+            int m = 6;               // inset from the edge
+            int n = CornerGrip - 12; // bracket arm length
+            int r = Width, b = Height;
+
+            g.DrawLines(pen, new[] { new Point(m, m + n), new Point(m, m), new Point(m + n, m) });
+            g.DrawLines(pen, new[] { new Point(r - m - n, m), new Point(r - m, m), new Point(r - m, m + n) });
+            g.DrawLines(pen, new[] { new Point(m, b - m - n), new Point(m, b - m), new Point(m + n, b - m) });
+            g.DrawLines(pen, new[] { new Point(r - m - n, b - m), new Point(r - m, b - m), new Point(r - m, b - m - n) });
         }
 
         private void Activate(string name)

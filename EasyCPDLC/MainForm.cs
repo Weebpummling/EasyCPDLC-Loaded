@@ -27328,8 +27328,22 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             }
         }
 
+        private const int WM_SIZING = 0x0214;
+        private const int WMSZ_LEFT = 1, WMSZ_RIGHT = 2, WMSZ_TOP = 3, WMSZ_TOPLEFT = 4,
+            WMSZ_TOPRIGHT = 5, WMSZ_BOTTOM = 6, WMSZ_BOTTOMLEFT = 7, WMSZ_BOTTOMRIGHT = 8;
+
+        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        private struct SizingRect { public int Left, Top, Right, Bottom; }
+
         protected override void WndProc(ref Message m)
         {
+            // In CDU mode, keep resizing locked to the panel-art aspect ratio.
+            if (m.Msg == WM_SIZING && DcduStyleManager.IsCdu)
+            {
+                ConstrainCduAspect(ref m);
+                return;
+            }
+
             if (m.Msg == 0x84)
             {  // Trap WM_NCHITTEST
                 Point pos = new(m.LParam.ToInt32());
@@ -27346,6 +27360,59 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
                 }
             }
             base.WndProc(ref m);
+        }
+
+        // The window is borderless, so the CDU panel starts resizes from its corner zones.
+        internal void BeginWindowResize(int htCode)
+        {
+            ReleaseCapture();
+            _ = SendMessage(Handle, WM_NCLBUTTONDOWN, htCode, 0);
+        }
+
+        private void ConstrainCduAspect(ref Message m)
+        {
+            float aspect = cduDisplayPanel?.PanelAspect ?? 0f;
+            if (aspect <= 0f)
+            {
+                base.WndProc(ref m);
+                return;
+            }
+
+            SizingRect rect = System.Runtime.InteropServices.Marshal.PtrToStructure<SizingRect>(m.LParam);
+            int edge = m.WParam.ToInt32();
+            int width = Math.Max(Math.Max(320, MinimumSize.Width), rect.Right - rect.Left);
+            int height = Math.Max(1, rect.Bottom - rect.Top);
+
+            // A vertical edge drives height; anything else drives width.
+            if (edge == WMSZ_TOP || edge == WMSZ_BOTTOM)
+            {
+                width = (int)Math.Round(height * aspect);
+            }
+            else
+            {
+                height = (int)Math.Round(width / aspect);
+            }
+
+            if (edge == WMSZ_LEFT || edge == WMSZ_TOPLEFT || edge == WMSZ_BOTTOMLEFT)
+            {
+                rect.Left = rect.Right - width;
+            }
+            else
+            {
+                rect.Right = rect.Left + width;
+            }
+
+            if (edge == WMSZ_TOP || edge == WMSZ_TOPLEFT || edge == WMSZ_TOPRIGHT)
+            {
+                rect.Top = rect.Bottom - height;
+            }
+            else
+            {
+                rect.Bottom = rect.Top + height;
+            }
+
+            System.Runtime.InteropServices.Marshal.StructureToPtr(rect, m.LParam, false);
+            m.Result = (IntPtr)1;
         }
 
 
