@@ -346,6 +346,7 @@ namespace EasyCPDLC
                 Departure = siMode ? SayIntentionsDeparture() : AirbusAocDeparture(),
                 Arrival = siMode ? SayIntentionsArrival() : AirbusAocArrival(),
                 Aircraft = siMode ? SayIntentionsAircraft() : AirbusAocAircraft(),
+                PreferArrivalStation = flightPhaseEnrouteSeen,
                 Messages = messages,
                 AtcUnitOnline = currentUnit.Length > 0 &&
                     (siMode

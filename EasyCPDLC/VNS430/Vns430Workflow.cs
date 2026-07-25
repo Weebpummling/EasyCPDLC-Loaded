@@ -170,7 +170,12 @@ namespace EasyCPDLC.VNS430
             string recipient = !string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit)
                 ? snapshot.CurrentAtcUnit
                 : snapshot.PendingLogon;
-            string station = !string.IsNullOrWhiteSpace(snapshot.Arrival) ? snapshot.Arrival : snapshot.Departure;
+            // METAR/ATIS prefill: the departure airport until the flight reaches cruise,
+            // the destination from then on - matching what the pilot actually needs at
+            // each point. The other airport is one field-edit away.
+            string station = snapshot.PreferArrivalStation
+                ? (!string.IsNullOrWhiteSpace(snapshot.Arrival) ? snapshot.Arrival : snapshot.Departure)
+                : (!string.IsNullOrWhiteSpace(snapshot.Departure) ? snapshot.Departure : snapshot.Arrival);
             Vns430EditField Text(string key, string label, int length, bool required = false, string value = "") =>
                 new() { Key = key, Label = label, MaxLength = length, Required = required, Value = value };
             Vns430EditField Options(string key, string label, params string[] values) =>
@@ -186,7 +191,9 @@ namespace EasyCPDLC.VNS430
                 Vns430WorkflowKind.AtcPositionReport => new() { Kind = kind, Title = "POSITION REPORT", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("FIX", "PPOS FIX", 7, true), Text("TIME", "TIME Z", 4, true, DateTime.UtcNow.ToString("HHmm")), Text("FL", "FL", 3, true), Text("NEXT", "NEXT FIX", 7, true), Text("ETA", "NEXT ETA", 4), Text("THEN", "THEN FIX", 7) } },
                 Vns430WorkflowKind.AocTelex => new() { Kind = kind, Title = "AOC TELEX", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true), Text("TEXT", "MESSAGE", 80, true) } },
                 Vns430WorkflowKind.AocMetar => new() { Kind = kind, Title = "METAR REQUEST", Fields = { Text("STATION", "STATION", 4, true, station) } },
-                Vns430WorkflowKind.AocAtis => new() { Kind = kind, Title = "ATIS REQUEST", Fields = { Text("STATION", "STATION", 4, true, station), Options("TYPE", "ATIS TYPE", "ARRIVAL", "DEPARTURE"), Options("AUTO", "AUTO REFRESH", "OFF", "ON") } },
+                // The ATIS TYPE default follows the same phase logic as the station
+                // prefill (the first option is the default).
+                Vns430WorkflowKind.AocAtis => new() { Kind = kind, Title = "ATIS REQUEST", Fields = { Text("STATION", "STATION", 4, true, station), Options("TYPE", "ATIS TYPE", snapshot.PreferArrivalStation ? new[] { "ARRIVAL", "DEPARTURE" } : new[] { "DEPARTURE", "ARRIVAL" }), Options("AUTO", "AUTO REFRESH", "OFF", "ON") } },
                 Vns430WorkflowKind.AocPreDeparture => new() { Kind = kind, Title = "PREDEP CLEARANCE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("GATE", "STAND/GATE", 5, true), Text("ATIS", "ATIS", 1, true), Text("REMARKS", "REMARKS", 40) } },
                 Vns430WorkflowKind.AocOceanic => new() { Kind = kind, Title = "OCEANIC CLEARANCE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("ENTRY", "ENTRY POINT", 8, true), Text("ETA", "ENTRY ETA", 4, true), Text("MACH", "MACH", 2, true), Text("LEVEL", "FL", 3, true), Text("REMARKS", "REMARKS", 40) } },
                 _ => new() { Kind = kind, Title = "REQUEST" }

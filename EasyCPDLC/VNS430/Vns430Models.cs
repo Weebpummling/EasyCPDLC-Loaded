@@ -79,6 +79,10 @@ namespace EasyCPDLC.VNS430
         internal string Departure { get; init; } = string.Empty;
         internal string Arrival { get; init; } = string.Empty;
         internal string Aircraft { get; init; } = string.Empty;
+
+        // True once the flight has reached cruise (the enroute phase marker): weather
+        // prefills switch from the departure airport to the destination.
+        internal bool PreferArrivalStation { get; init; }
         internal IReadOnlyList<Vns430MessageSnapshot> Messages { get; init; } = new Vns430MessageSnapshot[0];
 
         // Controller-online / datalink discovery, kept fresh by the backend's 15 s
