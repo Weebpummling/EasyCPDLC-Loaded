@@ -39,6 +39,18 @@ namespace EasyCPDLC.VNS430.Cdu
         private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan IdlePoll = TimeSpan.FromMilliseconds(50);
 
+        // A transient hiccup on an established link (MobiFlight briefly not reading
+        // while it writes to the device, a single failed send) must not cost the full
+        // RetryDelay - that showed up as the display freezing for ~5 s. The first few
+        // failures retry almost immediately; only a persistently dead server (MobiFlight
+        // closed) falls back to the slow cadence. Sends and connects are also bounded,
+        // so a hung socket can never stall the pump indefinitely.
+        private static readonly TimeSpan FastRetryDelay = TimeSpan.FromMilliseconds(250);
+        private const int FastRetryLimit = 3;
+        private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(2);
+        private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(2);
+        private int consecutiveFailures;
+
         // Selecting a font makes MobiFlight write glyph bitmaps into the device's flash.
         // That must happen at most once per run: re-sending it on every reconnect (which
         // happens every RetryDelay while MobiFlight is closed) means repeated flash writes,
@@ -100,6 +112,7 @@ namespace EasyCPDLC.VNS430.Cdu
         {
             while (!token.IsCancellationRequested)
             {
+                IReadOnlyList<object[]> frame = null;
                 try
                 {
                     if (socket == null || socket.State != WebSocketState.Open)
@@ -107,7 +120,7 @@ namespace EasyCPDLC.VNS430.Cdu
                         await ConnectAsync(token).ConfigureAwait(false);
                     }
 
-                    IReadOnlyList<object[]> frame = Interlocked.Exchange(ref pending, null);
+                    frame = Interlocked.Exchange(ref pending, null);
                     if (frame == null)
                     {
                         await Task.Delay(IdlePoll, token).ConfigureAwait(false);
@@ -115,19 +128,30 @@ namespace EasyCPDLC.VNS430.Cdu
                     }
 
                     await SendAsync(new { Target = "Display", Data = frame }, token).ConfigureAwait(false);
+                    consecutiveFailures = 0;
                 }
-                catch (OperationCanceledException)
+                // Only a real shutdown ends the pump. A send/connect TIMEOUT also
+                // surfaces as OperationCanceledException, and must fall through to the
+                // failure path below instead of silently killing the display forever.
+                catch (OperationCanceledException) when (token.IsCancellationRequested)
                 {
                     break;
                 }
                 catch (Exception)
                 {
-                    // MobiFlight not running, closed, or the seat is not connected. Drop the
-                    // socket and retry; this is the normal state until the user starts it.
+                    // Put the consumed frame back (unless a newer one arrived) so the
+                    // reconnect resends the current screen instead of leaving it stale.
+                    if (frame != null)
+                    {
+                        Interlocked.CompareExchange(ref pending, frame, null);
+                    }
+
                     DropSocket();
+                    consecutiveFailures += 1;
+                    TimeSpan delay = consecutiveFailures <= FastRetryLimit ? FastRetryDelay : RetryDelay;
                     try
                     {
-                        await Task.Delay(RetryDelay, token).ConfigureAwait(false);
+                        await Task.Delay(delay, token).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException)
                     {
@@ -143,7 +167,11 @@ namespace EasyCPDLC.VNS430.Cdu
         {
             DropSocket();
             ClientWebSocket next = new();
-            await next.ConnectAsync(endpoint, token).ConfigureAwait(false);
+            using (CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(token))
+            {
+                timeout.CancelAfter(ConnectTimeout);
+                await next.ConnectAsync(endpoint, timeout.Token).ConfigureAwait(false);
+            }
             socket = next;
 
             // Select the font once per run only (see fontUploaded above), and give the
@@ -167,8 +195,13 @@ namespace EasyCPDLC.VNS430.Cdu
             }
 
             byte[] payload = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message));
+
+            // Bounded: a peer that stops reading (device busy) must fail the send and
+            // take the fast-retry path, never wedge the pump on a full TCP buffer.
+            using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+            timeout.CancelAfter(SendTimeout);
             await current
-                .SendAsync(new ArraySegment<byte>(payload), WebSocketMessageType.Text, true, token)
+                .SendAsync(new ArraySegment<byte>(payload), WebSocketMessageType.Text, true, timeout.Token)
                 .ConfigureAwait(false);
         }
 

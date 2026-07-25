@@ -17483,6 +17483,12 @@ airbusAocSendLabel = null;
             }
         }
 
+        // When the last non-poll packet went out. Replies that would surface within a
+        // second of the request are briefly held back: genuinely instant answers (SI's
+        // ATSU can respond in the same HTTP round trip) read as fake to pilots.
+        private DateTime lastDatalinkSendUtc = DateTime.MinValue;
+        private static readonly TimeSpan MinimumReplyLatency = TimeSpan.FromSeconds(1);
+
         private const string AtcNetworkSettingName = "AtcNetwork";
         private const string WxSourceOverrideSettingName = "WxSourceOverride";
         private const string PdcViaSettingName = "PdcVia";
@@ -21942,6 +21948,21 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
 
                 Logger.Debug("Attempting to poll Hoppie for new messages");
 
+                // Same minimum-latency rule as the SI loop: no poll within a second of
+                // an outbound request.
+                TimeSpan sinceSend = DateTime.UtcNow - lastDatalinkSendUtc;
+                if (sinceSend < MinimumReplyLatency)
+                {
+                    try
+                    {
+                        await Task.Delay(MinimumReplyLatency - sinceSend, cancellationToken);
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        break;
+                    }
+                }
+
                 // SI polling is NOT done here: this loop only exists while VATSIM-
                 // connected, and SI must poll regardless. PeriodicSayIntentionsPoll owns
                 // the SI cadence (plus Hoppie-for-VA when this loop is not running).
@@ -22162,8 +22183,20 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
                     }
                 }
 
+                if (messageType != "poll")
+                {
+                    lastDatalinkSendUtc = DateTime.UtcNow;
+                }
+
                 if (printString != "OK")
                 {
+                    // A reply can ride back in the send's own HTTP response. Hold it for
+                    // the minimum latency so an answer never displays the same instant
+                    // as the request - technically real, but it reads as fake.
+                    if (messageType != "poll")
+                    {
+                        await Task.Delay(MinimumReplyLatency);
+                    }
                     await TelexParser(printString);
                 }
 

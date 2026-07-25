@@ -76,6 +76,14 @@ namespace EasyCPDLC
 
                     if (!string.IsNullOrWhiteSpace(callsign))
                     {
+                        // Never poll within a second of an outbound request, so a reply
+                        // cannot surface the same instant the request went out.
+                        TimeSpan sinceSend = DateTime.UtcNow - lastDatalinkSendUtc;
+                        if (sinceSend < MinimumReplyLatency)
+                        {
+                            await Task.Delay(MinimumReplyLatency - sinceSend, token);
+                        }
+
                         await SendCPDLCMessage("NONE", "poll", "", true, AcarsRoute.SayIntentions);
 
                         // Keep VA traffic alive too: when the VATSIM loop is not running
