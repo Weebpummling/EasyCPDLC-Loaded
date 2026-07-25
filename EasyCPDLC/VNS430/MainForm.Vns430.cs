@@ -100,6 +100,13 @@ namespace EasyCPDLC
             return Vns430AtcNetworkLabel();
         }
 
+        // Cruise memory fed by SimConnect telemetry (via the GNS430 panel's companion
+        // link), so phase-driven behaviour works without a VATSIM position feed.
+        private readonly SimPhaseTracker simPhase = new();
+
+        internal void UpdateSimFlightPhase(double altitudeFt, bool onGround) =>
+            simPhase.Update(altitudeFt, onGround);
+
         internal string Vns430PdcViaLabel() => SavedPdcVia;
 
         // AUTO -> SI -> VATSIM -> AUTO, mirroring the CDU SETUP cycle.
@@ -346,7 +353,9 @@ namespace EasyCPDLC
                 Departure = siMode ? SayIntentionsDeparture() : AirbusAocDeparture(),
                 Arrival = siMode ? SayIntentionsArrival() : AirbusAocArrival(),
                 Aircraft = siMode ? SayIntentionsAircraft() : AirbusAocAircraft(),
-                PreferArrivalStation = flightPhaseEnrouteSeen,
+                // Either phase source can flip the prefill: the VATSIM engine when
+                // connected, the SimConnect telemetry tracker otherwise (or both).
+                PreferArrivalStation = flightPhaseEnrouteSeen || simPhase.ReachedCruise,
                 Messages = messages,
                 AtcUnitOnline = currentUnit.Length > 0 &&
                     (siMode

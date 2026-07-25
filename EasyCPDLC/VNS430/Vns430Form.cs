@@ -416,6 +416,13 @@ namespace EasyCPDLC.VNS430
             companionInput.UpdateStatus(
                 snapshot, page, cursorActive, preferences.DcduCompanionMode,
                 backend.CduCompanionStatusFlags(snapshot));
+
+            // Sim-fed flight phase: keeps departure/destination prefills working on SI,
+            // where there is no VATSIM position feed to drive the phase engine.
+            if (companionInput.TryGetTelemetry(out double altitudeFt, out bool onGround))
+            {
+                backend.UpdateSimFlightPhase(altitudeFt, onGround);
+            }
             refreshTick += 1;
 
             // Hidden with no hardware bridge attached (e.g. the CDU is the active

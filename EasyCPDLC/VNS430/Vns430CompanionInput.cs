@@ -23,6 +23,15 @@ namespace EasyCPDLC.VNS430
         private const uint ClientDataPeriodOnSet = 3;
         private const uint ClientDataRequestChanged = 1;
         private const int ClientDataPayloadOffset = 40;
+
+        // User-aircraft telemetry (altitude / on-ground) for the sim-fed flight phase.
+        private const uint TelemetryDefinitionId = 3;
+        private const uint TelemetryRequestId = 2;
+        private const uint SimConnectRecvSimObjectDataId = 8;
+        private const uint SimObjectUser = 0;
+        private const uint SimPeriodSecond = 4;
+        private const uint SimDataTypeFloat64 = 4;
+        private static readonly TimeSpan TelemetryFreshness = TimeSpan.FromSeconds(10);
         private const uint CommBusBroadcastToJs = 1;
         private const string DisplayCommBusEvent = "EasyCPDLC.VNS430.Display.v1";
 
@@ -34,6 +43,16 @@ namespace EasyCPDLC.VNS430
         private DateTime lastStatusSentUtc = DateTime.MinValue;
         private DateTime lastDisplaySentUtc = DateTime.MinValue;
         private ulong lastDisplayHash;
+        private double telemetryAltitudeFt;
+        private bool telemetryOnGround;
+        private DateTime lastTelemetryUtc = DateTime.MinValue;
+
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        private struct SimTelemetryPacket
+        {
+            internal double AltitudeFt;
+            internal double OnGround;   // SIM ON GROUND as FLOAT64: 0.0 / 1.0
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct SimConnectRecv
@@ -112,6 +131,28 @@ namespace EasyCPDLC.VNS430
         private static extern int SimConnect_CallDispatch(IntPtr handle, DispatchProc callback, IntPtr context);
 
         [DllImport("SimConnect.dll", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
+        private static extern int SimConnect_AddToDataDefinition(
+            IntPtr handle,
+            uint definitionId,
+            string datumName,
+            string unitsName,
+            uint datumType,
+            float epsilon,
+            uint datumId);
+
+        [DllImport("SimConnect.dll", CallingConvention = CallingConvention.StdCall)]
+        private static extern int SimConnect_RequestDataOnSimObject(
+            IntPtr handle,
+            uint requestId,
+            uint definitionId,
+            uint objectId,
+            uint period,
+            uint flags,
+            uint origin,
+            uint interval,
+            uint limit);
+
+        [DllImport("SimConnect.dll", CallingConvention = CallingConvention.StdCall, CharSet = CharSet.Ansi)]
         private static extern int SimConnect_CallCommBusEvent(
             IntPtr handle,
             string eventName,
@@ -126,6 +167,15 @@ namespace EasyCPDLC.VNS430
 
         internal bool Enabled => connection != IntPtr.Zero;
         internal bool ModuleActive => Enabled && DateTime.UtcNow - lastModulePacketUtc < TimeSpan.FromSeconds(3);
+
+        /// <summary>Latest user-aircraft telemetry, if fresh. False when the sim is not
+        /// delivering it (not connected, telemetry refused, or data stale).</summary>
+        internal bool TryGetTelemetry(out double altitudeFt, out bool onGround)
+        {
+            altitudeFt = telemetryAltitudeFt;
+            onGround = telemetryOnGround;
+            return Enabled && DateTime.UtcNow - lastTelemetryUtc < TelemetryFreshness;
+        }
         internal string Status { get; private set; } = "OFF";
         internal event Action<Vns430Command> CommandReceived;
 
@@ -199,8 +249,20 @@ namespace EasyCPDLC.VNS430
                     return false;
                 }
 
+                // Telemetry for the sim-fed flight phase. Deliberately OUTSIDE the fatal
+                // checks above: a host that refuses these calls costs the phase feed,
+                // never the whole companion channel.
+                if (SimConnect_AddToDataDefinition(connection, TelemetryDefinitionId, "PLANE ALTITUDE", "feet", SimDataTypeFloat64, 0f, 0) >= 0 &&
+                    SimConnect_AddToDataDefinition(connection, TelemetryDefinitionId, "SIM ON GROUND", "bool", SimDataTypeFloat64, 0f, 1) >= 0)
+                {
+                    SimConnect_RequestDataOnSimObject(
+                        connection, TelemetryRequestId, TelemetryDefinitionId,
+                        SimObjectUser, SimPeriodSecond, 0, 0, 0, 0);
+                }
+
                 lastCommandSequence = 0;
                 lastModulePacketUtc = DateTime.MinValue;
+                lastTelemetryUtc = DateTime.MinValue;
                 Status = "WAITING";
                 return true;
             }
@@ -380,6 +442,23 @@ namespace EasyCPDLC.VNS430
             }
 
             SimConnectRecvClientData received = Marshal.PtrToStructure<SimConnectRecvClientData>(data);
+
+            // User-aircraft telemetry shares the receive layout (the SIMOBJECT_DATA
+            // header fields mirror the client-data ones), distinguished by receive id.
+            if (received.Header.Id == SimConnectRecvSimObjectDataId)
+            {
+                if (received.RequestId == TelemetryRequestId &&
+                    dataSize >= ClientDataPayloadOffset + Marshal.SizeOf<SimTelemetryPacket>())
+                {
+                    SimTelemetryPacket telemetry =
+                        Marshal.PtrToStructure<SimTelemetryPacket>(IntPtr.Add(data, ClientDataPayloadOffset));
+                    telemetryAltitudeFt = telemetry.AltitudeFt;
+                    telemetryOnGround = telemetry.OnGround >= 0.5;
+                    lastTelemetryUtc = DateTime.UtcNow;
+                }
+                return;
+            }
+
             if (received.Header.Id != SimConnectRecvClientDataId || received.RequestId != CommandRequestId)
             {
                 return;
@@ -424,6 +503,7 @@ namespace EasyCPDLC.VNS430
             lastModulePacketUtc = DateTime.MinValue;
             lastDisplaySentUtc = DateTime.MinValue;
             lastDisplayHash = 0;
+            lastTelemetryUtc = DateTime.MinValue;
             Status = "OFF";
         }
 
