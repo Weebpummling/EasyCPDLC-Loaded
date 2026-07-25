@@ -153,7 +153,10 @@ namespace EasyCPDLC.VNS430
 
             Text = "EasyCPDLC - GNS430 Datalink";
             StartPosition = FormStartPosition.Manual;
-            MinimumSize = new Size(730, 355);
+            // Aspect-correct minimum. The form is borderless, so window size == client
+            // size; a minimum that does not match the panel aspect would block the
+            // normalisation below from ever reaching the right height.
+            MinimumSize = new Size(730, (int)Math.Round(730 * (LogicalHeight / (double)LogicalWidth)));
             // A larger default so the GNS430 is comfortably readable on load (only used the
             // first time, before a saved size exists).
             ClientSize = new Size((int)(LogicalWidth * DefaultLoadScale), (int)(LogicalHeight * DefaultLoadScale));
@@ -183,6 +186,8 @@ namespace EasyCPDLC.VNS430
                     Math.Max(work.Top, work.Bottom - Height - 24));
             }
 
+            NormalizeClientAspect();
+
             displayFontFamily = Vns430FontLoader.Family;
             panelButtons = CreatePanelButtons();
 
@@ -211,6 +216,30 @@ namespace EasyCPDLC.VNS430
                     preferences.Save(Bounds);
                 }
             };
+        }
+
+        // Force the client box onto the panel's aspect ratio.
+        //
+        // The form is borderless, so window size == client size. A bounds value saved by
+        // an older bordered build (and the legacy 960x455 default) still carries the old
+        // title-bar and border thickness inside it, so restoring it verbatim produced a
+        // squashed panel until the first manual resize, where WM_SIZING finally applied
+        // ConstrainToPanelAspect. Normalising on load fixes the launch size.
+        //
+        // Screen mode is exempt: it letterboxes the LCD and is free to be any shape.
+        private void NormalizeClientAspect()
+        {
+            if (preferences.ScreenOnlyMode)
+            {
+                return;
+            }
+
+            int width = Math.Max(MinimumSize.Width, ClientSize.Width);
+            int height = (int)Math.Round(width * (LogicalHeight / (double)LogicalWidth));
+            if (ClientSize.Width != width || ClientSize.Height != height)
+            {
+                ClientSize = new Size(width, height);
+            }
         }
 
         protected override void OnHandleCreated(EventArgs e)

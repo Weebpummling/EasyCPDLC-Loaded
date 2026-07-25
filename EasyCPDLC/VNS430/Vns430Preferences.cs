@@ -17,8 +17,11 @@ namespace EasyCPDLC.VNS430
 
         public int Left { get; set; } = -1;
         public int Top { get; set; } = -1;
-        public int Width { get; set; } = 960;
-        public int Height { get; set; } = 455;
+        // Panel aspect is 960 x 407. The old 960 x 455 default dated from when the form
+        // had a title bar and border; the form is borderless now, so window size is the
+        // client size and 455 produced a squashed panel on first launch.
+        public int Width { get; set; } = 1344;
+        public int Height { get; set; } = 570;
 
         private static string SettingsPath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
