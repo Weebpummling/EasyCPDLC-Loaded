@@ -6,26 +6,59 @@
 ![Networks](https://img.shields.io/badge/networks-VATSIM%20%C2%B7%20SayIntentions-blue)
 ![Datalink](https://img.shields.io/badge/datalink-Hoppie%20ACARS-blue)
 
-**EasyCPDLC-Loaded** is a datalink client for flight simulation that presents the
-same backend through swappable cockpit **instruments**. Two instruments ship in
-1.0.0-beta:
+**EasyCPDLC-Loaded is a hardware and software bridge for simulated datalink
+systems.**
+
+The goal is to get ACARS/CPDLC off your main monitor and onto something you can
+actually touch. It drives:
+
+- **WinWing CDU hardware** — the screen is mirrored to a real WinWing CDU/MCDU/PFP
+  through MobiFlight, and its keys drive the app back. Captain, First Officer, and
+  Observer units are all supported.
+- **Any small screen** — a spare monitor, a USB display panel, a tablet. Run the
+  instrument bare (no bezel artwork) and it becomes a clean cockpit display.
+- **A touchscreen** — every key and line-select is clickable, so a cheap touch panel
+  turns into a working CDU with no other hardware at all.
+- **A thermal printer** — print clearances, ATIS, and loadsheets as real paper strips.
+
+On the software side it presents one datalink backend through swappable cockpit
+**instruments**. Two ship in 1.0.0-beta:
 
 - a **Boeing 737 CDU** (an LSK + keypad MCDU front end), and
-- a **GNS430** desktop unit (a knob-and-key front end you can also drive with
-  hardware through MobiFlight).
+- a **GNS430** desktop unit (a knob-and-key front end).
 
-Both instruments share one CPDLC/ACARS backend, one set of saved credentials, and
-one weather/ATC-network configuration. You pick which instrument is on screen; only
-one runs at a time. The legacy Airbus/Boeing 2D DCDU skins are hidden in this release
+Both share one CPDLC/ACARS backend, one set of saved credentials, and one
+weather/ATC-network configuration. You pick which instrument is on screen; only one
+runs at a time. The legacy Airbus/Boeing 2D DCDU skins are hidden in this release
 while a replica Airbus DCDU is rebuilt to rejoin the instrument selector later.
+
+## Why it exists
+
+It was built so a pilot with CDU hardware can use **that hardware** to work the ACARS
+system, and switch networks without relearning anything. The same physical unit talks
+to **VATSIM** or **SayIntentions** — you change one setting, not your workflow.
+
+It also folds in **eLoadControl's** loadsheet generator, so a proper weight-and-balance
+loadsheet is a few line-selects away and prints on the same strip as everything else,
+instead of living in a browser tab on another screen.
+
+And because it is a real Hoppie client, your **virtual airline's ACARS still works**:
+VA TELEX messages and VA-issued loadsheets arrive in the same inbox, and loadsheets are
+tagged automatically however they reached you. See
+[Virtual-airline ACARS over Hoppie](#virtual-airline-acars-over-hoppie).
 
 > **Flight simulation only.** Not approved for real-world aviation, dispatch,
 > communications, loading, or any safety-critical use.
 
-> **Hoppie warning:** before you connect, set the aircraft's internal Hoppie/ATC
-> network to **NONE** and remove or disable its Hoppie code. EasyCPDLC-Loaded must be
-> the only Hoppie client using the flight's callsign, or pending messages can be split
-> unpredictably between the aircraft and this app.
+> ### ⚠️ Do not run the aircraft's own Hoppie connection
+>
+> If your aircraft has a built-in Hoppie/ACARS setup (PMDG, Fenix, iniBuilds, FSLabs,
+> ToLiss…), set its network to **NONE** and clear its logon code before connecting.
+>
+> Hoppie delivers each message **once**, to whoever asks first. Two clients on the same
+> callsign means messages are split unpredictably between them — some land in the
+> aircraft, some here, and neither shows the full conversation. EasyCPDLC-Loaded must be
+> the only Hoppie client using that callsign.
 
 ---
 
@@ -38,7 +71,7 @@ while a replica Airbus DCDU is rebuilt to rejoin the instrument selector later.
 5. [GNS430 usage guide](#gns430-usage-guide)
 6. [Virtual-airline ACARS over Hoppie](#virtual-airline-acars-over-hoppie)
 7. [Printing](#printing)
-8. [Hardware control (MobiFlight / WASM)](#hardware-control-mobiflight--wasm)
+8. [Hardware setups](#hardware-setups)
 9. [Security and privacy](#security-and-privacy)
 10. [Build from source](#build-from-source)
 11. [Credits, license, disclaimer](#credits-license-disclaimer)
@@ -52,8 +85,9 @@ while a replica Airbus DCDU is rebuilt to rejoin the instrument selector later.
 - Optional **SimBrief** account / pilot ID (flight plan + loadsheet data)
 - Optional **eLoadControl** account and API key (loadsheet generation)
 - Optional **SayIntentions** API key (SayIntentions network + weather)
-- Optional Windows-installed receipt printer (physical printing from the CDU)
-- Optional MSFS + MobiFlight for hardware control of the GNS430
+- Optional **thermal receipt printer** installed in Windows (paper strips)
+- Optional **WinWing CDU/MCDU/PFP** + MobiFlight (mirror the screen to real hardware)
+- Optional MSFS + MobiFlight for physical keys, encoders and annunciator lamps
 
 The app publishes as a self-contained Windows x64 executable. No SDK is required to
 run a release build.
@@ -119,7 +153,10 @@ On the **CDU `SETUP`** page (right column), or the **GNS430 `MENU`**:
 - **WX SOURCE** — `AUTO` (follow the network), or force `VATSIM` / `REAL WORLD` /
   `SAYINTENTIONS`.
 - **HW KEYS** — `ON` lets a physical CDU drive the panel (see
-  [hardware control](EasyCPDLC/VNS430/MSFS2024Module/README.md)).
+  [hardware setups](#hardware-setups)).
+
+Left column: `<ACCOUNT`, `<PRINTER`, `<TECHNICAL` (all stored values), and
+`<WINWING` (mirror the screen to a WinWing unit).
 
 ![CDU SETUP page](assets/screenshots/cdu-setup.png)
 
@@ -307,26 +344,71 @@ correct callsign and Hoppie code.
 
 ## Printing
 
-The 737 CDU can print the currently displayed datalink item through a small printer
-service with three modes — **ESC/POS** (raw bytes via the Windows spooler, preferred
+The 737 CDU can print the currently displayed datalink item — clearances, ATIS,
+loadsheets — as a paper strip.
+
+**Get a thermal receipt printer.** It is by far the best experience: no ink, no
+cartridges, fast, quiet, and it cuts the strip for you. Any ESC/POS receipt printer
+Windows can install will work.
+
+Three modes are supported — **ESC/POS** (raw bytes via the Windows spooler, preferred
 for receipt printers), **Windows** (rendered document), and **Mock file** (writes a
-preview + hex dump, no paper). Two paper profiles are provided: **`GENERIC 4 INCH`**
-(e.g. Citizen CT-S4000) and **`GENERIC 80MM`** (e.g. Rongta RP326).
+preview + hex dump, no paper). Two paper profiles: **`GENERIC 4 INCH`** (e.g. Citizen
+CT-S4000) and **`GENERIC 80MM`** (e.g. Rongta RP326).
 
 Configure it in **CDU `SETUP` → `<PRINTER`** (queue, mode, profile, cut, feed lines,
 test print). Print with `PRINT LAST` / `<PRINT`; `REPRINT` reprints the last job.
 Loadsheets and inbound ACARS are review-first and do not auto-print unless you enable
 auto-print by category. Always run a **Mock file** test before sending to hardware.
 
+> ### ⚠️ Measure before you buy a 3D-printed facade
+>
+> Printer shrouds and cockpit facades on Thingiverse / Printables / Etsy are usually
+> modelled around **one specific printer**, and 80 mm receipt printers vary a lot in
+> body size, paper-roll bay depth, and where the cut slot sits.
+>
+> Before buying or printing one, check the **actual dimensions of your printer**
+> against the model's stated dimensions — not just the "80 mm" paper width. A facade
+> cut for a different chassis will not fit, and the usual failures are the paper exit
+> not lining up with the slot and the lid fouling when you reload the roll.
+
 ---
 
-## Hardware control (MobiFlight / WASM)
+## Hardware setups
 
-The GNS430 can be driven by physical buttons and encoders through a private
-**MobiFlight → L-var → MSFS WASM bridge**. The tray shows a live **MobiFlight module:
-connected / not detected** status so you know whether hardware keybinds will reach the
-panel. Install and profile details are in
-[EasyCPDLC/VNS430/MSFS2024Module/README.md](EasyCPDLC/VNS430/MSFS2024Module/README.md).
+Everything below shares the same backend — mix and match.
+
+| Setup | What you need | Notes |
+|---|---|---|
+| **WinWing CDU** (best experience) | WinWing MCDU/PFP + MobiFlight | Screen mirrored to the unit, its keys drive the app. CAPT / FO / OBS supported. |
+| **Second monitor** | Any spare display | Turn off panel artwork for a clean bare screen; drag it over and leave it. |
+| **Touchscreen** | Any touch panel | Every key and line-select is clickable — a working CDU with no other hardware. |
+| **Custom buttons** | MobiFlight board | Bind the twelve LSKs and the keypad to your own switches. |
+| **Paper strips** | Thermal receipt printer | Clearances, ATIS and loadsheets as real strips. |
+| **Nothing at all** | — | Mouse and keyboard work fine. All of the above is optional. |
+
+### Mirroring to a WinWing CDU
+
+MobiFlight owns the CDU over USB and hosts a websocket server; EasyCPDLC-Loaded
+publishes frames to it, so there is no fight over the device. Set the unit's seat in
+**SimAppPro**, close SimAppPro, start MobiFlight, then choose the seat on the CDU under
+**`SETUP` → `<WINWING`** (`OFF` / `CAPT` / `FO` / `OBS`).
+
+The selection is **session-only and always starts `OFF`**, so the app can never claim a
+CDU on startup that is already showing a live aircraft display.
+
+![WINWING CDU page](assets/screenshots/cdu-winwing.png)
+
+### Physical keys and lamps
+
+Buttons, encoders and annunciator LEDs run through a private **MobiFlight → L-var →
+MSFS WASM bridge**. The CDU's `MSG`, `FAIL`, `CALL`, `OFST` and `EXEC` lamps are
+published as output variables, so a hardware unit lights exactly when the software one
+does. The tray shows a live **MobiFlight module: connected / not detected** status.
+
+A **prebuilt WASM module is included** — you do not need the MSFS SDK. Full install,
+binding and lamp-wiring steps are in the
+[hardware guide](EasyCPDLC/VNS430/MSFS2024Module/README.md).
 
 ---
 
