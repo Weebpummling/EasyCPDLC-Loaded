@@ -380,11 +380,11 @@ namespace EasyCPDLC
             string simbriefUser = SimbriefID;
             if (string.IsNullOrWhiteSpace(key))
             {
-                throw new InvalidOperationException("SAVE ELOADCONTROL API KEY IN SETUP FIRST.");
+                throw new InvalidOperationException("SET ELOAD KEY FIRST");
             }
             if (string.IsNullOrWhiteSpace(simbriefUser))
             {
-                throw new InvalidOperationException("SAVE SIMBRIEF USER IN SETUP FIRST.");
+                throw new InvalidOperationException("SET SIMBRIEF USER FIRST");
             }
 
             SimbriefLoadsheetData flight = await new SimbriefLoadsheetClient()
@@ -397,11 +397,11 @@ namespace EasyCPDLC
                 .ToList();
             if (usableAircraft.Count == 0)
             {
-                throw new InvalidOperationException("ELOADCONTROL HAS NO USABLE AIRCRAFT MATCH.");
+                throw new InvalidOperationException("NO AIRCRAFT MATCH");
             }
             if (reference.Formats.Count == 0)
             {
-                throw new InvalidOperationException("ELOADCONTROL RETURNED NO LOADSHEET FORMATS.");
+                throw new InvalidOperationException("NO LOADSHEET FORMATS");
             }
 
             ELoadReferenceData usable = new() { Aircraft = usableAircraft, Formats = reference.Formats };

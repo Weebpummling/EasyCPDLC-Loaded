@@ -300,17 +300,19 @@ namespace EasyCPDLC
         private static void RenderCduMenu(CduGrid grid, Vns430BackendSnapshot snapshot)
         {
             RenderCduHeader(grid, "MCDU MENU", snapshot);
-            grid.WriteLeft(CduLayout.DataRow(1), "<DLK", CduColor.White);
-            grid.WriteLeft(CduLayout.DataRow(2), "<ATC", CduColor.White);
-            grid.WriteLeft(CduLayout.DataRow(3), "<AOC", CduColor.White);
-            grid.WriteLeft(CduLayout.DataRow(4), "<MSG", CduColor.White);
-            grid.WriteLeft(CduLayout.DataRow(5), "<SETUP", CduColor.White);
 
-            // Right-hand hints for the pages not yet fully ported.
-            grid.WriteRight(CduLayout.LabelRow(2), "STATUS/LOGON", CduColor.Cyan, small: true);
-            grid.WriteRight(CduLayout.LabelRow(3), "REQUESTS", CduColor.Cyan, small: true);
-            grid.WriteRight(CduLayout.LabelRow(4), "TELEX/WX/LOAD", CduColor.Cyan, small: true);
-            grid.WriteRight(CduLayout.LabelRow(5), "INBOX", CduColor.Cyan, small: true);
+            // Each item carries a small caption above it; the right column is intentionally
+            // unused on the menu.
+            grid.WriteLeft(CduLayout.LabelRow(1), "STATUS", CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(1), "<DLK", CduColor.White);
+            grid.WriteLeft(CduLayout.LabelRow(2), "REQUESTS", CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(2), "<ATC", CduColor.White);
+            grid.WriteLeft(CduLayout.LabelRow(3), "TELEX/WX", CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(3), "<AOC", CduColor.White);
+            grid.WriteLeft(CduLayout.LabelRow(4), "INBOX", CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(4), "<MSG", CduColor.White);
+            grid.WriteLeft(CduLayout.LabelRow(5), "CONFIG", CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(5), "<SETUP", CduColor.White);
         }
 
         private void RenderCduDlk(CduGrid grid, Vns430BackendSnapshot snapshot)
@@ -625,7 +627,7 @@ namespace EasyCPDLC
             ("TELEX", Vns430WorkflowKind.AocTelex),
             ("METAR", Vns430WorkflowKind.AocMetar),
             ("ATIS", Vns430WorkflowKind.AocAtis),
-            ("PDC / PREDEP", Vns430WorkflowKind.AocPreDeparture),
+            ("PDC", Vns430WorkflowKind.AocPreDeparture),
             ("OCEANIC", Vns430WorkflowKind.AocOceanic)
         };
 
@@ -882,7 +884,7 @@ namespace EasyCPDLC
                 hasPrinter ? CduColor.Green : CduColor.Amber);
 
             RenderCduSetupField(grid, 2, false, "MODE", PrinterModeText(PrinterMode));
-            RenderCduSetupField(grid, 3, false, "PROFILE", DatalinkPrinter.GetProfileDisplayName(PrinterProfile));
+            RenderCduSetupField(grid, 3, false, "PROFILE", PrinterProfileText(PrinterProfile));
             RenderCduSetupField(grid, 4, false, "CUT", PrinterCutMode.ToString().ToUpperInvariant());
 
             RenderCduSetupField(grid, 2, true, "FEED LINES", PrinterFeedLines.ToString());
@@ -899,6 +901,11 @@ namespace EasyCPDLC
             DatalinkPrinterMode.MockFile => "MOCK FILE",
             _ => "WINDOWS"
         };
+
+        // Short profile names so they fit the half-width field (the full display names
+        // truncate to unreadable fragments like "GENERIC 4 I").
+        private static string PrinterProfileText(DatalinkPrinterProfile profile) =>
+            profile == DatalinkPrinterProfile.CitizenCtS4000_112Mm ? "4 INCH" : "80MM";
 
         private static void RenderCduSetupField(CduGrid grid, int lsk, bool right, string label, string value)
         {
