@@ -17,7 +17,7 @@ namespace EasyCPDLC.VNS430.Cdu
 
         // The EXEC annunciator bar above the EXEC key. Lit (green) only while a
         // network-transmitting action is armed; dark otherwise.
-        public static readonly RectangleF ExecLight = new(0.788f, 0.529f, 0.058f, 0.015f);
+        public static readonly RectangleF ExecLight = new(0.784f, 0.531f, 0.066f, 0.009f);
 
         public static readonly (string Name, RectangleF Rect)[] Keys =
         {
