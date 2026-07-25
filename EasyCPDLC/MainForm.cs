@@ -19034,6 +19034,12 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 styleMenu.DropDownItems.Add(trayStyleAirbusItem);
                 styleMenu.DropDownItems.Add(trayStyleBoeingItem);
                 styleMenu.DropDownItems.Add(trayStyleCduItem);
+                ToolStripMenuItem cduLampTest = new("CDU annunciator lamp test")
+                {
+                    CheckOnClick = false
+                };
+                cduLampTest.Click += (_, __) => { ToggleCduAnnunciatorTest(); cduLampTest.Checked = IsCduAnnunciatorTest(); };
+                styleMenu.DropDownItems.Add(cduLampTest);
                 trayMenu.Items.Add(styleMenu);
 
                 trayMenu.Items.Add("Open VNS430 panel", null, (_, __) => ShowVns430Panel());

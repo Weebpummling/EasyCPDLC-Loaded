@@ -19,6 +19,17 @@ namespace EasyCPDLC.VNS430.Cdu
         // network-transmitting action is armed; dark otherwise.
         public static readonly RectangleF ExecLight = new(0.780f, 0.5515f, 0.074f, 0.009f);
 
+        // Side annunciator lights (vertical labels in the recessed edge slots). Lit only
+        // when driven; CALL/MSG/OFST illuminate white, FAIL amber. Amber == true marks the
+        // amber ones. Standby to bind these to L-vars in the WASM bridge for hardware.
+        public static readonly (string Name, RectangleF Rect, bool Amber)[] Annunciators =
+        {
+            ("CALL", new RectangleF(0.050f, 0.663f, 0.050f, 0.073f), false),
+            ("FAIL", new RectangleF(0.050f, 0.744f, 0.050f, 0.073f), true),
+            ("MSG",  new RectangleF(0.902f, 0.663f, 0.050f, 0.073f), false),
+            ("OFST", new RectangleF(0.902f, 0.744f, 0.050f, 0.073f), false),
+        };
+
         public static readonly (string Name, RectangleF Rect)[] Keys =
         {
             ("L1", new RectangleF(0.01561f, 0.1178f, 0.082f, 0.052f)),

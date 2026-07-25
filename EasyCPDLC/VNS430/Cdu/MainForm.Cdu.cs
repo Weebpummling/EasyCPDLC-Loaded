@@ -54,6 +54,20 @@ namespace EasyCPDLC
         private Action cduArmedAction;
         private string cduArmedKey = string.Empty;
 
+        // Lamp test: light every side annunciator so their look can be verified/tuned.
+        private bool cduAnnunciatorTest;
+
+        internal bool IsCduAnnunciatorTest() => cduAnnunciatorTest;
+
+        internal void ToggleCduAnnunciatorTest()
+        {
+            cduAnnunciatorTest = !cduAnnunciatorTest;
+            if (IsCduModeActive())
+            {
+                RefreshCduDisplay();
+            }
+        }
+
         private void CduArm(string key, string prompt, Action action)
         {
             cduArmedKey = key;
@@ -236,7 +250,25 @@ namespace EasyCPDLC
             }
 
             cduDisplayPanel.ExecArmed = cduArmedAction != null;
+            cduDisplayPanel.LitAnnunciators = CduLitAnnunciators(snapshot);
             cduDisplayPanel.RefreshDisplay();
+        }
+
+        // Which side annunciators are lit. A lamp test lights all four; otherwise they
+        // follow real state (more drivers arrive when the bridge L-vars are wired).
+        private List<string> CduLitAnnunciators(Vns430BackendSnapshot snapshot)
+        {
+            if (cduAnnunciatorTest)
+            {
+                return new List<string> { "CALL", "FAIL", "MSG", "OFST" };
+            }
+
+            List<string> lit = new();
+            if (snapshot.Messages.Any(m => m.Unread && !m.Outbound))
+            {
+                lit.Add("MSG");
+            }
+            return lit;
         }
 
         // Shared title row: page name centred, callsign at far left, link state at far right.

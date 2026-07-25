@@ -48,6 +48,9 @@ namespace EasyCPDLC.VNS430.Cdu
         // Lights the EXEC annunciator when a transmit action is armed.
         public bool ExecArmed { get; set; }
 
+        // Names of the side annunciators (CALL/FAIL/MSG/OFST) currently lit.
+        public IReadOnlyCollection<string> LitAnnunciators { get; set; } = System.Array.Empty<string>();
+
         public ICduDisplaySink Sink { get; set; } = NullCduDisplaySink.Instance;
 
         public event EventHandler<CduLskEventArgs> LskPressed;
@@ -118,6 +121,8 @@ namespace EasyCPDLC.VNS430.Cdu
             }
 
             DrawScreen(g, ToPixels(CduPanelLayout.Screen));
+
+            DrawAnnunciators(g);
 
             // The artwork draws the EXEC annunciator lit. By default mask it with the
             // adjacent bezel colour so it reads off; drop the mask when a transmit action
@@ -250,6 +255,49 @@ namespace EasyCPDLC.VNS430.Cdu
             {
                 pressedRect = null;
                 Invalidate();
+            }
+        }
+
+        // Simulate a lit side annunciator: a soft hue around it plus a colour wash over
+        // the artwork lettering. CALL/MSG/OFST are white; FAIL is amber.
+        private void DrawAnnunciators(Graphics g)
+        {
+            if (LitAnnunciators == null || LitAnnunciators.Count == 0)
+            {
+                return;
+            }
+
+            foreach ((string name, RectangleF rect, bool amber) in CduPanelLayout.Annunciators)
+            {
+                bool lit = false;
+                foreach (string n in LitAnnunciators)
+                {
+                    if (string.Equals(n, name, StringComparison.OrdinalIgnoreCase)) { lit = true; break; }
+                }
+                if (!lit)
+                {
+                    continue;
+                }
+
+                Color colour = amber ? Color.FromArgb(255, 176, 48) : Color.FromArgb(240, 244, 240);
+                RectangleF r = ToPixels(rect);
+
+                // Colour wash over the lettering to make it read as illuminated.
+                using (SolidBrush wash = new(Color.FromArgb(80, colour)))
+                {
+                    using GraphicsPath body = RoundedRect(r, Math.Min(r.Width, r.Height) * 0.28f);
+                    g.FillPath(wash, body);
+                }
+
+                // Soft hue around the label.
+                RectangleF glowRect = RectangleF.Inflate(r, r.Width * 0.55f, r.Height * 0.10f);
+                using GraphicsPath glow = RoundedRect(glowRect, Math.Min(glowRect.Width, glowRect.Height) * 0.3f);
+                using PathGradientBrush hue = new(glow)
+                {
+                    CenterColor = Color.FromArgb(120, colour),
+                    SurroundColors = new[] { Color.FromArgb(0, colour) }
+                };
+                g.FillPath(hue, glow);
             }
         }
 
