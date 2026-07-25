@@ -20,14 +20,22 @@ namespace EasyCPDLC.VNS430.Cdu
 
     // On-screen renderer for the LSK-only CDU. It paints the Boeing 737NG CDU panel artwork,
     // renders the 24x14 character grid into the artwork's screen rectangle, and hit-tests the
-    // artwork's own key rectangles (from CduPanelLayout). A pressed key is shown by darkening
-    // its region of the same artwork. It has no knowledge of the datalink backend; MainForm.Cdu
+    // artwork's own key rectangles (from CduPanelLayout). A pressed key is shown with a short
+    // "pushed-in" highlight (recess shadow + lip sheen), and the same feedback flashes for
+    // keyboard/hardware key input. It has no knowledge of the datalink backend; MainForm.Cdu
     // populates the grid and reacts to the LskPressed / KeyPressed events.
     internal sealed class CduDisplayPanel : Control
     {
         private static Image panelArt;
         private readonly Dictionary<string, Vns430Command> keyCommands = BuildKeyCommands();
+
+        // Press feedback: the currently-pressed key rect (in normalized coords), whether a
+        // mouse button is physically holding it down, and a timer that guarantees a brief
+        // minimum flash so even a fast click or a keyboard key reads as pressed.
         private RectangleF? pressedRect;
+        private bool pressHeld;
+        private Timer pressTimer;
+        private const int PressFlashMs = 110;
 
         public CduDisplayPanel()
         {
@@ -41,6 +49,15 @@ namespace EasyCPDLC.VNS430.Cdu
             TabStop = true;
             Grid = new CduGrid();
             panelArt ??= LoadPanelArt();
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                pressTimer?.Dispose();
+            }
+            base.Dispose(disposing);
         }
 
         public CduGrid Grid { get; }
@@ -150,9 +167,7 @@ namespace EasyCPDLC.VNS430.Cdu
 
             if (pressedRect.HasValue)
             {
-                RectangleF pr = ToPixels(pressedRect.Value);
-                using SolidBrush press = new(Color.FromArgb(120, 0, 0, 0));
-                g.FillRectangle(press, pr);
+                DrawKeyPress(g, ToPixels(pressedRect.Value));
             }
 
             DrawCornerHandles(g);
@@ -237,8 +252,7 @@ namespace EasyCPDLC.VNS430.Cdu
             {
                 if (ToPixels(rect).Contains(e.Location))
                 {
-                    pressedRect = rect;
-                    Invalidate();
+                    BeginPress(rect, held: true);
                     Activate(name);
                     return;
                 }
@@ -251,11 +265,108 @@ namespace EasyCPDLC.VNS430.Cdu
         protected override void OnMouseUp(MouseEventArgs e)
         {
             base.OnMouseUp(e);
-            if (pressedRect.HasValue)
+            // Release the hold; the flash timer clears the highlight once the minimum
+            // visible time has elapsed, so a fast click still reads as a press.
+            pressHeld = false;
+        }
+
+        // Show a key as pressed. held == true keeps it lit while a mouse button is down;
+        // held == false is a momentary flash (keyboard/hardware), auto-cleared by the timer.
+        private void BeginPress(RectangleF normRect, bool held)
+        {
+            pressedRect = normRect;
+            pressHeld = held;
+            EnsurePressTimer();
+            pressTimer.Stop();
+            pressTimer.Start();
+            Invalidate();
+        }
+
+        private void EnsurePressTimer()
+        {
+            if (pressTimer != null)
             {
-                pressedRect = null;
-                Invalidate();
+                return;
             }
+            pressTimer = new Timer { Interval = PressFlashMs };
+            pressTimer.Tick += (_, __) =>
+            {
+                if (pressHeld)
+                {
+                    return;   // stay lit while the key is physically held down
+                }
+                pressTimer.Stop();
+                if (pressedRect.HasValue)
+                {
+                    pressedRect = null;
+                    Invalidate();
+                }
+            };
+        }
+
+        // Flash the named key (keyboard/hardware input has no mouse rect of its own).
+        private void FlashKey(string name)
+        {
+            foreach ((string keyName, RectangleF rect) in CduPanelLayout.Keys)
+            {
+                if (string.Equals(keyName, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    BeginPress(rect, held: false);
+                    return;
+                }
+            }
+        }
+
+        // Draw a pressed key as a "pushed-in" face: the whole key dims slightly, a soft
+        // shadow falls from the top (bezel lip over the recessed key), and the lower lip
+        // catches a thin sheen. Reads as depth instead of a flat dark box.
+        private void DrawKeyPress(Graphics g, RectangleF keyPx)
+        {
+            RectangleF r = RectangleF.Inflate(keyPx, -keyPx.Width * 0.04f, -keyPx.Height * 0.06f);
+            if (r.Width <= 1f || r.Height <= 1f)
+            {
+                return;
+            }
+
+            SmoothingMode prevSmoothing = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+
+            float radius = Math.Min(r.Width, r.Height) * 0.32f;
+            using GraphicsPath key = RoundedRect(r, radius);
+
+            Region prevClip = g.Clip;
+            g.SetClip(key, CombineMode.Intersect);
+
+            // Whole face dims a touch as the key travels down.
+            using (SolidBrush dim = new(Color.FromArgb(55, 0, 0, 0)))
+            {
+                g.FillPath(dim, key);
+            }
+
+            // Top inner shadow: the bezel lip shadows the recessed top edge.
+            RectangleF top = new(r.X, r.Y - 1f, r.Width, (r.Height * 0.62f) + 1f);
+            using (LinearGradientBrush shade = new(top, Color.FromArgb(150, 0, 0, 0), Color.FromArgb(0, 0, 0, 0), LinearGradientMode.Vertical))
+            {
+                g.FillRectangle(shade, top);
+            }
+
+            // Bottom sheen: the lower lip tilts up into the light.
+            RectangleF bottom = new(r.X, r.Y + (r.Height * 0.70f), r.Width, (r.Height * 0.30f) + 1f);
+            using (LinearGradientBrush sheen = new(bottom, Color.FromArgb(0, 255, 255, 255), Color.FromArgb(60, 255, 255, 255), LinearGradientMode.Vertical))
+            {
+                g.FillRectangle(sheen, bottom);
+            }
+
+            g.Clip = prevClip;
+            prevClip.Dispose();
+
+            // Seat the pressed key with a thin dark ring so it sits below the bezel.
+            using (Pen ring = new(Color.FromArgb(105, 0, 0, 0), Math.Max(1f, r.Height * 0.035f)))
+            {
+                g.DrawPath(ring, key);
+            }
+
+            g.SmoothingMode = prevSmoothing;
         }
 
         // Simulate a lit side annunciator: a soft hue around it plus a colour wash over
@@ -378,21 +489,27 @@ namespace EasyCPDLC.VNS430.Cdu
         {
             if (keyData >= Keys.F1 && keyData <= Keys.F6)
             {
-                LskPressed?.Invoke(this, new CduLskEventArgs((keyData - Keys.F1) + 1, false));
+                int index = (keyData - Keys.F1) + 1;
+                FlashKey("L" + index);
+                LskPressed?.Invoke(this, new CduLskEventArgs(index, false));
                 return true;
             }
             if (keyData >= Keys.F7 && keyData <= Keys.F12)
             {
-                LskPressed?.Invoke(this, new CduLskEventArgs((keyData - Keys.F7) + 1, true));
+                int index = (keyData - Keys.F7) + 1;
+                FlashKey("R" + index);
+                LskPressed?.Invoke(this, new CduLskEventArgs(index, true));
                 return true;
             }
             if (keyData == Keys.Back)
             {
+                FlashKey("CLR");
                 ScratchpadBackspace?.Invoke(this, EventArgs.Empty);
                 return true;
             }
             if (keyData == Keys.Delete)
             {
+                FlashKey("DEL");
                 ScratchpadClear?.Invoke(this, EventArgs.Empty);
                 return true;
             }
@@ -405,6 +522,14 @@ namespace EasyCPDLC.VNS430.Cdu
             char c = char.ToUpperInvariant(e.KeyChar);
             if ((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ' ' || c == '.' || c == '/' || c == '-')
             {
+                FlashKey(c switch
+                {
+                    ' ' => "SP",
+                    '.' => "DOT",
+                    '/' => "SLASH",
+                    '-' => "PLUSMINUS",
+                    _ => c.ToString()
+                });
                 CharTyped?.Invoke(this, c);
                 e.Handled = true;
             }
