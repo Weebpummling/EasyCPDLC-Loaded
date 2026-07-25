@@ -119,14 +119,17 @@ namespace EasyCPDLC.VNS430.Cdu
 
             DrawScreen(g, ToPixels(CduPanelLayout.Screen));
 
-            // EXEC annunciator. The artwork draws it lit (its true real-life look), which
-            // is what we show while a transmit action is armed. Otherwise paint the bar in
-            // the unlit bezel colour so it reads as off, switching between the two states.
-            if (!ExecArmed)
+            // EXEC annunciator, drawn explicitly in both states so it always reads: a lit
+            // green bar while a transmit action is armed, an unlit dark bar otherwise.
+            RectangleF execLight = ToPixels(CduPanelLayout.ExecLight);
+            using (SolidBrush exec = new(ExecArmed ? Color.FromArgb(150, 255, 170) : Color.FromArgb(40, 43, 40)))
             {
-                RectangleF execLight = ToPixels(CduPanelLayout.ExecLight);
-                using SolidBrush off = new(Color.FromArgb(38, 40, 38));
-                g.FillRectangle(off, execLight);
+                g.FillRectangle(exec, execLight);
+            }
+            if (ExecArmed)
+            {
+                using Pen glow = new(Color.FromArgb(90, 255, 210), Math.Max(1f, execLight.Height * 0.18f));
+                g.DrawRectangle(glow, execLight.X, execLight.Y, execLight.Width, execLight.Height);
             }
 
             if (pressedRect.HasValue)
