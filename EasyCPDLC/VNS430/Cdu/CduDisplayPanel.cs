@@ -139,8 +139,14 @@ namespace EasyCPDLC.VNS430.Cdu
             float cellH = screen.Height / CduGrid.Rows;
             float large = Math.Max(6f, cellH * 0.82f);
             float small = Math.Max(5f, cellH * 0.64f);
-            using Font largeFont = new("Consolas", large, FontStyle.Bold, GraphicsUnit.Pixel);
-            using Font smallFont = new("Consolas", small, FontStyle.Regular, GraphicsUnit.Pixel);
+
+            // B612 Mono is the typeface designed for aircraft cockpit displays and ships
+            // with the app; it reads far truer on the CDU than Consolas and, being a real
+            // fixed-grid monospace, aligns cleanly to the character cells.
+            FontFamily family = EasyCPDLC.VNS430.Vns430FontLoader.Family;
+            FontStyle boldStyle = family.IsStyleAvailable(FontStyle.Bold) ? FontStyle.Bold : FontStyle.Regular;
+            using Font largeFont = new(family, large, boldStyle, GraphicsUnit.Pixel);
+            using Font smallFont = new(family, small, FontStyle.Regular, GraphicsUnit.Pixel);
             using StringFormat fmt = new(StringFormat.GenericTypographic)
             {
                 Alignment = StringAlignment.Center,
