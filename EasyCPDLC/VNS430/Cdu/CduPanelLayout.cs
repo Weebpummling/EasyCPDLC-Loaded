@@ -24,8 +24,8 @@ namespace EasyCPDLC.VNS430.Cdu
         // amber ones. Standby to bind these to L-vars in the WASM bridge for hardware.
         public static readonly (string Name, RectangleF Rect, bool Amber)[] Annunciators =
         {
-            ("CALL", new RectangleF(0.050f, 0.699f, 0.050f, 0.073f), false),
-            ("FAIL", new RectangleF(0.050f, 0.780f, 0.050f, 0.073f), true),
+            ("CALL", new RectangleF(0.040f, 0.699f, 0.050f, 0.073f), false),
+            ("FAIL", new RectangleF(0.040f, 0.780f, 0.050f, 0.073f), true),
             ("MSG",  new RectangleF(0.902f, 0.699f, 0.050f, 0.073f), false),
             ("OFST", new RectangleF(0.902f, 0.780f, 0.050f, 0.073f), false),
         };
