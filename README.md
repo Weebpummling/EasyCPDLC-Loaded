@@ -343,7 +343,7 @@ dotnet publish .\EasyCPDLC\EasyCPDLC.csproj -c Release
 
 EasyCPDLC-Loaded builds on the EasyCPDLC lineage:
 
-- Upstream print/eLC fork: [Weebpummling/EasyCPDLC-Modernized-Printer-eLC](https://github.com/Weebpummling/EasyCPDLC-Modernized-Printer-eLC)
+- This project: [Weebpummling/EasyCPDLC-Loaded](https://github.com/Weebpummling/EasyCPDLC-Loaded) (formerly `EasyCPDLC-Modernized-Printer-eLC`)
 - Immediate upstream: [fresH229a/EasyCPDLC-Modernized](https://github.com/fresH229a/EasyCPDLC-Modernized)
 - Original project: [quassbutreally/EasyCPDLC](https://github.com/quassbutreally/EasyCPDLC) — © 2022 Joshua Seagrave
 
