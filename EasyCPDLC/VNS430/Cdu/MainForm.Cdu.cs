@@ -403,15 +403,15 @@ namespace EasyCPDLC
                 }
             }
 
-            // Compact scroll hint on the small line above PRINT: which page directions exist.
+            // Scroll prompt at the bottom-right, phrased to point at the PREV/NEXT PAGE
+            // keys rather than looking like an LSK label.
             bool canPrev = cduDetailScroll > 0;
             bool canNext = cduDetailScroll + bodyRows < lines.Count;
             if (canPrev || canNext)
             {
-                string hint = (canPrev ? "PREV" : string.Empty)
-                    + (canPrev && canNext ? "/" : string.Empty)
-                    + (canNext ? "NEXT" : string.Empty);
-                grid.WriteRight(CduLayout.LabelRow(4), hint, CduColor.Cyan, small: true);
+                string hint = (canPrev ? "PREV PAGE? " : string.Empty) + (canNext ? "NEXT PAGE?" : string.Empty);
+                hint = hint.Trim();
+                grid.Write(CduLayout.ScratchpadRow, Math.Max(0, CduGrid.Cols - hint.Length), hint, CduColor.Cyan, small: true);
             }
 
             // Bottom-left LSKs (4,5,6): available CPDLC replies.
