@@ -120,6 +120,8 @@ namespace EasyCPDLC.VNS430
         private Point screenPressOrigin;
         private bool screenDragging;
         private bool clearAllArmed;   // GNS430 menu CLEAR ALL MESSAGES confirm state
+        private int messageFilter;    // 0 = ALL, 1 = RECEIVED, 2 = SENT
+        private static readonly string[] MessageFilters = { "ALL", "RECEIVED", "SENT" };
         private Vns430Workflow workflow;
         private int workflowCharacter;
         private Vns430LoadControlSession loadSession;
@@ -445,13 +447,14 @@ namespace EasyCPDLC.VNS430
                 return;
             }
 
-            if (snapshot.Messages.Count == 0)
+            int visibleCount = VisibleMessages().Count;
+            if (visibleCount == 0)
             {
                 selectedIndex = 0;
             }
             else
             {
-                selectedIndex = Math.Clamp(selectedIndex, 0, snapshot.Messages.Count - 1);
+                selectedIndex = Math.Clamp(selectedIndex, 0, visibleCount - 1);
             }
         }
 
@@ -493,7 +496,16 @@ namespace EasyCPDLC.VNS430
                     ToggleMenu();
                     break;
                 case Vns430Command.Message:
-                    OpenMessages(true);
+                    // First press opens the inbox; pressing MSG again cycles the
+                    // ALL -> RECEIVED -> SENT filter (the CDU's RECEIVED/SENT split).
+                    if (page == Vns430Page.Messages)
+                    {
+                        CycleMessageFilter();
+                    }
+                    else
+                    {
+                        OpenMessages(true);
+                    }
                     break;
                 case Vns430Command.Nearest:
                     OpenMessages(false);
@@ -562,9 +574,10 @@ namespace EasyCPDLC.VNS430
 
             if (page == Vns430Page.Messages)
             {
-                if (cursorActive && snapshot.Messages.Count > 0)
+                int visibleCount = VisibleMessages().Count;
+                if (cursorActive && visibleCount > 0)
                 {
-                    selectedIndex = Wrap(selectedIndex + direction, snapshot.Messages.Count);
+                    selectedIndex = Wrap(selectedIndex + direction, visibleCount);
                 }
                 else if (!cursorActive)
                 {
@@ -1007,7 +1020,7 @@ namespace EasyCPDLC.VNS430
             detailScrollLine = 0;
             responseIndex = 0;
             selectedIndex = ShouldPreserveMessageSelection(newPage)
-                ? Math.Clamp(selectedIndex, 0, Math.Max(0, snapshot.Messages.Count - 1))
+                ? Math.Clamp(selectedIndex, 0, Math.Max(0, VisibleMessages().Count - 1))
                 : 0;
             if (newPage != Vns430Page.AtcRequest && newPage != Vns430Page.AocRequest)
             {
@@ -1015,11 +1028,26 @@ namespace EasyCPDLC.VNS430
             }
         }
 
+        private string MessageFilterLabel() => MessageFilters[Math.Clamp(messageFilter, 0, MessageFilters.Length - 1)];
+
+        // The messages visible under the current RECEIVED/SENT/ALL filter. Shared with the
+        // renderer (Vns430LcdRenderer.FilterMessages) so the selection index lines up.
+        private IReadOnlyList<Vns430MessageSnapshot> VisibleMessages() =>
+            Vns430LcdRenderer.FilterMessages(snapshot.Messages, MessageFilterLabel());
+
+        private void CycleMessageFilter()
+        {
+            messageFilter = (messageFilter + 1) % MessageFilters.Length;
+            selectedIndex = 0;
+            SetTransient("MSG " + MessageFilterLabel());
+        }
+
         private Vns430MessageSnapshot SelectedMessage()
         {
-            return snapshot.Messages.Count == 0
+            IReadOnlyList<Vns430MessageSnapshot> messages = VisibleMessages();
+            return messages.Count == 0
                 ? null
-                : snapshot.Messages[Math.Clamp(selectedIndex, 0, snapshot.Messages.Count - 1)];
+                : messages[Math.Clamp(selectedIndex, 0, messages.Count - 1)];
         }
 
         private List<string> MenuItems()
@@ -1041,7 +1069,7 @@ namespace EasyCPDLC.VNS430
         private void OpenMessages(bool prioritizeUnread)
         {
             int unread = prioritizeUnread
-                ? snapshot.Messages.ToList().FindIndex(message => message.Unread && !message.Outbound)
+                ? VisibleMessages().ToList().FindIndex(message => message.Unread && !message.Outbound)
                 : -1;
             if (unread >= 0)
             {
@@ -1201,7 +1229,8 @@ namespace EasyCPDLC.VNS430
             if (result.Success)
             {
                 RefreshSnapshot();
-                int received = snapshot.Messages.ToList().FindIndex(message =>
+                messageFilter = 0;   // show ALL so the freshly generated loadsheet is visible
+                int received = VisibleMessages().ToList().FindIndex(message =>
                     message.Unread && string.Equals(message.Type, "LOADSHEET", StringComparison.OrdinalIgnoreCase));
                 selectedIndex = Math.Max(0, received);
                 SetPage(received >= 0 ? Vns430Page.MessageDetail : Vns430Page.Messages, true, Vns430PageGroup.Nrst);
@@ -1391,6 +1420,7 @@ namespace EasyCPDLC.VNS430
                 LogonCode = logonCode,
                 LogonCharacter = logonCharacter,
                 TransientStatus = DateTime.UtcNow < transientStatusUntilUtc ? transientStatus : string.Empty,
+                MessageFilter = MessageFilterLabel(),
                 MenuItems = MenuItems(),
                 Workflow = workflow,
                 WorkflowCharacter = workflowCharacter,
@@ -2058,7 +2088,7 @@ namespace EasyCPDLC.VNS430
             else if (page == Vns430Page.Messages && screenY >= 13 && screenY < 111 && screenX >= 61)
             {
                 int first = Math.Max(0, selectedIndex - 5);
-                selectedIndex = Math.Clamp(first + (int)((screenY - 13) / 14), 0, Math.Max(0, snapshot.Messages.Count - 1));
+                selectedIndex = Math.Clamp(first + (int)((screenY - 13) / 14), 0, Math.Max(0, VisibleMessages().Count - 1));
                 cursorActive = true;
                 ActivateSelection();
             }

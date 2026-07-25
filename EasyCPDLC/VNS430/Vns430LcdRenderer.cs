@@ -22,6 +22,7 @@ namespace EasyCPDLC.VNS430
         internal string LogonCode { get; init; } = "____";
         internal int LogonCharacter { get; init; }
         internal string TransientStatus { get; init; } = string.Empty;
+        internal string MessageFilter { get; init; } = "ALL";
         internal IReadOnlyList<string> MenuItems { get; init; } = Array.Empty<string>();
         internal Vns430Workflow Workflow { get; init; }
         internal int WorkflowCharacter { get; init; }
@@ -55,6 +56,7 @@ namespace EasyCPDLC.VNS430
             Mix(ref hash, LogonCode);
             Mix(ref hash, LogonCharacter);
             Mix(ref hash, TransientStatus);
+            Mix(ref hash, MessageFilter);
             Mix(ref hash, WorkflowCharacter);
             Mix(ref hash, OperationBusy);
             Mix(ref hash, OperationStatus);
@@ -386,11 +388,28 @@ namespace EasyCPDLC.VNS430
             Text(display, bounds.X + 3, bounds.Y + 3, Fit(value, Math.Max(1, (bounds.Width - 6) / 6), string.Empty), selected ? Black : Green);
         }
 
+        // Received / sent / all message filter, shared by the renderer and the form so the
+        // selection index maps to the same list in both.
+        internal static IReadOnlyList<Vns430MessageSnapshot> FilterMessages(
+            IReadOnlyList<Vns430MessageSnapshot> messages, string filter)
+        {
+            if (messages == null)
+            {
+                return Array.Empty<Vns430MessageSnapshot>();
+            }
+            return filter switch
+            {
+                "RECEIVED" => messages.Where(message => !message.Outbound).ToList(),
+                "SENT" => messages.Where(message => message.Outbound).ToList(),
+                _ => messages
+            };
+        }
+
         private static void DrawMessages(Bitmap display, Vns430LcdState state)
         {
-            Header(display, "DATALINK MESSAGES");
+            Header(display, state.MessageFilter == "ALL" ? "DATALINK MESSAGES" : "MESSAGES - " + state.MessageFilter);
             Box(display, new Rectangle(59, 10, 178, 105), Cyan, Black);
-            IReadOnlyList<Vns430MessageSnapshot> messages = state.Snapshot.Messages;
+            IReadOnlyList<Vns430MessageSnapshot> messages = FilterMessages(state.Snapshot.Messages, state.MessageFilter);
             if (messages.Count == 0)
             {
                 Vns430BitmapFont.DrawCentered(display, new Rectangle(59, 10, 178, 105), "NO MESSAGES", Green);
@@ -734,9 +753,10 @@ namespace EasyCPDLC.VNS430
 
         private static Vns430MessageSnapshot SelectedMessage(Vns430LcdState state)
         {
-            return state.Snapshot.Messages.Count == 0
+            IReadOnlyList<Vns430MessageSnapshot> messages = FilterMessages(state.Snapshot.Messages, state.MessageFilter);
+            return messages.Count == 0
                 ? null
-                : state.Snapshot.Messages[Math.Clamp(state.SelectedIndex, 0, state.Snapshot.Messages.Count - 1)];
+                : messages[Math.Clamp(state.SelectedIndex, 0, messages.Count - 1)];
         }
 
         private static void ScrollBar(Bitmap display, int first, int total, int visible)

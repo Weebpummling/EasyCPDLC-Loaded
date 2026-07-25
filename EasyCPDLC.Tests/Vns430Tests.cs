@@ -498,6 +498,7 @@ namespace EasyCPDLC.Tests
             [nameof(Vns430LcdState.LogonCode)] = "AB12",
             [nameof(Vns430LcdState.LogonCharacter)] = 2,
             [nameof(Vns430LcdState.TransientStatus)] = "SENT",
+            [nameof(Vns430LcdState.MessageFilter)] = "SENT",
             [nameof(Vns430LcdState.MenuItems)] = new[] { "ONE", "THREE" },
             [nameof(Vns430LcdState.Workflow)] =
                 Vns430Workflow.Create(Vns430WorkflowKind.AocMetar, new Vns430BackendSnapshot()),
