@@ -190,7 +190,7 @@ namespace EasyCPDLC.Tests
 
         [Theory]
         [InlineData((int)Vns430PageGroup.Nav, (int)Vns430Page.Status, 2)]
-        [InlineData((int)Vns430PageGroup.Wpt, (int)Vns430Page.Logon, 2)]
+        [InlineData((int)Vns430PageGroup.Wpt, (int)Vns430Page.Logon, 3)]
         [InlineData((int)Vns430PageGroup.Aux, (int)Vns430Page.AocMenu, 3)]
         [InlineData((int)Vns430PageGroup.Nrst, (int)Vns430Page.Messages, 1)]
         public void PageGroups_FollowThePhysicalLargeAndSmallKnobModel(int group, int firstPage, int count)

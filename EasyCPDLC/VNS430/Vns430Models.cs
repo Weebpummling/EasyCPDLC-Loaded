@@ -25,7 +25,8 @@ namespace EasyCPDLC.VNS430
         LoadControl,
         LoadReview,
         Menu,
-        Help
+        Help,
+        Pdc
     }
 
     internal enum Vns430WorkflowKind

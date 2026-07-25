@@ -66,6 +66,11 @@ namespace EasyCPDLC
 
         internal void Vns430ClearAllMessages() => DeleteAllElement(this, EventArgs.Empty);
 
+        // PDC / pre-departure clearance, shared with the CDU's REQ CLR.
+        internal bool Vns430CanRequestClearance() => CanQuickRequestClearance();
+
+        internal void Vns430RequestClearance() => _ = QuickRequestPredepClearanceAsync();
+
         internal string Vns430AtcNetworkLabel() =>
             ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions ? "SI" : "VATSIM";
 

@@ -81,6 +81,10 @@ namespace EasyCPDLC.VNS430
                 Mix(ref hash, Snapshot.CurrentAtcUnit);
                 Mix(ref hash, Snapshot.PendingLogon);
                 Mix(ref hash, Snapshot.AtcUnitOnline);
+                Mix(ref hash, Snapshot.PdcStatus);
+                Mix(ref hash, Snapshot.PdcLogonCode);
+                Mix(ref hash, Snapshot.PdcController);
+                Mix(ref hash, Snapshot.PdcAllowReqClr);
                 Mix(ref hash, Snapshot.CpdlcCandidates?.Count ?? -1);
                 if (Snapshot.CpdlcCandidates != null)
                 {
@@ -307,6 +311,9 @@ namespace EasyCPDLC.VNS430
                 case Vns430Page.Help:
                     DrawHelp(display, state);
                     break;
+                case Vns430Page.Pdc:
+                    DrawPdc(display, state);
+                    break;
             }
 
             DrawFooter(display, state);
@@ -403,6 +410,35 @@ namespace EasyCPDLC.VNS430
                 "SENT" => messages.Where(message => message.Outbound).ToList(),
                 _ => messages
             };
+        }
+
+        private static void DrawPdc(Bitmap display, Vns430LcdState state)
+        {
+            Vns430BackendSnapshot snapshot = state.Snapshot;
+            Header(display, "PRE-DEPARTURE CLEARANCE");
+            Box(display, new Rectangle(59, 10, 178, 105), Cyan, Black);
+
+            Text(display, 63, 16, "STATUS", Cyan);
+            DrawField(display, new Rectangle(61, 24, 174, 14),
+                string.IsNullOrWhiteSpace(snapshot.PdcStatus) ? "NONE" : snapshot.PdcStatus, false);
+
+            Text(display, 63, 42, "FACILITY", Cyan);
+            string facility = string.IsNullOrWhiteSpace(snapshot.PdcLogonCode) ? "----" : snapshot.PdcLogonCode;
+            if (!string.IsNullOrWhiteSpace(snapshot.PdcController))
+            {
+                facility += "  " + snapshot.PdcController;
+            }
+            DrawField(display, new Rectangle(61, 50, 174, 14), facility, false);
+
+            if (snapshot.PdcAllowReqClr)
+            {
+                DrawField(display, new Rectangle(61, 78, 174, 14), "REQUEST CLEARANCE", state.CursorActive);
+                Text(display, 63, 98, state.CursorActive ? "ENT TO REQUEST" : "PUSH CRSR TO REQUEST", White);
+            }
+            else
+            {
+                Vns430BitmapFont.DrawCentered(display, new Rectangle(59, 74, 178, 20), "NO CLEARANCE AVAILABLE", Green);
+            }
         }
 
         private static void DrawMessages(Bitmap display, Vns430LcdState state)

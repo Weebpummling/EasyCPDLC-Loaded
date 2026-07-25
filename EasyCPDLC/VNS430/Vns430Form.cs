@@ -804,6 +804,25 @@ namespace EasyCPDLC.VNS430
                     await GenerateLoadsheetAsync();
                     break;
 
+                case Vns430Page.Pdc:
+                    // First ENT arms the cursor (mirrors the Status page); the second
+                    // requests the pre-departure clearance if one is available.
+                    if (!cursorActive)
+                    {
+                        cursorActive = true;
+                        return;
+                    }
+                    if (backend.Vns430CanRequestClearance())
+                    {
+                        backend.Vns430RequestClearance();
+                        SetTransient("REQ CLR SENT");
+                    }
+                    else
+                    {
+                        SetTransient("REQ CLR NOT AVAIL");
+                    }
+                    break;
+
                 case Vns430Page.Menu:
                     ActivateMenuItem(selectedIndex);
                     break;
@@ -1002,7 +1021,7 @@ namespace EasyCPDLC.VNS430
             return group switch
             {
                 Vns430PageGroup.Nav => new[] { Vns430Page.Status, Vns430Page.Messages },
-                Vns430PageGroup.Wpt => new[] { Vns430Page.Logon, Vns430Page.AtcMenu },
+                Vns430PageGroup.Wpt => new[] { Vns430Page.Logon, Vns430Page.Pdc, Vns430Page.AtcMenu },
                 Vns430PageGroup.Aux => new[] { Vns430Page.AocMenu, Vns430Page.LoadControl, Vns430Page.Help },
                 Vns430PageGroup.Nrst => new[] { Vns430Page.Messages },
                 _ => new[] { Vns430Page.Status }
