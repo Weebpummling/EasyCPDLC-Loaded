@@ -16,6 +16,10 @@ extern "C"
     // This legacy ABI is available to standalone modules in both simulator
     // generations. The newer fsVars imports are not exposed by every MSFS 2024
     // standalone-module host.
+    // Every name here becomes a hard WASM import: if the host does not export one,
+    // the module fails to instantiate and silently never loads at all. Keep this list
+    // to the three calls the standalone host is known to provide - check_named_variable
+    // in particular is NOT available and must not be reintroduced.
     std::int32_t register_named_variable(const char* name);
     double get_named_variable_value(std::int32_t id);
     void set_named_variable_value(std::int32_t id, double value);
@@ -42,7 +46,9 @@ namespace
 
     enum EventId : DWORD
     {
-        OneSecondEventId = 100
+        OneSecondEventId = 100,
+        FrameEventId = 101,
+        SixHzEventId = 102
     };
 
     HANDLE g_simConnect = 0;
@@ -66,6 +72,8 @@ namespace
     LVarId g_annOfst = InvalidLVarId;
     LVarId g_execLight = InvalidLVarId;
     bool g_dcduMode = false;
+    // Set by the one-second tick; EnsureLVarBindings re-resolves at most once per flag.
+    bool g_bindingsStale = true;
 
     struct DcduInput
     {
@@ -135,6 +143,8 @@ namespace
         { "EASYCPDLC_CDU_BRT_DN", 97, InvalidLVarId }
     };
 
+    void EnsureLVarBindings();
+
     void SetLVar(LVarId id, double value)
     {
         if (id != InvalidLVarId)
@@ -198,6 +208,7 @@ namespace
         }
 
         g_statusAgeSeconds = 0.0f;
+        EnsureLVarBindings();
         SetLVar(g_appConnected, (packet.flags & easycpdlc::kStatusAppOnline) != 0 ? 1.0 : 0.0);
         SetLVar(g_vatsimConnected, (packet.flags & easycpdlc::kStatusVatsimConnected) != 0 ? 1.0 : 0.0);
         SetLVar(g_cursorActive, (packet.flags & easycpdlc::kStatusCursorActive) != 0 ? 1.0 : 0.0);
@@ -218,6 +229,7 @@ namespace
     }
 
     void ProcessTick(float elapsed);
+    void PollInputs();
 
     void CALLBACK Dispatch(SIMCONNECT_RECV* data, DWORD size, void*)
     {
@@ -242,12 +254,28 @@ namespace
             return;
         }
 
+        // "Frame" is delivered as its own receive id with a wider struct, not as a
+        // plain SIMCONNECT_RECV_ID_EVENT.
+        if (data->dwID == SIMCONNECT_RECV_ID_EVENT_FRAME)
+        {
+            const auto* frameData = reinterpret_cast<const SIMCONNECT_RECV_EVENT_FRAME*>(data);
+            if (frameData->uEventID == FrameEventId)
+            {
+                PollInputs();
+            }
+            return;
+        }
+
         if (data->dwID == SIMCONNECT_RECV_ID_EVENT)
         {
             const auto* eventData = reinterpret_cast<const SIMCONNECT_RECV_EVENT*>(data);
             if (eventData->uEventID == OneSecondEventId)
             {
                 ProcessTick(1.0f);
+            }
+            else if (eventData->uEventID == SixHzEventId)
+            {
+                PollInputs();
             }
         }
     }
@@ -300,10 +328,30 @@ namespace
             return false;
         }
 
+        // Faster input polling is a latency optimisation, not a requirement: ProcessTick
+        // polls once a second regardless. Not every standalone-module host exposes these,
+        // so a failure here must NOT tear down the channel - chaining "Frame" into the
+        // fatal check above took the whole bridge offline on a host that refuses it.
+        // Whichever of the two the host honours simply raises the polling rate.
+        SimConnect_SubscribeToSystemEvent(g_simConnect, FrameEventId, "Frame");
+        SimConnect_SubscribeToSystemEvent(g_simConnect, SixHzEventId, "6Hz");
+
         return true;
     }
 
-    void RegisterLVars()
+    // Bind every L-var name to its current id.
+    //
+    // register_named_variable hands back an index into the simulator's L-var table, and
+    // that table is rebuilt whenever a flight or aircraft loads. module_init runs long
+    // before the first aircraft exists, so ids captured there go stale the moment the
+    // user enters a flight: reads return 0 for ever, and writes land on whatever now
+    // occupies the slot. MobiFlight is unaffected because "1 (>L:NAME)" resolves the
+    // name at execution time - which is exactly why a hardware key looks perfectly
+    // healthy all the way up to this module and then vanishes.
+    //
+    // Re-binding is idempotent: an existing name keeps its id and its value. So the
+    // cheapest correct answer is to simply re-resolve every id once a second.
+    void ResolveLVarIds()
     {
         g_command = register_named_variable(easycpdlc::kCommandLVar);
         g_moduleAlive = register_named_variable(easycpdlc::kModuleAliveLVar);
@@ -326,6 +374,29 @@ namespace
         {
             input.id = register_named_variable(input.name);
         }
+    }
+
+    // Re-bind unconditionally. There is no way to cheaply detect a rebuilt L-var table
+    // without check_named_variable, which this host does not export, and
+    // register_named_variable is itself idempotent - an existing name keeps its id and
+    // its value. Roughly 115 lookups once a second is far cheaper than being wrong.
+    //
+    // The one-second tick sets the flag; every caller shares that budget, so status
+    // packets arriving twice a second cannot multiply the work.
+    void EnsureLVarBindings()
+    {
+        if (!g_bindingsStale)
+        {
+            return;
+        }
+
+        g_bindingsStale = false;
+        ResolveLVarIds();
+    }
+
+    void RegisterLVars()
+    {
+        ResolveLVarIds();
 
         SetLVar(g_command, 0.0);
         SetLVar(g_moduleAlive, 0.0);
@@ -339,16 +410,18 @@ namespace
         ClearDcduInputs();
     }
 
-    void ProcessTick(float elapsed)
+    // Hardware keys are polled every visual frame. The one-second system event used to
+    // do this, which meant a key press could sit unseen for a whole second and two
+    // presses inside that second collapsed into one - unusable for a CDU keypad.
+    void PollInputs()
     {
         if (g_simConnect == 0)
         {
             return;
         }
 
-        g_heartbeatSeconds += elapsed;
-        g_statusAgeSeconds += elapsed;
-
+        // Bindings are refreshed by the one-second tick, not here: this runs every
+        // frame and re-resolving the whole set that often would be pure waste.
         const double commandValue = get_named_variable_value(g_command);
         if (commandValue != 0.0)
         {
@@ -360,31 +433,55 @@ namespace
             }
         }
 
-        if (g_dcduMode)
+        if (!g_dcduMode)
         {
-            for (auto& input : g_dcduInputs)
+            return;
+        }
+
+        for (auto& input : g_dcduInputs)
+        {
+            const double value = get_named_variable_value(input.id);
+            if (value != 0.0)
             {
-                const double value = get_named_variable_value(input.id);
-                if (value != 0.0)
-                {
-                    SetLVar(input.id, 0.0);
-                    PublishCommand(input.command);
-                }
-            }
-            for (auto& input : g_cduInputs)
-            {
-                const double value = get_named_variable_value(input.id);
-                if (value != 0.0)
-                {
-                    SetLVar(input.id, 0.0);
-                    PublishCommand(input.command);
-                }
+                SetLVar(input.id, 0.0);
+                PublishCommand(input.command);
             }
         }
-        else
+        for (auto& input : g_cduInputs)
         {
-            ClearDcduInputs();
+            const double value = get_named_variable_value(input.id);
+            if (value != 0.0)
+            {
+                SetLVar(input.id, 0.0);
+                PublishCommand(input.command);
+            }
         }
+    }
+
+    void ProcessTick(float elapsed)
+    {
+        if (g_simConnect == 0)
+        {
+            return;
+        }
+
+        // Loading a flight or swapping aircraft rebuilds the L-var table, so every id
+        // has to be re-bound or both reads and writes silently address the wrong slot.
+        g_bindingsStale = true;
+        EnsureLVarBindings();
+
+        g_heartbeatSeconds += elapsed;
+        g_statusAgeSeconds += elapsed;
+
+        // Safety net: the Frame event does not fire outside an active flight, and a
+        // host that never sends it at all would otherwise leave the hardware dead.
+        // Polling here too costs nothing and degrades to the old one-second cadence.
+        PollInputs();
+
+        // Deliberately no periodic clear while hardware keys are off. ApplyStatus
+        // already clears once on the transition out of the mode, and now that the
+        // bindings actually resolve, zeroing every second would fight MobiFlight for
+        // ownership of the L-vars and make its writes look like they never landed.
 
         if (g_heartbeatSeconds >= 1.0f)
         {

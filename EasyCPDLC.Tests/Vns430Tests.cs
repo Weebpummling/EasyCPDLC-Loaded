@@ -133,8 +133,46 @@ namespace EasyCPDLC.Tests
             Assert.Equal(12, Regex.Matches(source, @"EASYCPDLC_DCDU_LSK_[LR][1-6]").Count);
             Assert.Contains("EASYCPDLC_DCDU_CONNECT", source);
             Assert.Contains("EASYCPDLC_DCDU_REPRINT", source);
-            Assert.Contains("if (g_dcduMode)", source);
+            Assert.Contains("if (!g_dcduMode)", source);
             Assert.Contains("if (!g_dcduMode && command >= 1 && command <= 18)", source);
+            // Ids from register_named_variable go stale when a flight load rebuilds the
+            // L-var table; the module must re-bind before reading or writing through them.
+            Assert.Contains("EnsureLVarBindings();", source);
+
+            // Every extern "C" declaration becomes a hard WASM import, and an import the
+            // standalone host does not export stops the module instantiating - it loads
+            // as nothing at all, reported as "MobiFlight module: not detected". Adding
+            // check_named_variable did exactly that. Pin the import list.
+            string externBlock = Regex.Match(source, @"extern ""C""\s*\{(.*?)\n\}", RegexOptions.Singleline).Groups[1].Value;
+            Assert.NotEmpty(externBlock);
+            string[] hostImports = Regex.Matches(externBlock, @"(\w+)\s*\(")
+                .Select(match => match.Groups[1].Value)
+                .OrderBy(name => name, StringComparer.Ordinal)
+                .ToArray();
+            Assert.Equal(
+                new[] { "get_named_variable_value", "register_named_variable", "set_named_variable_value" },
+                hostImports);
+            // Hardware keys are polled per visual frame, not on the one-second heartbeat.
+            Assert.Contains("\"Frame\"", source);
+            // The Frame event arrives under its own receive id with a wider struct, so
+            // handling it as a plain SIMCONNECT_RECV_ID_EVENT silently never fires.
+            Assert.Contains("SIMCONNECT_RECV_ID_EVENT_FRAME", source);
+            Assert.Contains("SIMCONNECT_RECV_EVENT_FRAME", source);
+            // The fast-poll subscriptions are optional and MUST stay out of the fatal
+            // setup chain. Chaining "Frame" into it meant a host that refuses the event
+            // tore down the whole SimConnect channel: the module loaded and then sat
+            // idle for ever, reported as "MobiFlight module: not detected".
+            string fatalChain = Regex.Match(
+                source,
+                @"if \(SimConnect_SubscribeToSystemEvent.*?\n        \}",
+                RegexOptions.Singleline).Value;
+            Assert.Contains("\"1sec\"", fatalChain);
+            Assert.DoesNotContain("\"Frame\"", fatalChain);
+            Assert.DoesNotContain("\"6Hz\"", fatalChain);
+
+            // The one-second tick polls too, so losing the fast events costs cadence,
+            // never input.
+            Assert.Matches(@"void ProcessTick\(float elapsed\)[\s\S]*?PollInputs\(\);", source);
             Assert.DoesNotContain("AS430_", source);
             Assert.DoesNotContain("EASYCPDLC_GNS_", source);
             Assert.DoesNotContain(">K:", source);

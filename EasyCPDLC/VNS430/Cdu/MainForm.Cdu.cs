@@ -1272,8 +1272,9 @@ namespace EasyCPDLC
             RenderCduWinwingChoice(grid, 3, "FO", WinwingSeat.FirstOfficer, active, this);
             RenderCduWinwingChoice(grid, 4, "OBS", WinwingSeat.Observer, active, this);
             // The 737 only has captain and first-officer CDUs, so the observer unit is
-            // never claimed by the aircraft - it is the safe seat to mirror onto.
-            grid.WriteLeft(CduLayout.LabelRow(4), "RECOMMENDED", CduColor.Cyan, small: true);
+            // never claimed by the aircraft - it is the safe seat to mirror onto. The
+            // marker sits directly after <OBS so there is no doubt which line it tags.
+            grid.Write(CduLayout.DataRow(4), 5, "RECOMMENDED", CduColor.Cyan, small: true);
 
             // Live link state, so "selected" and "actually sending" are distinguishable.
             grid.WriteRight(CduLayout.LabelRow(1), "LINK", CduColor.Cyan, small: true);

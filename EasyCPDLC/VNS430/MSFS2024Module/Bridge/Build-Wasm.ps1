@@ -105,7 +105,7 @@ $manifest = [ordered]@{
     title = 'EasyCPDLC VNS430 Bridge'
     manufacturer = ''
     creator = 'EasyCPDLC Community'
-        package_version = '0.3.0'
+        package_version = '0.4.0'
     minimum_game_version = '1.8.8'
     minimum_compatibility_version = '8.8.0.230'
     export_type = 'Community'
@@ -113,7 +113,7 @@ $manifest = [ordered]@{
     package_order_hint = 'MISC'
     release_notes = [ordered]@{
         neutral = [ordered]@{
-            LastUpdate = 'Standalone-host compatible named-variable ABI and one-second event transport.'
+            LastUpdate = 'Re-bind L-var ids after flight loads and poll hardware inputs every frame.'
             OlderHistory = ''
         }
     }
