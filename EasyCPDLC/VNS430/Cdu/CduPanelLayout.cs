@@ -56,10 +56,14 @@ namespace EasyCPDLC.VNS430.Cdu
             ("HOLD", new RectangleF(0.48512f, 0.56145f, 0.1f, 0.04767f)),
             ("PROG", new RectangleF(0.60909f, 0.56145f, 0.1f, 0.04767f)),
             ("EXEC", new RectangleF(0.7657f, 0.5702f, 0.1033f, 0.0392f)),
-            ("N1_LIMIT", new RectangleF(0.11818f, 0.62871f, 0.1f, 0.04767f)),
-            ("FIX", new RectangleF(0.2405f, 0.62871f, 0.1f, 0.04767f)),
-            ("PREV_PAGE", new RectangleF(0.11777f, 0.69598f, 0.1f, 0.04767f)),
-            ("NEXT_PAGE", new RectangleF(0.24132f, 0.69598f, 0.1f, 0.04767f)),
+            // These four sat low against the artwork: N1 LIMIT and FIX by a third of a
+            // key height, PREV/NEXT PAGE by half. The rect is both the hit region and the
+            // press highlight, so raising it realigns the pushed-in shadow and the click
+            // target together.
+            ("N1_LIMIT", new RectangleF(0.11818f, 0.61282f, 0.1f, 0.04767f)),
+            ("FIX", new RectangleF(0.2405f, 0.61282f, 0.1f, 0.04767f)),
+            ("PREV_PAGE", new RectangleF(0.11777f, 0.67215f, 0.1f, 0.04767f)),
+            ("NEXT_PAGE", new RectangleF(0.24132f, 0.67215f, 0.1f, 0.04767f)),
             ("A", new RectangleF(0.41183f, 0.61454f, 0.078f, 0.058f)),
             ("B", new RectangleF(0.50852f, 0.61427f, 0.078f, 0.058f)),
             ("C", new RectangleF(0.60563f, 0.61454f, 0.078f, 0.058f)),

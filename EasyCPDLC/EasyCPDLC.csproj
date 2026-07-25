@@ -55,6 +55,19 @@
 		<None Remove="Resources\B612Mono-Bold.ttf" />
 	</ItemGroup>
 	<ItemGroup>
+		<!--
+			SimConnect.dll is the MSFS client library the VNS430 companion bridge P/Invokes.
+			It is not on the PATH of a normal machine and MSFS does not publish it anywhere
+			the loader looks, so without shipping it next to the executable every
+			SimConnect_* call throws DllNotFoundException. That is swallowed by
+			Vns430CompanionInput.TryEnable, which reports the module as "not detected" -
+			the hardware bridge then silently does nothing on every machine.
+		-->
+		<Content Include="Runtime\SimConnect.dll" Link="SimConnect.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	<ItemGroup>
 		<Compile Include="..\Shared\VpilotBridgeProtocol.cs" Link="VPilotBridge\VpilotBridgeProtocol.cs" />
 		<Compile Include="..\Shared\VpilotContactMeParser.cs" Link="VPilotBridge\VpilotContactMeParser.cs" />
 		<Compile Update="CPDLCMessage.cs">
