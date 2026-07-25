@@ -135,8 +135,11 @@ namespace EasyCPDLC.VNS430.Cdu
                 g.FillRectangle(black, screen);
             }
 
-            float cellW = screen.Width / CduGrid.Cols;
-            float cellH = screen.Height / CduGrid.Rows;
+            // Lay the character grid in the LSK-aligned text area, not the full glass, so
+            // the data rows line up with the physical keys.
+            RectangleF grid = ToPixels(CduPanelLayout.TextArea);
+            float cellW = grid.Width / CduGrid.Cols;
+            float cellH = grid.Height / CduGrid.Rows;
             float large = Math.Max(6f, cellH * 0.82f);
             float small = Math.Max(5f, cellH * 0.64f);
 
@@ -164,7 +167,7 @@ namespace EasyCPDLC.VNS430.Cdu
                         continue;
                     }
 
-                    RectangleF cr = new(screen.X + (col * cellW), screen.Y + (row * cellH), cellW, cellH);
+                    RectangleF cr = new(grid.X + (col * cellW), grid.Y + (row * cellH), cellW, cellH);
                     Color colour = cell.Color.Rgb();
                     if (cell.Inverse)
                     {

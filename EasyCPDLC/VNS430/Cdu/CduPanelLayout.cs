@@ -6,7 +6,14 @@ namespace EasyCPDLC.VNS430.Cdu
     // Rectangles are normalized (0..1) fractions of the panel image.
     internal static class CduPanelLayout
     {
+        // The black LCD glass, as cut in the artwork.
         public static readonly RectangleF Screen = new(0.1587f, 0.0604f, 0.6843f, 0.3824f);
+
+        // Where the 14-row character grid is laid out. It is inset vertically within the
+        // glass so the six LSK data rows (grid rows 2,4,6,8,10,12) line up with the physical
+        // L1..L6 / R1..R6 key rectangles below, which the even division of the full glass
+        // did not. Derived by fitting the data-row centres to the L-key centres.
+        public static readonly RectangleF TextArea = new(0.1587f, 0.0808f, 0.6843f, 0.3530f);
 
         public static readonly (string Name, RectangleF Rect)[] Keys =
         {
