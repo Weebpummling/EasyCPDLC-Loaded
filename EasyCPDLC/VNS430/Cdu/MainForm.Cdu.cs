@@ -21,6 +21,7 @@ namespace EasyCPDLC
             Dlk,
             Logon,
             Messages,
+            MessageList,
             MessageDetail,
             Atc,
             Aoc,
@@ -36,6 +37,8 @@ namespace EasyCPDLC
         private CduPageId cduPage = CduPageId.Menu;
         private CPDLCMessage cduSelectedMessage;
         private int cduDetailScroll;
+        private bool cduMsgSent;      // MessageList filter: false = received, true = sent
+        private bool cduStatusError;  // lights the FAIL annunciator while an error is shown
         private readonly List<CPDLCMessage> cduVisibleInbox = new();
 
         // Request-page (ATC/AOC) state and the shared scratchpad.
@@ -165,6 +168,7 @@ namespace EasyCPDLC
             // Any line-select changes the selection, so a previously armed transmit is
             // cancelled; the handler below re-arms if this press is itself a transmit.
             ClearCduArm();
+            cduStatusError = false;   // an error clears on the next action; sites below re-set it
 
             switch (cduPage)
             {
@@ -179,6 +183,9 @@ namespace EasyCPDLC
                     break;
                 case CduPageId.Messages:
                     HandleCduMessagesLsk(rightSide, index);
+                    break;
+                case CduPageId.MessageList:
+                    HandleCduMessageListLsk(rightSide, index);
                     break;
                 case CduPageId.MessageDetail:
                     HandleCduMessageDetailLsk(rightSide, index);
@@ -236,6 +243,9 @@ namespace EasyCPDLC
                 case CduPageId.Messages:
                     RenderCduMessages(grid, snapshot);
                     break;
+                case CduPageId.MessageList:
+                    RenderCduMessageList(grid, snapshot);
+                    break;
                 case CduPageId.MessageDetail:
                     RenderCduMessageDetail(grid, snapshot);
                     break;
@@ -279,6 +289,10 @@ namespace EasyCPDLC
             }
 
             List<string> lit = new();
+            if (cduStatusError)
+            {
+                lit.Add("FAIL");
+            }
             if (snapshot.Messages.Any(m => m.Unread && !m.Outbound))
             {
                 lit.Add("MSG");
@@ -310,8 +324,10 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(2), "<ATC", CduColor.White);
             grid.WriteLeft(CduLayout.LabelRow(3), "TELEX/WX", CduColor.Cyan, small: true);
             grid.WriteLeft(CduLayout.DataRow(3), "<AOC", CduColor.White);
-            grid.WriteLeft(CduLayout.LabelRow(4), "INBOX", CduColor.Cyan, small: true);
-            grid.WriteLeft(CduLayout.DataRow(4), "<MSG", CduColor.White);
+            int unread = snapshot.Messages.Count(m => m.Unread && !m.Outbound);
+            grid.WriteLeft(CduLayout.LabelRow(4), unread > 0 ? unread + " UNREAD" : "INBOX",
+                unread > 0 ? CduColor.Amber : CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(4), "<MSG", unread > 0 ? CduColor.Amber : CduColor.White, inverse: unread > 0);
             grid.WriteLeft(CduLayout.LabelRow(5), "CONFIG", CduColor.Cyan, small: true);
             grid.WriteLeft(CduLayout.DataRow(5), "<SETUP", CduColor.White);
         }
@@ -344,33 +360,50 @@ namespace EasyCPDLC
             grid.WriteRight(CduLayout.DataRow(lsk), Truncate(value, CduGrid.HalfCols), valueColour);
         }
 
+        // MESSAGES is a submenu splitting received traffic from what was sent.
         private void RenderCduMessages(CduGrid grid, Vns430BackendSnapshot snapshot)
         {
             RenderCduHeader(grid, "MESSAGES", snapshot);
 
+            int unread = snapshot.Messages.Count(m => m.Unread && !m.Outbound);
+            int sent = snapshot.Messages.Count(m => m.Outbound);
+            int received = snapshot.Messages.Count(m => !m.Outbound);
+
+            grid.WriteLeft(CduLayout.LabelRow(1), unread > 0 ? unread + " UNREAD" : received + " MSGS", unread > 0 ? CduColor.Amber : CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(1), "<RECEIVED", unread > 0 ? CduColor.Amber : CduColor.White);
+            grid.WriteLeft(CduLayout.LabelRow(2), sent + " MSGS", CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(2), "<SENT", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
+        }
+
+        private void RenderCduMessageList(CduGrid grid, Vns430BackendSnapshot snapshot)
+        {
+            RenderCduHeader(grid, cduMsgSent ? "SENT" : "RECEIVED", snapshot);
+
             cduVisibleInbox.Clear();
-            List<Vns430MessageSnapshot> inbox = snapshot.Messages.Take(CduLayout.LskCount).ToList();
-            for (int i = 0; i < inbox.Count; i++)
+            List<Vns430MessageSnapshot> all = snapshot.Messages.Where(m => m.Outbound == cduMsgSent).ToList();
+            List<Vns430MessageSnapshot> shown = all.Take(CduLayout.LskCount).ToList();
+            for (int i = 0; i < shown.Count; i++)
             {
-                Vns430MessageSnapshot message = inbox[i];
+                Vns430MessageSnapshot message = shown[i];
                 cduVisibleInbox.Add(message.Source);
-                CduColor colour = message.Outbound ? CduColor.Cyan : (message.Unread ? CduColor.Amber : CduColor.White);
+                CduColor colour = cduMsgSent ? CduColor.Cyan : (message.Unread ? CduColor.Amber : CduColor.White);
                 string station = string.IsNullOrWhiteSpace(message.Station) ? message.Type : message.Station;
-                string label = (message.Outbound ? ">" : "<") + Truncate(station + " " + message.Type, CduGrid.HalfCols - 1);
+                string label = (cduMsgSent ? ">" : "<") + Truncate(station + " " + message.Type, CduGrid.HalfCols - 1);
                 grid.WriteLeft(CduLayout.DataRow(i + 1), label, colour);
             }
 
-            if (snapshot.Messages.Count == 0)
+            if (all.Count == 0)
             {
-                grid.WriteCentered(CduLayout.DataRow(3), "NO MESSAGES", CduColor.Grey);
+                grid.WriteCentered(CduLayout.DataRow(3), "NONE", CduColor.Grey);
             }
-            else if (snapshot.Messages.Count > CduLayout.LskCount)
+            else if (all.Count > CduLayout.LskCount)
             {
                 grid.WriteRight(CduLayout.LabelRow(1),
-                    "+" + (snapshot.Messages.Count - CduLayout.LskCount) + " MORE", CduColor.Grey, small: true);
+                    "+" + (all.Count - CduLayout.LskCount) + " MORE", CduColor.Grey, small: true);
             }
 
-            grid.WriteRight(CduLayout.DataRow(6), "MENU>", CduColor.White);
+            grid.WriteRight(CduLayout.DataRow(6), "RETURN>", CduColor.White);
         }
 
         private void RenderCduMessageDetail(CduGrid grid, Vns430BackendSnapshot snapshot)
@@ -378,8 +411,8 @@ namespace EasyCPDLC
             Vns430MessageSnapshot message = FindCduSelected(snapshot);
             if (message == null)
             {
-                cduPage = CduPageId.Messages;
-                RenderCduMessages(grid, snapshot);
+                cduPage = CduPageId.MessageList;
+                RenderCduMessageList(grid, snapshot);
                 return;
             }
 
@@ -537,6 +570,7 @@ namespace EasyCPDLC
                     else
                     {
                         cduStatusLine = "REQ CLR NOT AVAIL";
+                        cduStatusError = true;
                     }
                 }
                 return;
@@ -569,6 +603,7 @@ namespace EasyCPDLC
             if (clean.Length < 3)
             {
                 cduStatusLine = "ENTER 3-4 CHAR CODE";
+                cduStatusError = true;
                 return;
             }
 
@@ -584,9 +619,24 @@ namespace EasyCPDLC
         {
             if (rightSide)
             {
+                return;
+            }
+
+            switch (index)
+            {
+                case 1: cduMsgSent = false; cduPage = CduPageId.MessageList; break;
+                case 2: cduMsgSent = true; cduPage = CduPageId.MessageList; break;
+                case 6: cduPage = CduPageId.Menu; break;
+            }
+        }
+
+        private void HandleCduMessageListLsk(bool rightSide, int index)
+        {
+            if (rightSide)
+            {
                 if (index == 6)
                 {
-                    cduPage = CduPageId.Menu;
+                    cduPage = CduPageId.Messages;
                 }
                 return;
             }
@@ -606,7 +656,7 @@ namespace EasyCPDLC
             Vns430MessageSnapshot message = FindCduSelected(GetVns430Snapshot());
             if (message == null)
             {
-                cduPage = CduPageId.Messages;
+                cduPage = CduPageId.MessageList;
                 return;
             }
 
@@ -628,7 +678,7 @@ namespace EasyCPDLC
             {
                 case 4: PrintDatalinkMessage(message.Source); break;
                 case 5: ReprintButton_Click(boeingReprintButton, EventArgs.Empty); break;
-                case 6: cduPage = CduPageId.Messages; break;
+                case 6: cduPage = CduPageId.MessageList; break;
             }
         }
 
@@ -817,10 +867,12 @@ namespace EasyCPDLC
 
             cduRequestSending = false;
             cduStatusLine = result.Status;
+            cduStatusError = !result.Success;
             if (result.Success)
             {
                 cduWorkflow = null;
-                cduPage = CduPageId.Messages;
+                cduMsgSent = true;
+                cduPage = CduPageId.MessageList;
             }
             RefreshCduDisplay();
         }
@@ -886,12 +938,41 @@ namespace EasyCPDLC
         private void RenderCduSetupAccount(CduGrid grid, Vns430BackendSnapshot snapshot)
         {
             grid.WriteCentered(CduLayout.TitleRow, "ACCOUNT / LOGIN", CduColor.White);
-            RenderCduSetupField(grid, 1, false, "VATSIM CID", SavedCID > 0 ? SavedCID.ToString() : null);
-            RenderCduSetupField(grid, 2, false, "HOPPIE CODE", string.IsNullOrWhiteSpace(SavedHoppieCode) ? null : "SET");
-            RenderCduSetupField(grid, 3, false, "SIMBRIEF", string.IsNullOrWhiteSpace(SimbriefID) ? null : SimbriefID);
-            RenderCduSetupField(grid, 4, false, "ELOAD KEY", string.IsNullOrWhiteSpace(SavedELoadControlApiKey) ? null : "SET");
+
+            // Values use the full row width so codes and keys are not truncated.
+            RenderCduAccountField(grid, 1, "VATSIM CID", SavedCID > 0 ? SavedCID.ToString() : null);
+            RenderCduAccountField(grid, 2, "HOPPIE CODE", SavedHoppieCode);
+            RenderCduAccountField(grid, 3, "SIMBRIEF", SimbriefID);
+
+            // ELOAD KEY on LSK4, wrapping onto the LSK5 row for long API keys.
+            grid.WriteLeft(CduLayout.LabelRow(4), "ELOAD KEY", CduColor.Cyan, small: true);
+            string key = SavedELoadControlApiKey ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                grid.Write(CduLayout.DataRow(4), 0, "<----", CduColor.Grey);
+            }
+            else
+            {
+                string shown = "<" + key;
+                grid.Write(CduLayout.DataRow(4), 0, Truncate(shown, CduGrid.Cols), CduColor.Green);
+                if (shown.Length > CduGrid.Cols)
+                {
+                    grid.Write(CduLayout.DataRow(5), 0, Truncate(shown.Substring(CduGrid.Cols), CduGrid.Cols), CduColor.Green);
+                }
+            }
+
             grid.WriteLeft(CduLayout.DataRow(6), "<SETUP", CduColor.White);
             RenderCduScratchpad(grid);
+        }
+
+        // A credential field: cyan label on its LSK label row, the value on the full-width
+        // data row below it, so long values are not clipped to the half column.
+        private void RenderCduAccountField(CduGrid grid, int lsk, string label, string value)
+        {
+            grid.WriteLeft(CduLayout.LabelRow(lsk), label, CduColor.Cyan, small: true);
+            bool empty = string.IsNullOrWhiteSpace(value);
+            grid.Write(CduLayout.DataRow(lsk), 0, "<" + (empty ? "----" : Truncate(value, CduGrid.Cols - 1)),
+                empty ? CduColor.Grey : CduColor.Green);
         }
 
         private void RenderCduSetupPrinter(CduGrid grid, Vns430BackendSnapshot snapshot)
@@ -1031,6 +1112,7 @@ namespace EasyCPDLC
             else
             {
                 cduStatusLine = "CID MUST BE NUMERIC";
+                cduStatusError = true;
                 return;
             }
             cduScratchpad = string.Empty;
@@ -1086,6 +1168,7 @@ namespace EasyCPDLC
             catch (Exception ex)
             {
                 cduStatusLine = SafeCduError(ex);
+                cduStatusError = true;
             }
             cduLoadBusy = false;
             RefreshCduDisplay();
@@ -1188,9 +1271,11 @@ namespace EasyCPDLC
 
             cduLoadBusy = false;
             cduStatusLine = result.Status;
+            cduStatusError = !result.Success;
             if (result.Success)
             {
-                cduPage = CduPageId.Messages;
+                cduMsgSent = false;
+                cduPage = CduPageId.MessageList;
             }
             RefreshCduDisplay();
         }
@@ -1219,11 +1304,19 @@ namespace EasyCPDLC
             switch (command)
             {
                 case Vns430Command.CduClear:
-                    // CLR clears one scratchpad character, or cancels an armed action.
-                    if (cduArmedAction != null && cduScratchpad.Length == 0)
+                    // CLR: cancel an armed action, else clear a status/error message (and the
+                    // FAIL light), else backspace one scratchpad character.
+                    if (cduArmedAction != null)
                     {
                         ClearCduArm();
                         cduStatusLine = string.Empty;
+                        cduStatusError = false;
+                        RefreshCduDisplay();
+                    }
+                    else if (!string.IsNullOrEmpty(cduStatusLine))
+                    {
+                        cduStatusLine = string.Empty;
+                        cduStatusError = false;
                         RefreshCduDisplay();
                     }
                     else
@@ -1263,6 +1356,7 @@ namespace EasyCPDLC
                         Action pending = cduArmedAction;
                         ClearCduArm();
                         cduStatusLine = string.Empty;
+                        cduStatusError = false;
                         pending();
                         RefreshCduDisplay();
                     }
