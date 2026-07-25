@@ -127,7 +127,7 @@ The profiles turn a physical board into the VNS430 keys. Import one of:
   face buttons (`L:EASYCPDLC_VNS_COMMAND` values `1` through `18`).
 - `MobiFlight\EasyCPDLC-DCDU-Module.mfproj` for twelve DCDU LSKs plus connect,
   AOC, ATC, settings, reload, print, reprint, and hide.
-- `MobiFlight\EasyCPDLC-WinWing-CDU-Module.mfproj` for the LSK-only **CDU display
+- `MobiFlight\EasyCPDLC-WinWing-737-CDU.mfproj` for the LSK-only **CDU display
   mode**: the twelve LSKs plus the full **Boeing 737NG** CDU keypad (A-Z, 0-9,
   `SP`/`DEL`/`CLR`/`/`/`.`/`+/-`, and the function keys `INIT REF`/`RTE`/`CLB`/
   `CRZ`/`DES`/`MENU`/`LEGS`/`DEP ARR`/`HOLD`/`PROG`/`EXEC`/`N1 LIMIT`/`FIX`/

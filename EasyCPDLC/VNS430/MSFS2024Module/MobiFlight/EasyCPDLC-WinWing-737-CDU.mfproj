@@ -1,5 +1,5 @@
 {
-    "Name":  "EasyCPDLC WinWing CDU Module",
+    "Name":  "EasyCPDLC WinWing 737 CDU",
     "Sim":  "msfs",
     "Aircraft":  [
 
@@ -11,7 +11,7 @@
     "ControllerBindings":  null,
     "ConfigFiles":  [
                         {
-                            "Label":  "EasyCPDLC WinWing CDU Module",
+                            "Label":  "EasyCPDLC WinWing 737 CDU",
                             "FileName":  null,
                             "ReferenceOnly":  false,
                             "EmbedContent":  true,
@@ -35,13 +35,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_L1",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000000",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000000",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_L1",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -77,13 +77,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_L2",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000001",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000001",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_L2",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -119,13 +119,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_L3",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000002",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000002",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_L3",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -161,13 +161,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_L4",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000003",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000003",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_L4",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -203,13 +203,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_L5",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000004",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000004",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_L5",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -245,13 +245,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_L6",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000005",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000005",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_L6",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -287,13 +287,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_R1",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000006",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000006",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_R1",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -329,13 +329,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_R2",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000007",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000007",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_R2",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -371,13 +371,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_R3",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000008",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000008",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_R3",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -413,13 +413,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_R4",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000009",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000009",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_R4",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -455,13 +455,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_R5",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000010",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000010",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_R5",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -497,13 +497,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LSK_R6",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000011",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000011",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_DCDU_LSK_R6",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -539,13 +539,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_A",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000012",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000012",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_A",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -581,13 +581,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_B",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000013",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000013",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_B",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -623,13 +623,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_C",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000014",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000014",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_C",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -665,13 +665,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_D",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000015",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000015",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_D",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -707,13 +707,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_E",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000016",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000016",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_E",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -749,13 +749,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_F",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000017",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000017",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_F",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -791,13 +791,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_G",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000018",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000018",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_G",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -833,13 +833,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_H",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000019",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000019",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_H",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -875,13 +875,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_I",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000020",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000020",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_I",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -917,13 +917,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_J",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000021",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000021",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_J",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -959,13 +959,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_K",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000022",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000022",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_K",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1001,13 +1001,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_L",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000023",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000023",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_L",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1043,13 +1043,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_M",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000024",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000024",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_M",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1085,13 +1085,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_N",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000025",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000025",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_N",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1127,13 +1127,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_O",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000026",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000026",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_O",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1169,13 +1169,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_P",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000027",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000027",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_P",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1211,13 +1211,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_Q",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000028",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000028",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_Q",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1253,13 +1253,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_R",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000029",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000029",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_R",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1295,13 +1295,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_S",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000030",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000030",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_S",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1337,13 +1337,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_T",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000031",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000031",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_T",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1379,13 +1379,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_U",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000032",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000032",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_U",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1421,13 +1421,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_V",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000033",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000033",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_V",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1463,13 +1463,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_W",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000034",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000034",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_W",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1505,13 +1505,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_X",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000035",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000035",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_X",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1547,13 +1547,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_Y",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000036",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000036",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_Y",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1589,13 +1589,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_Z",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000037",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000037",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_Z",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1631,13 +1631,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_0",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000038",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000038",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_0",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1673,13 +1673,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_1",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000039",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000039",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_1",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1715,13 +1715,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_2",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000040",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000040",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_2",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1757,13 +1757,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_3",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000041",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000041",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_3",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1799,13 +1799,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_4",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000042",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000042",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_4",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1841,13 +1841,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_5",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000043",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000043",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_5",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1883,13 +1883,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_6",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000044",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000044",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_6",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1925,13 +1925,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_7",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000045",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000045",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_7",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -1967,13 +1967,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_8",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000046",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000046",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_8",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2009,13 +2009,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_9",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000047",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000047",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_9",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2051,13 +2051,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_SP",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000048",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000048",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_SP",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2093,13 +2093,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_DOT",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000049",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000049",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_DOT",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2135,13 +2135,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_SLASH",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000050",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000050",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_SLASH",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2177,13 +2177,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_PLUSMINUS",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000051",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000051",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_PLUSMINUS",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2219,13 +2219,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_CLR",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000052",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000052",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_CLR",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2261,13 +2261,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_DEL",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000053",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000053",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_DEL",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2303,13 +2303,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_INIT_REF",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000054",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000054",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_INIT_REF",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2345,13 +2345,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_RTE",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000055",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000055",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_RTE",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2387,13 +2387,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_DEP_ARR",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000056",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000056",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_DEP_ARR",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2429,13 +2429,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_CLB",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000057",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000057",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_CLB",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2471,13 +2471,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_CRZ",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000058",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000058",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_CRZ",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2513,13 +2513,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_FIX",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000059",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000059",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_FIX",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2555,13 +2555,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_LEGS",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000060",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000060",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_LEGS",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2597,13 +2597,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_HOLD",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000061",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000061",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_HOLD",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2639,13 +2639,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_DES",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000062",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000062",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_DES",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2681,13 +2681,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_PROG",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000063",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000063",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_PROG",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2723,13 +2723,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_EXEC",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000064",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000064",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_EXEC",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2765,13 +2765,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_MENU",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000065",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000065",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_MENU",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2807,13 +2807,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_N1_LIMIT",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000066",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000066",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_N1_LIMIT",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2849,13 +2849,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_PREV_PAGE",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000067",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000067",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_PREV_PAGE",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2891,13 +2891,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_NEXT_PAGE",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000068",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000068",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_NEXT_PAGE",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2933,13 +2933,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_BRT_UP",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000069",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000069",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_BRT_UP",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
@@ -2975,13 +2975,13 @@
                                                                },
                                                     "DeviceType":  "Button",
                                                     "DeviceName":  "BTN_BRT_DN",
-                                                    "GUID":  "ec440000-0000-4000-8000-000000000070",
+                                                    "GUID":  "ec737000-0000-4000-8000-000000000070",
                                                     "Active":  true,
                                                     "Name":  "EASYCPDLC_CDU_BRT_DN",
                                                     "Type":  "InputConfigItem",
                                                     "Controller":  {
-                                                                       "Name":  "EasyCPDLC WinWing CDU Template",
-                                                                       "Serial":  "EASYCPDLC-WINWING-CDU-TEMPLATE"
+                                                                       "Name":  "EasyCPDLC WinWing 737 CDU Template",
+                                                                       "Serial":  "EASYCPDLC-WINWING-737-CDU"
                                                                    },
                                                     "Preconditions":  [
 
