@@ -275,31 +275,31 @@ annunciators at once and confirm your wiring.
 All lamps are forced to `0` when the app closes or the bridge loses contact for
 three seconds, so nothing stays lit on stale state.
 
-### Wiring a lamp in MobiFlight
+### The lamps are already in the profile
 
-Output configs are **not** shipped in the profiles, because every one has to name
-*your* board and *your* pin — there is nothing portable to ship. Adding one takes
-about twenty seconds:
+`EasyCPDLC-WinWing-737-CDU.mfproj` ships **five output rows**, pre-wired to the LED
+pins a WinWing CDU exposes:
 
-1. In MobiFlight Connector open the **Output** tab and click **Add**.
-2. Set **Type** to `MSFS2020 / SimConnect` and paste the RPN read into the value
-   box — for the MSG lamp:
+| Row | LED pin | Source |
+|---|---|---|
+| `EASYCPDLC_CDU_ANN_MSG` | `MSG` | `(L:EASYCPDLC_CDU_ANN_MSG, number) 0 >` |
+| `EASYCPDLC_CDU_ANN_CALL` | `CALL` | `(L:EASYCPDLC_CDU_ANN_CALL, number) 0 >` |
+| `EASYCPDLC_CDU_ANN_FAIL` | `FAIL` | `(L:EASYCPDLC_CDU_ANN_FAIL, number) 0 >` |
+| `EASYCPDLC_CDU_ANN_OFST` | `OFST` | `(L:EASYCPDLC_CDU_ANN_OFST, number) 0 >` |
+| `EASYCPDLC_CDU_EXEC_LIGHT` | `EXEC` | `(L:EASYCPDLC_CDU_EXEC_LIGHT, number) 0 >` |
 
-   ```text
-   (L:EASYCPDLC_CDU_ANN_MSG, number)
-   ```
+Like the input rows, they ship on the placeholder controller, so on the **Output** tab
+reassign each row's device to your CDU. The pin names and the source expressions are
+already correct — leave those alone.
 
-3. Under **Display**, pick your board, choose `Pin`, and select the pin the LED
-   is on.
-4. Repeat for `..._ANN_FAIL`, `..._ANN_CALL`, `..._ANN_OFST`, and
-   `..._CDU_EXEC_LIGHT`.
+Test the wiring without flying: tray **CDU tools → CDU annunciator lamp test** lights
+all four annunciators at once.
 
-For a numeric display (e.g. a 7-segment unread counter) use
-`(L:EASYCPDLC_VNS_UNREAD_COUNT, number)` and a `LedModule` display instead of a
-pin.
+### Adding your own
 
-Test the wiring without flying: tray **CDU tools > CDU annunciator lamp test**
-lights all four annunciators at once.
+For a different board, or a numeric display such as a 7-segment unread counter, add an
+output on the **Output** tab with type `MSFS2020 / SimConnect` and a value of
+`(L:EASYCPDLC_VNS_UNREAD_COUNT, number)`, using a `LedModule` display instead of a pin.
 
 ### Bridge and link status
 
