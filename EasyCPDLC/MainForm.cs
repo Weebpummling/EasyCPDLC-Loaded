@@ -18136,7 +18136,10 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
 
         private void MainForm_ResizeEnd(object sender, EventArgs e)
         {
-            if (applyingMainWindowLayout || WindowState != FormWindowState.Normal)
+            // ResizeEnd fires after a move as well as a resize. The CDU is a free-sizing
+            // grid that does not use the Airbus/Boeing artwork scale, so recomputing a
+            // scale percent from its client size here would shrink it on every drag.
+            if (applyingMainWindowLayout || WindowState != FormWindowState.Normal || DcduStyleManager.IsCdu)
             {
                 return;
             }
