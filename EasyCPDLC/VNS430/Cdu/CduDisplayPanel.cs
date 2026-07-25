@@ -122,12 +122,25 @@ namespace EasyCPDLC.VNS430.Cdu
             // The artwork draws the EXEC annunciator lit. By default mask it with the
             // adjacent bezel colour so it reads off; drop the mask when a transmit action
             // is armed, revealing the artwork's own lit light.
+            RectangleF execLight = ToPixels(CduPanelLayout.ExecLight);
             if (!ExecArmed)
             {
-                RectangleF execLight = ToPixels(CduPanelLayout.ExecLight);
                 using SolidBrush mask = new(SampleExecBezel());
                 using GraphicsPath slot = RoundedRect(execLight, execLight.Height * 0.5f);
                 g.FillPath(mask, slot);
+            }
+            else
+            {
+                // Lit: the artwork's own (white) light shows; wrap it in a soft white hue
+                // so it reads clearly as on.
+                RectangleF glowRect = RectangleF.Inflate(execLight, execLight.Height * 1.8f, execLight.Height * 1.8f);
+                using GraphicsPath glow = RoundedRect(glowRect, glowRect.Height * 0.5f);
+                using PathGradientBrush hue = new(glow)
+                {
+                    CenterColor = Color.FromArgb(130, 255, 255, 255),
+                    SurroundColors = new[] { Color.FromArgb(0, 255, 255, 255) }
+                };
+                g.FillPath(hue, glow);
             }
 
             if (pressedRect.HasValue)
