@@ -285,7 +285,7 @@ namespace EasyCPDLC.VNS430.Cdu
                 // Hue around the label as a halo, elongated to match the tall edge slot:
                 // transparent at the outer edge, peaking on a mid ring, and fully off over
                 // the centre 20% so the lettering keeps full contrast.
-                RectangleF glowRect = RectangleF.Inflate(r, r.Width * 0.42f, r.Height * 0.16f);
+                RectangleF glowRect = RectangleF.Inflate(r, r.Width * 0.42f, r.Height * 0.29f);
                 using GraphicsPath glow = RoundedRect(glowRect, Math.Min(glowRect.Width, glowRect.Height) * 0.45f);
                 using PathGradientBrush hue = new(glow)
                 {
