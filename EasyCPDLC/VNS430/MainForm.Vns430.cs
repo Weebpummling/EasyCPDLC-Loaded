@@ -617,10 +617,19 @@ namespace EasyCPDLC
             try
             {
                 string apiKey = SavedSayIntentionsApiKey;
+                DateTime requestedUtc = DateTime.UtcNow;
                 Vns430WeatherClient weather = new();
                 string body = kind == Vns430WorkflowKind.AocAtis
                     ? await weather.FetchAtisAsync(source, cleanStation, type, apiKey, CancellationToken.None).ConfigureAwait(false)
                     : await weather.FetchMetarAsync(source, cleanStation, apiKey, CancellationToken.None).ConfigureAwait(false);
+
+                // Same minimum reply latency as the datalink: a weather answer landing
+                // the same instant as the request reads as fake.
+                TimeSpan elapsed = DateTime.UtcNow - requestedUtc;
+                if (elapsed < MinimumReplyLatency)
+                {
+                    await Task.Delay(MinimumReplyLatency - elapsed).ConfigureAwait(false);
+                }
 
                 OnUi(() => WriteMessage(body, label, cleanStation, false));
             }
