@@ -2010,7 +2010,16 @@ namespace EasyCPDLC.VNS430
 
         private void HandleCompanionCommand(Vns430Command command)
         {
-            if (command >= Vns430Command.DcduLeftLsk1 && command <= Vns430Command.DcduHide)
+            // The DCDU/CDU input set is one contiguous block: line-select keys and panel
+            // shortcuts (DcduLeftLsk1..DcduHide, 19..38) followed by the whole 737 keypad
+            // (CduAlphaA..CduBrightnessDown, 39..97). It must all route to the backend.
+            //
+            // This upper bound used to stop at DcduHide, so every keypad command fell
+            // through: with hardware keys ON the second branch was skipped and they were
+            // dropped, and with it OFF they were handed to ExecuteCommand, which only
+            // understands the GNS430's own 1..18. The result was that the LSKs worked from
+            // hardware but no letter, digit, EXEC, MENU or PAGE key ever did.
+            if (command >= Vns430Command.DcduLeftLsk1 && command <= Vns430Command.CduBrightnessDown)
             {
                 if (preferences.DcduCompanionMode)
                 {
@@ -2020,6 +2029,7 @@ namespace EasyCPDLC.VNS430
                 return;
             }
 
+            // GNS430 native commands (1..18) are only live when hardware keys are off.
             if (!preferences.DcduCompanionMode)
             {
                 ExecuteCommand(command);

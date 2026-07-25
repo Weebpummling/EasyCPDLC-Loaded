@@ -1,8 +1,8 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+$')]
-    [string]$Version = '1.0.1',
-    # Appended to the package name only (e.g. 'beta' -> 1.0.1-beta). The numeric
+    [string]$Version = '1.0.2',
+    # Appended to the package name only (e.g. 'beta' -> 1.0.2-beta). The numeric
     # $Version is what must match AssemblyFileVersion.
     [string]$VersionSuffix = '',
     [ValidateSet('Debug', 'Release')]

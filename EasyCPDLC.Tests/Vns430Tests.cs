@@ -37,6 +37,59 @@ namespace EasyCPDLC.Tests
             Assert.Equal((Vns430Command)value, command);
         }
 
+        // The companion gate forwards one contiguous block to the CDU backend:
+        // DcduLeftLsk1..CduBrightnessDown. If anything in that span stops being a CDU
+        // input, or the block stops being contiguous, that gate silently drops keys -
+        // which is exactly how the whole 737 keypad once became dead over hardware while
+        // the line-select keys kept working.
+        [Fact]
+        public void CduInputCommands_AreOneContiguousBlockEndingAtBrightnessDown()
+        {
+            const int first = (int)Vns430Command.DcduLeftLsk1;
+            const int last = (int)Vns430Command.CduBrightnessDown;
+
+            Assert.Equal(19, first);
+            Assert.Equal(97, last);
+
+            // The keypad must sit inside the forwarded range, not past its end.
+            Assert.InRange((int)Vns430Command.CduAlphaA, first, last);
+            Assert.InRange((int)Vns430Command.CduExec, first, last);
+            Assert.InRange((int)Vns430Command.CduMenu, first, last);
+            Assert.InRange((int)Vns430Command.DcduHide, first, last);
+
+            // Every value in the block must survive protocol validation. The alpha and
+            // digit keys are declared only by their range endpoints, so Enum.IsDefined is
+            // not sufficient here - that gap silently rejected B..Y and 1..8 from hardware.
+            for (int value = first; value <= last; value++)
+            {
+                Assert.True(
+                    Vns430CompanionProtocol.IsKnownCommand((byte)value),
+                    $"Command {value} is inside the CDU input block but fails validation.");
+            }
+        }
+
+        // End-to-end guard: a packet carrying any keypad key must decode. 'B' (40) and
+        // '5' (70) are the cases the endpoint-only enum used to throw away.
+        [Theory]
+        [InlineData(40)]   // B
+        [InlineData(63)]   // Y
+        [InlineData(70)]   // 5
+        [InlineData(91)]   // EXEC
+        public void CompanionPackets_AcceptEveryKeypadKey(byte value)
+        {
+            Vns430CompanionCommandPacket packet = new()
+            {
+                Magic = Vns430CompanionProtocol.Magic,
+                Version = Vns430CompanionProtocol.Version,
+                Sequence = 5,
+                Command = value,
+                Checksum = Vns430CompanionProtocol.CalculateCommandChecksum(5, value)
+            };
+
+            Assert.True(Vns430CompanionProtocol.TryReadCommand(packet, out Vns430Command command));
+            Assert.Equal((Vns430Command)value, command);
+        }
+
         [Fact]
         public void CompanionPackets_RejectDamageAndUnknownCommands()
         {

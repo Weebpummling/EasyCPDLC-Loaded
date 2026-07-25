@@ -44,6 +44,29 @@ namespace EasyCPDLC.VNS430
             return ChecksumSeed ^ Magic ^ Version ^ sequence ^ command;
         }
 
+        /// <summary>
+        /// Whether a wire value is a command this build understands.
+        /// </summary>
+        /// <remarks>
+        /// The alpha and digit keys are declared only by their range endpoints
+        /// (CduAlphaA/CduAlphaZ and CduDigit0/CduDigit9) because the app maps them
+        /// arithmetically rather than by name. Enum.IsDefined alone therefore rejects
+        /// B..Y and 1..8, which silently dropped almost the entire CDU keypad coming
+        /// from hardware. Accept those two spans by range.
+        /// </remarks>
+        internal static bool IsKnownCommand(byte value)
+        {
+            if (value >= (byte)Vns430Command.CduAlphaA && value <= (byte)Vns430Command.CduAlphaZ)
+            {
+                return true;
+            }
+            if (value >= (byte)Vns430Command.CduDigit0 && value <= (byte)Vns430Command.CduDigit9)
+            {
+                return true;
+            }
+            return Enum.IsDefined(typeof(Vns430Command), value);
+        }
+
         internal static bool TryReadCommand(Vns430CompanionCommandPacket packet, out Vns430Command command)
         {
             command = Vns430Command.None;
@@ -51,7 +74,7 @@ namespace EasyCPDLC.VNS430
                 packet.Version != Version ||
                 packet.Checksum != CalculateCommandChecksum(packet.Sequence, packet.Command) ||
                 packet.Command > byte.MaxValue ||
-                !Enum.IsDefined(typeof(Vns430Command), (byte)packet.Command))
+                !IsKnownCommand((byte)packet.Command))
             {
                 return false;
             }
