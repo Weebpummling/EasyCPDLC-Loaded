@@ -696,8 +696,18 @@ namespace EasyCPDLC
                     session.PassengerSplit,
                     edition,
                     session.Aircraft.Icao);
+                DateTime requestedUtc = DateTime.UtcNow;
                 ELoadLoadsheetResult result = await new ELoadControlClient()
                     .GenerateLoadsheetAsync(SavedELoadControlApiKey, request, CancellationToken.None);
+
+                // Same minimum reply latency as the datalink: a loadsheet generated in
+                // a few hundred milliseconds reads as fake when it appears instantly.
+                TimeSpan elapsed = DateTime.UtcNow - requestedUtc;
+                if (elapsed < MinimumReplyLatency)
+                {
+                    await Task.Delay(MinimumReplyLatency - elapsed);
+                }
+
                 Vns430LoadEditionByFlight[session.Flight.FlightKey] = Math.Max(edition, result.EditionNumber);
                 ReceiveELoadControlLoadsheet(result, session.Flight, false);
                 return new Vns430OperationResult { Success = true, Status = "LOADSHEET RECEIVED" };
