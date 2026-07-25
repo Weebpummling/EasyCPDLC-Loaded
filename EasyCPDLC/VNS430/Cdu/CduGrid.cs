@@ -212,11 +212,18 @@ namespace EasyCPDLC.VNS430.Cdu
                         continue;
                     }
 
+                    // The CDU font has no lowercase glyphs: MobiFlight's own exporters
+                    // uppercase every character and express lowercase as *small font*
+                    // instead. Sending a raw lowercase glyph renders as nothing on the
+                    // device, so follow the same contract here.
+                    char glyph = cell.Glyph;
+                    bool lower = char.IsLower(glyph);
+
                     data.Add(new object[]
                     {
-                        cell.Glyph.ToString(),
+                        char.ToUpperInvariant(glyph).ToString(),
                         cell.Color.WinwingCode(),
-                        cell.Small ? 1 : 0,
+                        cell.Small || lower ? 1 : 0,
                         cell.Inverse ? 1 : 0
                     });
                 }

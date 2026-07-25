@@ -182,7 +182,10 @@ there is no fight over the USB device.
 2. **Exit SimAppPro completely.** MobiFlight and SimAppPro cannot both hold a CDU.
 3. Start **MobiFlight Connector** (it must be running — the port only exists while it
    is up).
-4. On the CDU go to `SETUP` → `<WINWING`. Pick the seat you set in step 1:
+4. On the CDU go to `SETUP` → `<WINWING`. Select the seat you set in step 1, then
+   press **`EXEC`** to activate it — taking over a physical CDU is EXEC-armed like any
+   other committing action, so it never happens on a stray press. (`OFF` is a stop, not
+   an activation, so it applies immediately.)
 
    ```text
    WINWING CDU              LINK

@@ -39,6 +39,15 @@ namespace EasyCPDLC.VNS430.Cdu
         private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(5);
         private static readonly TimeSpan IdlePoll = TimeSpan.FromMilliseconds(50);
 
+        // Selecting a font makes MobiFlight write glyph bitmaps into the device's flash.
+        // That must happen at most once per run: re-sending it on every reconnect (which
+        // happens every RetryDelay while MobiFlight is closed) means repeated flash writes,
+        // and an interrupted one leaves the font partially written - which shows up as
+        // specific letters missing on the panel. Static, so reconnects and seat changes
+        // within one session never trigger a second write.
+        private static int fontUploaded;
+        private static readonly TimeSpan FontSettleDelay = TimeSpan.FromSeconds(3);
+
         private readonly Uri endpoint;
         private readonly CancellationTokenSource cancellation = new();
         private readonly Task pump;
@@ -137,10 +146,15 @@ namespace EasyCPDLC.VNS430.Cdu
             await next.ConnectAsync(endpoint, token).ConfigureAwait(false);
             socket = next;
 
-            // MobiFlight expects the font selection before frames, and needs a moment to
-            // push it to the device before the first display write.
-            await SendAsync(new { Target = "Font", Data = FontName }, token).ConfigureAwait(false);
-            await Task.Delay(TimeSpan.FromSeconds(1), token).ConfigureAwait(false);
+            // Select the font once per run only (see fontUploaded above), and give the
+            // flash write time to finish before the first frame. Interrupting it is what
+            // corrupts individual glyphs.
+            if (Interlocked.Exchange(ref fontUploaded, 1) == 0)
+            {
+                await SendAsync(new { Target = "Font", Data = FontName }, token).ConfigureAwait(false);
+                await Task.Delay(FontSettleDelay, token).ConfigureAwait(false);
+            }
+
             connected = true;
         }
 

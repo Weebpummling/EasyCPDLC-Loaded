@@ -1267,10 +1267,10 @@ namespace EasyCPDLC
             grid.WriteCentered(CduLayout.TitleRow, "WINWING CDU", CduColor.White);
 
             WinwingSeat active = cduWinwingSeat;
-            RenderCduWinwingChoice(grid, 1, "OFF", WinwingSeat.Off, active);
-            RenderCduWinwingChoice(grid, 2, "CAPT", WinwingSeat.Captain, active);
-            RenderCduWinwingChoice(grid, 3, "FO", WinwingSeat.FirstOfficer, active);
-            RenderCduWinwingChoice(grid, 4, "OBS", WinwingSeat.Observer, active);
+            RenderCduWinwingChoice(grid, 1, "OFF", WinwingSeat.Off, active, this);
+            RenderCduWinwingChoice(grid, 2, "CAPT", WinwingSeat.Captain, active, this);
+            RenderCduWinwingChoice(grid, 3, "FO", WinwingSeat.FirstOfficer, active, this);
+            RenderCduWinwingChoice(grid, 4, "OBS", WinwingSeat.Observer, active, this);
 
             // Live link state, so "selected" and "actually sending" are distinguishable.
             grid.WriteRight(CduLayout.LabelRow(1), "LINK", CduColor.Cyan, small: true);
@@ -1295,11 +1295,13 @@ namespace EasyCPDLC
             RenderCduScratchpad(grid);
         }
 
-        private static void RenderCduWinwingChoice(CduGrid grid, int lsk, string label, WinwingSeat seat, WinwingSeat active)
+        private static void RenderCduWinwingChoice(CduGrid grid, int lsk, string label, WinwingSeat seat, WinwingSeat active, MainForm form)
         {
             bool selected = seat == active;
+            bool armed = form.CduArmed("WINWING:" + seat);
             grid.WriteLeft(CduLayout.DataRow(lsk), "<" + label,
-                selected ? CduColor.Green : CduColor.White, inverse: selected);
+                armed ? CduColor.Amber : selected ? CduColor.Green : CduColor.White,
+                inverse: selected || armed);
         }
 
         private void HandleCduSetupWinwingLsk(bool rightSide, int index)
@@ -1321,11 +1323,27 @@ namespace EasyCPDLC
         }
 
         // Session-only: deliberately not written to settings, so the next launch starts OFF.
+        //
+        // Taking over a physical CDU is consequential - it claims a panel that may be
+        // showing a live aircraft display - so activating a seat is EXEC-armed like any
+        // other committing action. Turning it OFF is a stop, not an activation, so it
+        // applies immediately.
         private void CduSelectWinwingSeat(WinwingSeat seat)
         {
-            cduWinwingSeat = seat;
-            ApplyCduWinwingSeat(seat);
-            cduStatusLine = "WINWING " + WinwingCduSink.Label(seat);
+            if (seat == WinwingSeat.Off)
+            {
+                cduWinwingSeat = seat;
+                ApplyCduWinwingSeat(seat);
+                cduStatusLine = "WINWING OFF";
+                return;
+            }
+
+            CduArm("WINWING:" + seat, "WINWING " + WinwingCduSink.Label(seat), () =>
+            {
+                cduWinwingSeat = seat;
+                ApplyCduWinwingSeat(seat);
+                cduStatusLine = "WINWING " + WinwingCduSink.Label(seat);
+            });
         }
 
         // Attach a sink for the chosen seat, or detach entirely when OFF. Detaching restores

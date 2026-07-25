@@ -75,6 +75,27 @@ namespace EasyCPDLC.Tests
             Assert.True(grid[3, 0].IsBlank);
         }
 
+        // The WinWing CDU font has no lowercase glyphs. MobiFlight's own exporters
+        // uppercase every character and express lowercase as small font instead; a raw
+        // lowercase glyph renders as nothing on the device.
+        [Fact]
+        public void ToWinwingData_UppercasesLowercaseAndMarksItSmall()
+        {
+            CduGrid grid = new();
+            grid.Write(0, 0, "a", CduColor.Green, small: false, inverse: false);
+            grid.Write(0, 1, "B", CduColor.Green, small: false, inverse: false);
+
+            IReadOnlyList<object[]> data = grid.ToWinwingData();
+
+            object[] wasLower = data[0];
+            Assert.Equal("A", wasLower[0]);
+            Assert.Equal(1, wasLower[2]);   // lowercase -> small font
+
+            object[] wasUpper = data[1];
+            Assert.Equal("B", wasUpper[0]);
+            Assert.Equal(0, wasUpper[2]);   // already uppercase -> large, unchanged
+        }
+
         [Fact]
         public void ToWinwingData_EmitsQuadrupletForAWrittenCell()
         {
