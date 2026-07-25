@@ -339,7 +339,7 @@ namespace EasyCPDLC
             // Left column: actions on the LSKs.
             grid.WriteLeft(CduLayout.DataRow(1), snapshot.Connected ? "<DISCONNECT" : "<CONNECT",
                 snapshot.Connected ? CduColor.Amber : CduColor.Green);
-            grid.WriteLeft(CduLayout.DataRow(2), "<RELOAD FP", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(2), "<RELOAD FP", CduColor.White, inverse: CduArmed("RELOADFP"));
             grid.WriteLeft(CduLayout.DataRow(3), "<PRINT LAST", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(4), "<REPRINT", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(5), "<LOGON", CduColor.White);
@@ -489,7 +489,15 @@ namespace EasyCPDLC
             switch (index)
             {
                 case 1: Vns430ToggleVatsimConnection(); break;
-                case 2: ReloadFlightPlanButton_Click(mainReloadFlightPlanButton, EventArgs.Empty); break;
+                case 2:
+                    // Reloading the flight plan wipes the inbox for the new leg, so arm it.
+                    CduArm("RELOADFP", "RELOAD FP + CLEAR", () =>
+                    {
+                        ReloadFlightPlanButton_Click(mainReloadFlightPlanButton, EventArgs.Empty);
+                        DeleteAllElement(this, EventArgs.Empty);
+                        cduStatusLine = "FP RELOADED";
+                    });
+                    break;
                 case 3: PrintButton_Click(refreshButtonVisual, EventArgs.Empty); break;
                 case 4: ReprintButton_Click(boeingReprintButton, EventArgs.Empty); break;
                 case 5:
@@ -931,6 +939,7 @@ namespace EasyCPDLC
             grid.WriteCentered(CduLayout.TitleRow, "SETUP", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(1), "<ACCOUNT", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(2), "<PRINTER", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(3), "<CLEAR ALL MSG", CduColor.White, inverse: CduArmed("CLEARALL"));
             RenderCduSetupField(grid, 1, true, "DCDU STYLE", DcduStyleManager.CurrentStyle);
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
@@ -1035,6 +1044,14 @@ namespace EasyCPDLC
                 {
                     case 1: cduPage = CduPageId.SetupAccount; break;
                     case 2: cduPage = CduPageId.SetupPrinter; break;
+                    case 3:
+                        // Destructive, so arm it; EXEC clears the inbox.
+                        CduArm("CLEARALL", "CLEAR ALL MSG", () =>
+                        {
+                            DeleteAllElement(this, EventArgs.Empty);
+                            cduStatusLine = "MESSAGES CLEARED";
+                        });
+                        break;
                     case 6: cduPage = CduPageId.Menu; break;
                 }
                 return;
