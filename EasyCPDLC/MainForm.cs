@@ -17715,6 +17715,23 @@ airbusAocSendLabel = null;
             }
         }
 
+        // Inject a synthetic vPilot "Contact Me" through the real handler to verify the
+        // bridge -> inbox path lands a message the CDU/DCDU can see.
+        internal void SendTestVpilotContactMe()
+        {
+            string cs = (callsign ?? string.Empty).Trim().ToUpperInvariant();
+            VpilotBridgePacket packet = new()
+            {
+                Kind = VpilotBridgePacketKind.ContactMe,
+                Callsign = string.IsNullOrWhiteSpace(cs) ? "TEST" : cs,
+                Peer = "EDDF_TWR",
+                Facility = "TWR",
+                Frequency = "119.900",
+                Message = "CONTACT ME EDDF_TWR ON 119.900"
+            };
+            VpilotBridgePacketReceived(this, packet);
+        }
+
         private void HandleVpilotContactMe(VpilotBridgePacket packet)
         {
             string controllerCallsign = (packet.Peer ?? string.Empty).Trim().ToUpperInvariant();
@@ -19043,6 +19060,7 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 };
                 cduLampTest.Click += (_, __) => { ToggleCduAnnunciatorTest(); cduLampTest.Checked = IsCduAnnunciatorTest(); };
                 styleMenu.DropDownItems.Add(cduLampTest);
+                styleMenu.DropDownItems.Add("Test vPilot Contact Me", null, (_, __) => SendTestVpilotContactMe());
                 trayMenu.Items.Add(styleMenu);
 
                 trayMenu.Items.Add("Open VNS430 panel", null, (_, __) => ShowVns430Panel());
