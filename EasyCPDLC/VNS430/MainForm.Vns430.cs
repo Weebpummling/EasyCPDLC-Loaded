@@ -303,6 +303,14 @@ namespace EasyCPDLC
                         await SendCPDLCMessage(recipient, "CPDLC", packet);
                         break;
 
+                    case Vns430WorkflowKind.AtcPositionReport:
+                        // A position report expects no clearance reply, so it is sent
+                        // with the "N" response flag, matching the original RequestForm.
+                        string reportPacket = string.Format("/data2/{0}//N/{1}", messageOutCounter, message);
+                        messageOutCounter += 1;
+                        await SendCPDLCMessage(recipient, "CPDLC", reportPacket);
+                        break;
+
                     case Vns430WorkflowKind.AocTelex:
                     case Vns430WorkflowKind.AocPreDeparture:
                         await SendCPDLCMessage(recipient, "TELEX", message);

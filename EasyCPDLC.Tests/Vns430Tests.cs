@@ -663,6 +663,35 @@ namespace EasyCPDLC.Tests
         }
 
         [Fact]
+        public void PositionReportWorkflow_BuildsThePposPacketAndOmitsBlankTail()
+        {
+            Vns430BackendSnapshot snapshot = new() { CurrentAtcUnit = "EDYY" };
+            Vns430Workflow workflow = Vns430Workflow.Create(Vns430WorkflowKind.AtcPositionReport, snapshot);
+
+            // RECIPIENT prefilled from the current ATS unit; TIME prefilled with UTC HHmm.
+            Assert.Equal("EDYY", workflow.Fields.Single(field => field.Key == "RECIPIENT").CleanValue);
+            Assert.Equal(4, workflow.Fields.Single(field => field.Key == "TIME").CleanValue.Length);
+
+            workflow.Fields.Single(field => field.Key == "FIX").Value = "ABNIL";
+            workflow.Fields.Single(field => field.Key == "TIME").Value = "1830";
+            workflow.Fields.Single(field => field.Key == "FL").Value = "350";
+            workflow.Fields.Single(field => field.Key == "NEXT").Value = "RASVO";
+
+            // With ETA and THEN left blank, the optional tail is omitted rather than padded.
+            Assert.Equal(string.Empty, workflow.ValidationError());
+            Assert.Equal("POSITION REPORT PPOS ABNIL AT 1830Z FL350 TO RASVO", workflow.BuildMessage(snapshot));
+
+            workflow.Fields.Single(field => field.Key == "ETA").Value = "1845";
+            workflow.Fields.Single(field => field.Key == "THEN").Value = "DEXIT";
+            Assert.Equal("POSITION REPORT PPOS ABNIL AT 1830Z FL350 TO RASVO AT 1845Z NEXT DEXIT",
+                workflow.BuildMessage(snapshot));
+
+            // TIME/FL are length-checked.
+            workflow.Fields.Single(field => field.Key == "FL").Value = "35";
+            Assert.Equal("CHECK TIME/FL", workflow.ValidationError());
+        }
+
+        [Fact]
         public void AocAndLoadPages_RenderNativelyWithoutOpeningLegacyForms()
         {
             Vns430BackendSnapshot snapshot = new()

@@ -36,6 +36,9 @@ namespace EasyCPDLC.VNS430
         AtcSpeed,
         AtcWhenCanWe,
         AtcFreeText,
+        // AtcPositionReport must stay within the contiguous Atc block: the VNS430
+        // panel maps its ATC menu to kinds by index arithmetic from AtcDirect.
+        AtcPositionReport,
         AocTelex,
         AocMetar,
         AocAtis,

@@ -181,6 +181,7 @@ namespace EasyCPDLC
                     break;
                 case CduPageId.Atc:
                     RenderCduRequestMenu(grid, snapshot, "ATC REQUESTS", CduAtcMenuItems);
+                    grid.WriteRight(CduLayout.DataRow(1), "POS REP>", CduColor.White);
                     break;
                 case CduPageId.Aoc:
                     RenderCduRequestMenu(grid, snapshot, "AOC / TELEX", CduAocMenuItems);
@@ -434,7 +435,18 @@ namespace EasyCPDLC
             grid.WriteRight(CduLayout.DataRow(6), "MENU>", CduColor.White);
         }
 
-        private void HandleCduAtcLsk(bool rightSide, int index) => HandleCduRequestMenuSelection(rightSide, index, CduAtcMenuItems);
+        private void HandleCduAtcLsk(bool rightSide, int index)
+        {
+            if (rightSide && index == 1)
+            {
+                cduWorkflow = Vns430Workflow.Create(Vns430WorkflowKind.AtcPositionReport, GetVns430Snapshot());
+                cduScratchpad = string.Empty;
+                cduStatusLine = string.Empty;
+                cduPage = CduPageId.Request;
+                return;
+            }
+            HandleCduRequestMenuSelection(rightSide, index, CduAtcMenuItems);
+        }
 
         private void HandleCduAocLsk(bool rightSide, int index)
         {

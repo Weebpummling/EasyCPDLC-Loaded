@@ -116,7 +116,7 @@ namespace EasyCPDLC.VNS430
 
         private static readonly string[] AtcMenuItems =
         {
-            "DIRECT TO", "LEVEL", "SPEED", "WHEN CAN WE", "FREE TEXT"
+            "DIRECT TO", "LEVEL", "SPEED", "WHEN CAN WE", "FREE TEXT", "POSITION REP"
         };
 
         private static readonly string[] AocMenuItems =
@@ -988,7 +988,7 @@ namespace EasyCPDLC.VNS430
             workflow = Vns430Workflow.Create(kind, snapshot);
             workflowCharacter = 0;
             operationStatus = string.Empty;
-            bool atc = kind >= Vns430WorkflowKind.AtcDirect && kind <= Vns430WorkflowKind.AtcFreeText;
+            bool atc = kind >= Vns430WorkflowKind.AtcDirect && kind <= Vns430WorkflowKind.AtcPositionReport;
             SetPage(atc ? Vns430Page.AtcRequest : Vns430Page.AocRequest, true,
                 atc ? Vns430PageGroup.Wpt : Vns430PageGroup.Aux);
         }

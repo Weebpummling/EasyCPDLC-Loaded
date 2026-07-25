@@ -92,6 +92,12 @@ namespace EasyCPDLC.VNS430
                 return "CHECK ETA/MACH/LEVEL";
             }
 
+            if (Kind == Vns430WorkflowKind.AtcPositionReport &&
+                (Value("TIME").Length != 4 || Value("FL").Length != 3))
+            {
+                return "CHECK TIME/FL";
+            }
+
             string whenType = Value("TYPE");
             if (Kind == Vns430WorkflowKind.AtcWhenCanWe &&
                 new[] { "CLIMB", "DESCENT", "MACH", "SPEED", "DIRECT" }.Contains(whenType) &&
@@ -122,6 +128,11 @@ namespace EasyCPDLC.VNS430
                     (Value("SPEED TYPE") == "MACH" ? "M" + Value("VALUE") : Value("VALUE") + "K") + suffix,
                 Vns430WorkflowKind.AtcWhenCanWe => BuildWhenCanWe(Value("TYPE"), Value("VALUE"), remarks),
                 Vns430WorkflowKind.AtcFreeText => Value("TEXT"),
+                Vns430WorkflowKind.AtcPositionReport =>
+                    "POSITION REPORT PPOS " + Value("FIX") + " AT " + Value("TIME") + "Z FL" + Value("FL") +
+                    " TO " + Value("NEXT") +
+                    (string.IsNullOrWhiteSpace(Value("ETA")) ? string.Empty : " AT " + Value("ETA") + "Z") +
+                    (string.IsNullOrWhiteSpace(Value("THEN")) ? string.Empty : " NEXT " + Value("THEN")),
                 Vns430WorkflowKind.AocTelex => Value("TEXT"),
                 Vns430WorkflowKind.AocPreDeparture =>
                     "REQUEST PREDEP CLEARANCE " + snapshot.Callsign + " " + snapshot.Aircraft +
@@ -172,6 +183,7 @@ namespace EasyCPDLC.VNS430
                 Vns430WorkflowKind.AtcSpeed => new() { Kind = kind, Title = "SPEED REQUEST", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Options("SPEED TYPE", "FORMAT", "MACH", "KNOTS"), Text("VALUE", "SPEED", 3, true), Options("DUE", "DUE TO", "NONE", "WX", "A/C"), Text("REMARKS", "REMARKS", 48) } },
                 Vns430WorkflowKind.AtcWhenCanWe => new() { Kind = kind, Title = "WHEN CAN WE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Options("TYPE", "REQUEST", "HIGHER", "LOWER", "BACK ROUTE", "CLIMB", "DESCENT", "MACH", "SPEED", "DIRECT"), Text("VALUE", "VALUE", 8), Text("REMARKS", "REMARKS", 48) } },
                 Vns430WorkflowKind.AtcFreeText => new() { Kind = kind, Title = "ATC FREE TEXT", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("TEXT", "MESSAGE", 80, true) } },
+                Vns430WorkflowKind.AtcPositionReport => new() { Kind = kind, Title = "POSITION REPORT", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("FIX", "PPOS FIX", 7, true), Text("TIME", "TIME Z", 4, true, DateTime.UtcNow.ToString("HHmm")), Text("FL", "FL", 3, true), Text("NEXT", "NEXT FIX", 7, true), Text("ETA", "NEXT ETA", 4), Text("THEN", "THEN FIX", 7) } },
                 Vns430WorkflowKind.AocTelex => new() { Kind = kind, Title = "AOC TELEX", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true), Text("TEXT", "MESSAGE", 80, true) } },
                 Vns430WorkflowKind.AocMetar => new() { Kind = kind, Title = "METAR REQUEST", Fields = { Text("STATION", "STATION", 4, true, station) } },
                 Vns430WorkflowKind.AocAtis => new() { Kind = kind, Title = "ATIS REQUEST", Fields = { Text("STATION", "STATION", 4, true, station), Options("TYPE", "ATIS TYPE", "ARRIVAL", "DEPARTURE"), Options("AUTO", "AUTO REFRESH", "OFF", "ON") } },
