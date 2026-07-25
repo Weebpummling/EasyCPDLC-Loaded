@@ -59,6 +59,12 @@ namespace
     LVarId g_page = InvalidLVarId;
     LVarId g_cursorActive = InvalidLVarId;
     LVarId g_dcduModeLVar = InvalidLVarId;
+    // CDU annunciator lamps and the EXEC light.
+    LVarId g_annCall = InvalidLVarId;
+    LVarId g_annFail = InvalidLVarId;
+    LVarId g_annMsg = InvalidLVarId;
+    LVarId g_annOfst = InvalidLVarId;
+    LVarId g_execLight = InvalidLVarId;
     bool g_dcduMode = false;
 
     struct DcduInput
@@ -173,6 +179,17 @@ namespace
         }
     }
 
+    // Extinguish every CDU lamp. Used at startup and whenever the desktop app goes
+    // away, so a hardware annunciator never stays lit on stale state.
+    void ClearLamps()
+    {
+        SetLVar(g_annCall, 0.0);
+        SetLVar(g_annFail, 0.0);
+        SetLVar(g_annMsg, 0.0);
+        SetLVar(g_annOfst, 0.0);
+        SetLVar(g_execLight, 0.0);
+    }
+
     void ApplyStatus(const easycpdlc::StatusPacket& packet)
     {
         if (packet.magic != easycpdlc::kMagic || packet.version != easycpdlc::kVersion)
@@ -193,6 +210,11 @@ namespace
         SetLVar(g_dcduModeLVar, g_dcduMode ? 1.0 : 0.0);
         SetLVar(g_unreadCount, static_cast<double>(packet.unreadCount));
         SetLVar(g_page, static_cast<double>(packet.page));
+        SetLVar(g_annCall, (packet.flags & easycpdlc::kStatusAnnCall) != 0 ? 1.0 : 0.0);
+        SetLVar(g_annFail, (packet.flags & easycpdlc::kStatusAnnFail) != 0 ? 1.0 : 0.0);
+        SetLVar(g_annMsg, (packet.flags & easycpdlc::kStatusAnnMsg) != 0 ? 1.0 : 0.0);
+        SetLVar(g_annOfst, (packet.flags & easycpdlc::kStatusAnnOfst) != 0 ? 1.0 : 0.0);
+        SetLVar(g_execLight, (packet.flags & easycpdlc::kStatusExecLight) != 0 ? 1.0 : 0.0);
     }
 
     void ProcessTick(float elapsed);
@@ -291,6 +313,11 @@ namespace
         g_page = register_named_variable(easycpdlc::kPageLVar);
         g_cursorActive = register_named_variable(easycpdlc::kCursorActiveLVar);
         g_dcduModeLVar = register_named_variable(easycpdlc::kDcduModeLVar);
+        g_annCall = register_named_variable(easycpdlc::kAnnCallLVar);
+        g_annFail = register_named_variable(easycpdlc::kAnnFailLVar);
+        g_annMsg = register_named_variable(easycpdlc::kAnnMsgLVar);
+        g_annOfst = register_named_variable(easycpdlc::kAnnOfstLVar);
+        g_execLight = register_named_variable(easycpdlc::kExecLightLVar);
         for (auto& input : g_dcduInputs)
         {
             input.id = register_named_variable(input.name);
@@ -308,6 +335,7 @@ namespace
         SetLVar(g_page, 0.0);
         SetLVar(g_cursorActive, 0.0);
         SetLVar(g_dcduModeLVar, 0.0);
+        ClearLamps();
         ClearDcduInputs();
     }
 
@@ -371,6 +399,7 @@ namespace
             SetLVar(g_vatsimConnected, 0.0);
             SetLVar(g_dcduModeLVar, 0.0);
             g_dcduMode = false;
+            ClearLamps();
             ClearDcduInputs();
         }
     }

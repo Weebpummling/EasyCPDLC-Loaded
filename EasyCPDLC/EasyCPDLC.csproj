@@ -96,12 +96,18 @@
 		</None>
 		<None Remove="VNS430\MSFS2024Module\MobiFlight\EasyCPDLC-VNS430-Module.mfproj" />
 		<None Remove="VNS430\MSFS2024Module\MobiFlight\EasyCPDLC-DCDU-Module.mfproj" />
+		<None Remove="VNS430\MSFS2024Module\MobiFlight\EasyCPDLC-WinWing-737-CDU.mfproj" />
 		<None Include="VNS430\MSFS2024Module\MobiFlight\EasyCPDLC-VNS430-Module.mfproj">
 			<TargetPath>MobiFlight\EasyCPDLC-VNS430-Module.mfproj</TargetPath>
 			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
 		</None>
 		<None Include="VNS430\MSFS2024Module\MobiFlight\EasyCPDLC-DCDU-Module.mfproj">
 			<TargetPath>MobiFlight\EasyCPDLC-DCDU-Module.mfproj</TargetPath>
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+		</None>
+		<!-- The 737 CDU profile is the primary hardware binding for the CDU instrument. -->
+		<None Include="VNS430\MSFS2024Module\MobiFlight\EasyCPDLC-WinWing-737-CDU.mfproj">
+			<TargetPath>MobiFlight\EasyCPDLC-WinWing-737-CDU.mfproj</TargetPath>
 			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
 		</None>
 	</ItemGroup>

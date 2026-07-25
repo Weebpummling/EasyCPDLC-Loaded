@@ -384,7 +384,9 @@ namespace EasyCPDLC.VNS430
                 companionInput.TryEnable(Handle, WmAppSimConnect, out _);
             }
 
-            companionInput.UpdateStatus(snapshot, page, cursorActive, preferences.DcduCompanionMode);
+            companionInput.UpdateStatus(
+                snapshot, page, cursorActive, preferences.DcduCompanionMode,
+                backend.CduCompanionStatusFlags(snapshot));
             refreshTick += 1;
 
             // Hidden with no hardware bridge attached (e.g. the CDU is the active

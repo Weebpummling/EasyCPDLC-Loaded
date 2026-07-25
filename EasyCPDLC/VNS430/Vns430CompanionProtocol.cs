@@ -19,10 +19,24 @@ namespace EasyCPDLC.VNS430
         internal const string CursorActiveLVar = "EASYCPDLC_VNS_CURSOR_ACTIVE";
         internal const string DcduModeLVar = "EASYCPDLC_DCDU_MODE";
 
+        // CDU annunciator lamps and the EXEC light, so a hardware CDU can mirror the
+        // on-screen unit. Each reads 1 while lit, 0 otherwise.
+        internal const string AnnCallLVar = "EASYCPDLC_CDU_ANN_CALL";
+        internal const string AnnFailLVar = "EASYCPDLC_CDU_ANN_FAIL";
+        internal const string AnnMsgLVar = "EASYCPDLC_CDU_ANN_MSG";
+        internal const string AnnOfstLVar = "EASYCPDLC_CDU_ANN_OFST";
+        internal const string ExecLightLVar = "EASYCPDLC_CDU_EXEC_LIGHT";
+
         internal const uint StatusAppOnline = 1 << 0;
         internal const uint StatusVatsimConnected = 1 << 1;
         internal const uint StatusCursorActive = 1 << 2;
         internal const uint StatusDcduMode = 1 << 3;
+        // Spare bits in the existing flags word; the packet layout is unchanged.
+        internal const uint StatusAnnCall = 1 << 4;
+        internal const uint StatusAnnFail = 1 << 5;
+        internal const uint StatusAnnMsg = 1 << 6;
+        internal const uint StatusAnnOfst = 1 << 7;
+        internal const uint StatusExecLight = 1 << 8;
         internal const uint ChecksumSeed = 0x430C0DEC;
 
         internal static uint CalculateCommandChecksum(uint sequence, uint command)

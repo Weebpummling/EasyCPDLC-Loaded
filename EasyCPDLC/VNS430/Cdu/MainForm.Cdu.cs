@@ -308,6 +308,29 @@ namespace EasyCPDLC
             return lit;
         }
 
+        // The CDU lamp state packed into companion status flags, so a hardware CDU can
+        // mirror the on-screen annunciators and EXEC light through the MSFS bridge.
+        internal uint CduCompanionStatusFlags(Vns430BackendSnapshot snapshot)
+        {
+            uint flags = 0;
+            foreach (string name in CduLitAnnunciators(snapshot))
+            {
+                switch (name)
+                {
+                    case "CALL": flags |= Vns430CompanionProtocol.StatusAnnCall; break;
+                    case "FAIL": flags |= Vns430CompanionProtocol.StatusAnnFail; break;
+                    case "MSG": flags |= Vns430CompanionProtocol.StatusAnnMsg; break;
+                    case "OFST": flags |= Vns430CompanionProtocol.StatusAnnOfst; break;
+                }
+            }
+
+            if (cduArmedAction != null)
+            {
+                flags |= Vns430CompanionProtocol.StatusExecLight;
+            }
+            return flags;
+        }
+
         // Shared title row: page name centred, callsign at far left, link state at far right.
         private static void RenderCduHeader(CduGrid grid, string title, Vns430BackendSnapshot snapshot)
         {
@@ -401,7 +424,9 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(2), "<SENT", CduColor.White);
 
             // CLEAR ALL MSG lives under SENT; it is destructive so it is EXEC-armed.
-            grid.WriteLeft(CduLayout.DataRow(3), "<CLEAR ALL MSG", CduColor.White, inverse: CduArmed("CLEARALL"));
+            // Written full-width: the label is longer than the 12-column left half and
+            // WriteLeft would clip it to "<CLEAR ALL M".
+            grid.Write(CduLayout.DataRow(3), 0, "<CLEAR ALL MSG", CduColor.White, inverse: CduArmed("CLEARALL"));
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
 
@@ -989,10 +1014,14 @@ namespace EasyCPDLC
 
             // Right column: instrument selector (CDU <-> GNS430) plus the network/weather
             // cycles. The Airbus/Boeing skins are hidden, so the instrument choices are the
-            // CDU and the GNS430 (VNS430) panel.
+            // CDU and the GNS430 panel.
             RenderCduSetupField(grid, 1, true, "INSTRUMENT", InstrumentText());
             RenderCduSetupField(grid, 2, true, "ATC NETWORK", AtcNetworkText());
             RenderCduSetupField(grid, 3, true, "WX SOURCE", WxSourceText());
+
+            // Hardware keys: gates the MSFS module's CDU/DCDU L-vars so a physical CDU
+            // (e.g. WinWing) can drive the LSKs and keypad through MobiFlight.
+            RenderCduSetupField(grid, 4, true, "HW KEYS", IsDcduCompanionModeEnabled() ? "ON" : "OFF");
 
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
@@ -1192,7 +1221,24 @@ namespace EasyCPDLC
                 case 1: CduCycleInstrument(); break;
                 case 2: CduCycleAtcNetwork(); break;
                 case 3: CduCycleWxSource(); break;
+                case 4: CduToggleHardwareKeys(); break;
             }
+        }
+
+        // Turn the MSFS module's CDU/DCDU hardware keys on or off. Without this the
+        // EASYCPDLC_CDU_* / EASYCPDLC_DCDU_* L-vars are ignored, so a physical CDU cannot
+        // drive the panel.
+        private void CduToggleHardwareKeys()
+        {
+            bool enable = !IsDcduCompanionModeEnabled();
+            if (SetDcduCompanionMode(enable, out string error) && string.IsNullOrWhiteSpace(error))
+            {
+                cduStatusLine = "HW KEYS " + (enable ? "ON" : "OFF");
+                return;
+            }
+
+            // Saved either way; the module connects when MSFS/SimConnect becomes available.
+            cduStatusLine = enable ? "HW KEYS ON - AWAITING SIM" : "HW KEYS OFF";
         }
 
         private string InstrumentText() => IsVns430PanelVisibleForInstrument() ? "GNS430" : "CDU";

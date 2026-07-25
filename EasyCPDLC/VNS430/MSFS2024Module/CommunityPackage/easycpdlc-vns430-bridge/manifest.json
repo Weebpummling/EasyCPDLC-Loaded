@@ -1,0 +1,22 @@
+{
+    "dependencies":  [
+
+                     ],
+    "content_type":  "MISC",
+    "title":  "EasyCPDLC VNS430 Bridge",
+    "manufacturer":  "",
+    "creator":  "EasyCPDLC Community",
+    "package_version":  "0.3.0",
+    "minimum_game_version":  "1.8.8",
+    "minimum_compatibility_version":  "8.8.0.230",
+    "export_type":  "Community",
+    "builder":  "EasyCPDLC MSFS 2024 SDK build",
+    "package_order_hint":  "MISC",
+    "release_notes":  {
+                          "neutral":  {
+                                          "LastUpdate":  "Standalone-host compatible named-variable ABI and one-second event transport.",
+                                          "OlderHistory":  ""
+                                      }
+                      },
+    "total_package_size":  "39356"
+}

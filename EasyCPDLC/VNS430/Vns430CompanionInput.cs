@@ -240,7 +240,7 @@ namespace EasyCPDLC.VNS430
             }
         }
 
-        internal void UpdateStatus(Vns430BackendSnapshot snapshot, Vns430Page page, bool cursorActive, bool dcduMode)
+        internal void UpdateStatus(Vns430BackendSnapshot snapshot, Vns430Page page, bool cursorActive, bool dcduMode, uint lampFlags = 0)
         {
             if (!Enabled)
             {
@@ -266,6 +266,9 @@ namespace EasyCPDLC.VNS430
             {
                 flags |= Vns430CompanionProtocol.StatusDcduMode;
             }
+
+            // CDU annunciator / EXEC lamp bits, supplied by the CDU front end.
+            flags |= lampFlags;
 
             Vns430CompanionStatusPacket packet = new()
             {

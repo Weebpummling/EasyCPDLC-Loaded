@@ -118,6 +118,10 @@ On the **CDU `SETUP`** page (right column), or the **GNS430 `MENU`**:
 - **ATC NETWORK** — `VATSIM` or `SI` (SayIntentions). *IVAO is planned.*
 - **WX SOURCE** — `AUTO` (follow the network), or force `VATSIM` / `REAL WORLD` /
   `SAYINTENTIONS`.
+- **HW KEYS** — `ON` lets a physical CDU drive the panel (see
+  [hardware control](EasyCPDLC/VNS430/MSFS2024Module/README.md)).
+
+![CDU SETUP page](assets/screenshots/cdu-setup.png)
 
 Weather routing:
 
@@ -153,6 +157,11 @@ carries it out. Local navigation is immediate. The side annunciators show **`MSG
 **Main menu** (`MENU`): `<DLK` (status/connection), `<ATC` (CPDLC requests),
 `<AOC` (telex + weather), `<MSG` (inbox), `<SETUP`.
 
+![CDU main menu](assets/screenshots/cdu-menu.png)
+
+`<MSG` turns amber and shows the unread count when inbound traffic is waiting;
+`<SETUP` does the same when a required credential is missing.
+
 ### CDU workflow — VATSIM
 
 1. **Credentials & network.** `SETUP → ACCOUNT`: CID + Hoppie code. `SETUP → ATC
@@ -164,11 +173,22 @@ carries it out. Local navigation is immediate. The side annunciators show **`MSG
 4. **Send a request.** `MENU → <ATC`, choose e.g. `DIRECT`, `LEVEL`, `SPEED`,
    `WHEN CAN WE`, `FREE TEXT`, or `POS REP>`. Fill the fields via the scratchpad,
    then `SEND>` and press **`EXEC`**.
+
+   | ATC request menu | A request form |
+   |---|---|
+   | ![ATC requests](assets/screenshots/cdu-atc-requests.png) | ![Request form](assets/screenshots/cdu-request-form.png) |
 5. **Read replies.** Inbound clearances light `MSG`. Open `MENU → <MSG → <RECEIVED`,
    select the message, and reply with `<WILCO` / `<UNABLE` / `<STANDBY` (armed →
    `EXEC`). Long messages scroll with `PREV/NEXT PAGE`.
+
+   ![Messages menu](assets/screenshots/cdu-messages.png)
+
 6. **Get weather.** `MENU → <AOC → METAR>` or `ATIS>`, enter the station; with the
    VATSIM source this is requested over the Hoppie datalink and returns to the inbox.
+
+   ![AOC menu](assets/screenshots/cdu-aoc-menu.png)
+
+   The same page carries `PDC`, `OCEANIC`, and `LOADSHEET>`.
 
 ### CDU workflow — SayIntentions
 

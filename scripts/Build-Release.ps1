@@ -92,11 +92,15 @@ $moduleRoot = Join-Path $vns430Root 'MSFS2024Module'
 $bridgeRoot = Join-Path $moduleRoot 'Bridge'
 $mobiFlightProfile = Join-Path $moduleRoot 'MobiFlight\EasyCPDLC-VNS430-Module.mfproj'
 $dcduMobiFlightProfile = Join-Path $moduleRoot 'MobiFlight\EasyCPDLC-DCDU-Module.mfproj'
+$cduMobiFlightProfile = Join-Path $moduleRoot 'MobiFlight\EasyCPDLC-WinWing-737-CDU.mfproj'
 if (-not (Test-Path -LiteralPath $mobiFlightProfile -PathType Leaf)) {
     throw "The required VNS430 MobiFlight profile was not found at '$mobiFlightProfile'."
 }
 if (-not (Test-Path -LiteralPath $dcduMobiFlightProfile -PathType Leaf)) {
     throw "The required DCDU MobiFlight profile was not found at '$dcduMobiFlightProfile'."
+}
+if (-not (Test-Path -LiteralPath $cduMobiFlightProfile -PathType Leaf)) {
+    throw "The required 737 CDU MobiFlight profile was not found at '$cduMobiFlightProfile'."
 }
 
 $vns430PackageDirectory = Join-Path $packageDirectory 'VNS430'
@@ -107,13 +111,21 @@ New-Item -ItemType Directory -Path $moduleMobiFlightDirectory -Force | Out-Null
 New-Item -ItemType Directory -Path $moduleSourceDirectory -Force | Out-Null
 Copy-Item -LiteralPath $mobiFlightProfile -Destination $moduleMobiFlightDirectory -Force
 Copy-Item -LiteralPath $dcduMobiFlightProfile -Destination $moduleMobiFlightDirectory -Force
+Copy-Item -LiteralPath $cduMobiFlightProfile -Destination $moduleMobiFlightDirectory -Force
 Copy-Item -LiteralPath (Join-Path $vns430Root 'README.md') -Destination $vns430PackageDirectory -Force
 Copy-Item -LiteralPath (Join-Path $moduleRoot 'README.md') -Destination $modulePackageDirectory -Force
 Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\HOPPIE-AIRCRAFT-ACARS-ROUTING.md') -Destination $vns430PackageDirectory -Force
 Copy-Item -Path (Join-Path $bridgeRoot 'Sources\*') -Destination $moduleSourceDirectory -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $bridgeRoot 'Build-Wasm.ps1') -Destination $moduleSourceDirectory -Force
 
-$builtCompanionRoot = Join-Path $bridgeRoot 'BuiltPackage'
+# Prefer the version-controlled, ready-to-drop Community package; fall back to a local
+# SDK build under Bridge\BuiltPackage when one has just been produced.
+$trackedCompanionRoot = Join-Path $moduleRoot 'CommunityPackage'
+$builtCompanionRoot = if (Test-Path -LiteralPath $trackedCompanionRoot -PathType Container) {
+    $trackedCompanionRoot
+} else {
+    Join-Path $bridgeRoot 'BuiltPackage'
+}
 $builtCompanionWasm = if (Test-Path -LiteralPath $builtCompanionRoot -PathType Container) {
     Get-ChildItem -LiteralPath $builtCompanionRoot -Filter '*.wasm' -File -Recurse | Select-Object -First 1
 } else {
@@ -128,7 +140,7 @@ if ($companionWasmIncluded) {
 
 $bridgeHash = (Get-FileHash -LiteralPath (Join-Path $packageDirectory 'Bridge\EasyCPDLC.VPilotBridge.dll') -Algorithm SHA256).Hash
 $manifest = [ordered]@{
-    product = 'EasyCPDLC Print + eLoadControl'
+    product = 'EasyCPDLC-Loaded'
     version = $Version
     runtime = 'win-x64 self-contained'
     bridge = 'Bridge/EasyCPDLC.VPilotBridge.dll'
@@ -136,6 +148,7 @@ $manifest = [ordered]@{
     bridgeInstaller = 'Install-vPilot-Bridge.cmd'
     mobiFlightProfile = 'VNS430/MSFS2024Module/MobiFlight/EasyCPDLC-VNS430-Module.mfproj'
     dcduMobiFlightProfile = 'VNS430/MSFS2024Module/MobiFlight/EasyCPDLC-DCDU-Module.mfproj'
+    cduMobiFlightProfile = 'VNS430/MSFS2024Module/MobiFlight/EasyCPDLC-WinWing-737-CDU.mfproj'
     companionWasmIncluded = $companionWasmIncluded
     companionCommunityPackage = if ($companionWasmIncluded) { 'VNS430/MSFS2024Module/Bridge-Community' } else { $null }
     companionSdkSources = 'VNS430/MSFS2024Module/Bridge-Sources'

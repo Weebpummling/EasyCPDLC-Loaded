@@ -19,10 +19,24 @@ namespace easycpdlc
     constexpr const char* kCursorActiveLVar = "EASYCPDLC_VNS_CURSOR_ACTIVE";
     constexpr const char* kDcduModeLVar = "EASYCPDLC_DCDU_MODE";
 
+    // CDU annunciator lamps and the EXEC light, so a hardware CDU can mirror the
+    // on-screen unit. Each reads 1 while lit, 0 otherwise.
+    constexpr const char* kAnnCallLVar = "EASYCPDLC_CDU_ANN_CALL";
+    constexpr const char* kAnnFailLVar = "EASYCPDLC_CDU_ANN_FAIL";
+    constexpr const char* kAnnMsgLVar = "EASYCPDLC_CDU_ANN_MSG";
+    constexpr const char* kAnnOfstLVar = "EASYCPDLC_CDU_ANN_OFST";
+    constexpr const char* kExecLightLVar = "EASYCPDLC_CDU_EXEC_LIGHT";
+
     constexpr std::uint32_t kStatusAppOnline = 1u << 0;
     constexpr std::uint32_t kStatusVatsimConnected = 1u << 1;
     constexpr std::uint32_t kStatusCursorActive = 1u << 2;
     constexpr std::uint32_t kStatusDcduMode = 1u << 3;
+    // Spare bits in the existing flags word; the packet layout is unchanged.
+    constexpr std::uint32_t kStatusAnnCall = 1u << 4;
+    constexpr std::uint32_t kStatusAnnFail = 1u << 5;
+    constexpr std::uint32_t kStatusAnnMsg = 1u << 6;
+    constexpr std::uint32_t kStatusAnnOfst = 1u << 7;
+    constexpr std::uint32_t kStatusExecLight = 1u << 8;
 
 #pragma pack(push, 1)
     struct CommandPacket
