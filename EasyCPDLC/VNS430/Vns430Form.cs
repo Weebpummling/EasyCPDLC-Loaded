@@ -137,7 +137,7 @@ namespace EasyCPDLC.VNS430
             this.backend = backend ?? throw new ArgumentNullException(nameof(backend));
             preferences = Vns430Preferences.Load();
 
-            Text = "EasyCPDLC - VNS430 Datalink";
+            Text = "EasyCPDLC - GNS430 Datalink";
             StartPosition = FormStartPosition.Manual;
             MinimumSize = new Size(730, 355);
             ClientSize = new Size(LogicalWidth, LogicalHeight);
@@ -1842,6 +1842,10 @@ namespace EasyCPDLC.VNS430
         }
 
         internal bool DcduCompanionMode => preferences.DcduCompanionMode;
+
+        // True when the MSFS WASM module is connected and recently sending data, i.e. when
+        // MobiFlight hardware keybinds will actually drive the panel.
+        internal bool CompanionModuleActive => companionInput != null && companionInput.ModuleActive;
 
         internal bool SetDcduCompanionMode(bool enabled, out string error)
         {

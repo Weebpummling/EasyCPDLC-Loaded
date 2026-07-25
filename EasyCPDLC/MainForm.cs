@@ -3423,10 +3423,9 @@ private TelexForm tForm;
         private ContextMenuStrip trayMenu;
         private ToolStripMenuItem trayArtworkMenuItem;
         private ToolStripMenuItem trayOnScreenButtonsMenuItem;
-        private ToolStripMenuItem trayDcduCompanionMenuItem;
-        private ToolStripMenuItem trayVns430ScreenMenuItem;
         private ToolStripMenuItem trayInstrumentCduItem;
         private ToolStripMenuItem trayInstrumentGnsItem;
+        private ToolStripMenuItem trayModuleStatusItem;
         private bool applyingMainWindowLayout;
         private readonly DcduHotspotButton mainMinimizeButton = new();
         private readonly DcduHotspotButton mainReloadFlightPlanButton = new();
@@ -19128,8 +19127,8 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 trayMenu.Items.Add(new ToolStripSeparator());
 
                 // Instrument selector: which front end the pilot flies. The Airbus/Boeing
-                // DCDU skins are hidden; the choices are the 737 CDU and the GNS430 (VNS430)
-                // panel. (The Airbus DCDU replica rejoins here once it is rebuilt.)
+                // DCDU skins are hidden; the choices are the 737 CDU and the GNS430 panel.
+                // (The Airbus DCDU replica rejoins here once it is rebuilt.)
                 ToolStripMenuItem instrumentMenu = new("Instrument");
                 trayInstrumentCduItem = new ToolStripMenuItem("737 CDU", null, (_, __) => SelectCduInstrument());
                 trayInstrumentGnsItem = new ToolStripMenuItem("GNS430", null, (_, __) => SelectGns430Instrument());
@@ -19137,6 +19136,15 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 instrumentMenu.DropDownItems.Add(trayInstrumentGnsItem);
                 instrumentMenu.DropDownOpening += (_, __) => SyncTrayInstrumentMenuState();
                 trayMenu.Items.Add(instrumentMenu);
+
+                // Read-only status telling the pilot whether the MSFS WASM module is live,
+                // i.e. whether MobiFlight hardware keybinds will drive the panel. Refreshed
+                // each time the tray opens.
+                trayModuleStatusItem = new ToolStripMenuItem("MobiFlight module: checking...")
+                {
+                    Enabled = false
+                };
+                trayMenu.Items.Add(trayModuleStatusItem);
                 trayMenu.Items.Add(new ToolStripSeparator());
 
                 // Display submenu.
@@ -19153,22 +19161,6 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 displayMenu.DropDownItems.Add("Reset window size", null, (_, __) => SetEmbeddedSetupWindowScale(100));
                 trayMenu.Items.Add(displayMenu);
 
-                // Panels & hardware submenu.
-                ToolStripMenuItem hardwareMenu = new("Panels & hardware");
-                trayVns430ScreenMenuItem = new ToolStripMenuItem("VNS430 screen mode (no artwork/zones)")
-                {
-                    CheckOnClick = false
-                };
-                trayVns430ScreenMenuItem.Click += (_, __) => ToggleVns430ScreenMode();
-                hardwareMenu.DropDownItems.Add(trayVns430ScreenMenuItem);
-                trayDcduCompanionMenuItem = new ToolStripMenuItem("Use MSFS module for DCDU controls")
-                {
-                    CheckOnClick = false
-                };
-                trayDcduCompanionMenuItem.Click += (_, __) => ToggleDcduCompanionMode();
-                hardwareMenu.DropDownItems.Add(trayDcduCompanionMenuItem);
-                trayMenu.Items.Add(hardwareMenu);
-
                 // CDU tools submenu.
                 ToolStripMenuItem cduToolsMenu = new("CDU tools");
                 ToolStripMenuItem cduLampTest = new("CDU annunciator lamp test")
@@ -19182,10 +19174,14 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
 
                 trayMenu.Items.Add(new ToolStripSeparator());
                 trayMenu.Items.Add("Exit EasyCPDLC", null, (_, __) => ExitButton_Click(exitButton, EventArgs.Empty));
+                trayMenu.Opening += (_, __) =>
+                {
+                    SyncTrayInstrumentMenuState();
+                    SyncTrayModuleStatus();
+                };
                 SyncTrayDisplayMenuState();
-                SyncTrayCompanionMenuState();
-                SyncTrayVns430ScreenMenuState();
                 SyncTrayInstrumentMenuState();
+                SyncTrayModuleStatus();
 
                 trayIcon?.Dispose();
                 trayIcon = new NotifyIcon
@@ -19220,56 +19216,25 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
 
             string note = Connected
                 ? "Credentials saved. The active Hoppie session is unchanged; reconnect to use the new CID or Hoppie code."
-                : "Credentials saved for the DCDU, VNS430, SimBrief, and eLoadControl interfaces.";
+                : "Credentials saved for the CDU, GNS430, SimBrief, and eLoadControl interfaces.";
             trayIcon?.ShowBalloonTip(3500, "EasyCPDLC credentials", note, ToolTipIcon.Info);
         }
 
-        private void ToggleDcduCompanionMode()
+        // Reflects whether the MSFS WASM module is live so the pilot knows if MobiFlight
+        // hardware keybinds will drive the panel.
+        private void SyncTrayModuleStatus()
         {
-            bool enable = !IsDcduCompanionModeEnabled();
-            if (!SetDcduCompanionMode(enable, out string error))
+            if (trayModuleStatusItem == null)
             {
-                MessageBox.Show(this, error, "DCDU companion mode", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
 
-            SyncTrayCompanionMenuState();
-            string note = enable
-                ? string.IsNullOrWhiteSpace(error)
-                    ? "DCDU LSK and button L-vars are enabled. VNS430 command L-vars are ignored while this mode is active."
-                    : "DCDU mode is saved and will connect automatically when MSFS/SimConnect becomes available."
-                : "DCDU LSK and button L-vars are disabled.";
-            trayIcon?.ShowBalloonTip(4000, "EasyCPDLC MSFS module", note, ToolTipIcon.Info);
+            bool connected = IsCompanionModuleConnected();
+            trayModuleStatusItem.Text = connected
+                ? "MobiFlight module: connected"
+                : "MobiFlight module: not detected";
+            trayModuleStatusItem.Checked = connected;
         }
-
-        private void SyncTrayCompanionMenuState()
-        {
-            if (trayDcduCompanionMenuItem != null)
-            {
-                trayDcduCompanionMenuItem.Checked = IsDcduCompanionModeEnabled();
-            }
-        }
-
-        private void ToggleVns430ScreenMode()
-        {
-            bool enable = !IsVns430ScreenOnlyMode();
-            SetVns430ScreenOnlyMode(enable);
-            SyncTrayVns430ScreenMenuState();
-
-            string note = enable
-                ? "VNS430 panel is a bare screen now: artwork and click zones are off. Drive it with your hardware buttons."
-                : "VNS430 panel artwork and on-screen click zones are back on.";
-            trayIcon?.ShowBalloonTip(4000, "EasyCPDLC VNS430", note, ToolTipIcon.Info);
-        }
-
-        private void SyncTrayVns430ScreenMenuState()
-        {
-            if (trayVns430ScreenMenuItem != null)
-            {
-                trayVns430ScreenMenuItem.Checked = IsVns430ScreenOnlyMode();
-            }
-        }
-
 
         // Instruments (CDU, GNS430, and the future DCDU replica) are mutually-exclusive
         // modes: exactly one is on screen at a time. Selecting the CDU hides the GNS430
@@ -28849,6 +28814,10 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             ApplyMessageFilter();
             RefreshMainDisplaySurface();
             SyncTrayDisplayMenuState();
+
+            // The GNS430 shares this one toggle: hiding the panel artwork also puts the
+            // GNS430 into its bare-screen mode, and showing it restores the bezel.
+            SetVns430ScreenOnlyMode(!visible);
 
             if (embeddedSetupPage == EmbeddedSetupPage.Display)
             {

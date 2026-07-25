@@ -56,6 +56,12 @@ namespace EasyCPDLC
             vns430Panel.SetScreenOnlyMode(enabled);
         }
 
+        // Whether the MSFS WASM module is currently connected. The companion host runs in
+        // the GNS430 panel instance even when it is hidden, so this works regardless of the
+        // active instrument.
+        internal bool IsCompanionModuleConnected() =>
+            vns430Panel != null && !vns430Panel.IsDisposed && vns430Panel.CompanionModuleActive;
+
         internal bool IsVns430ScreenOnlyMode()
         {
             if (vns430Panel != null && !vns430Panel.IsDisposed)
