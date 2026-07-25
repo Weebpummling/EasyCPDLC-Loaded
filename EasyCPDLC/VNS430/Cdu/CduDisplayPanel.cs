@@ -126,7 +126,8 @@ namespace EasyCPDLC.VNS430.Cdu
             {
                 RectangleF execLight = ToPixels(CduPanelLayout.ExecLight);
                 using SolidBrush mask = new(SampleExecBezel());
-                g.FillRectangle(mask, execLight);
+                using GraphicsPath slot = RoundedRect(execLight, execLight.Height * 0.5f);
+                g.FillPath(mask, slot);
             }
 
             if (pressedRect.HasValue)
@@ -237,6 +238,23 @@ namespace EasyCPDLC.VNS430.Cdu
                 pressedRect = null;
                 Invalidate();
             }
+        }
+
+        private static GraphicsPath RoundedRect(RectangleF r, float radius)
+        {
+            GraphicsPath path = new();
+            float d = radius * 2f;
+            if (d <= 0f || d > r.Width || d > r.Height)
+            {
+                path.AddRectangle(r);
+                return path;
+            }
+            path.AddArc(r.X, r.Y, d, d, 180, 90);
+            path.AddArc(r.Right - d, r.Y, d, d, 270, 90);
+            path.AddArc(r.Right - d, r.Bottom - d, d, d, 0, 90);
+            path.AddArc(r.X, r.Bottom - d, d, d, 90, 90);
+            path.CloseFigure();
+            return path;
         }
 
         // The bezel colour just below the EXEC annunciator, used to mask it off.
