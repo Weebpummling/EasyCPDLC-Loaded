@@ -283,19 +283,20 @@ namespace EasyCPDLC.VNS430.Cdu
                 RectangleF r = ToPixels(rect);
 
                 // Colour wash over the lettering to make it read as illuminated.
-                using (SolidBrush wash = new(Color.FromArgb(80, colour)))
+                using (SolidBrush wash = new(Color.FromArgb(55, colour)))
                 {
                     using GraphicsPath body = RoundedRect(r, Math.Min(r.Width, r.Height) * 0.28f);
                     g.FillPath(wash, body);
                 }
 
-                // Soft hue around the label.
-                RectangleF glowRect = RectangleF.Inflate(r, r.Width * 0.55f, r.Height * 0.10f);
-                using GraphicsPath glow = RoundedRect(glowRect, Math.Min(glowRect.Width, glowRect.Height) * 0.3f);
+                // Soft hue around the label, with a long gentle falloff to the edge.
+                RectangleF glowRect = RectangleF.Inflate(r, r.Width * 1.3f, r.Height * 0.4f);
+                using GraphicsPath glow = RoundedRect(glowRect, Math.Min(glowRect.Width, glowRect.Height) * 0.45f);
                 using PathGradientBrush hue = new(glow)
                 {
-                    CenterColor = Color.FromArgb(120, colour),
-                    SurroundColors = new[] { Color.FromArgb(0, colour) }
+                    CenterColor = Color.FromArgb(70, colour),
+                    SurroundColors = new[] { Color.FromArgb(0, colour) },
+                    FocusScales = new PointF(0.25f, 0.25f)
                 };
                 g.FillPath(hue, glow);
             }
