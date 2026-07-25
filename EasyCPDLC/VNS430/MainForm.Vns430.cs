@@ -299,9 +299,11 @@ namespace EasyCPDLC
 
             // REAL WORLD / SAYINTENTIONS weather is fetched directly over HTTP and does
             // not need a VATSIM datalink connection; only the VATSIM (INFOREQ) path does.
+            // The source follows the global SETUP selection (ATC network / WX override).
+            Vns430WeatherSource wxSource = EffectiveWxSource();
             bool directWeather =
                 (workflow.Kind == Vns430WorkflowKind.AocMetar || workflow.Kind == Vns430WorkflowKind.AocAtis) &&
-                Vns430WeatherClient.ParseSource(workflow.Value("SOURCE")) != Vns430WeatherSource.Vatsim;
+                wxSource != Vns430WeatherSource.Vatsim;
 
             if (!Connected && !directWeather)
             {
@@ -357,8 +359,7 @@ namespace EasyCPDLC
                         if (directWeather)
                         {
                             await FetchDirectWeatherAsync(
-                                Vns430WeatherClient.ParseSource(workflow.Value("SOURCE")),
-                                Vns430WorkflowKind.AocMetar, recipient, string.Empty).ConfigureAwait(false);
+                                wxSource, Vns430WorkflowKind.AocMetar, recipient, string.Empty).ConfigureAwait(false);
                             break;
                         }
                         WriteMessage("METAR REQUEST", "METAR", recipient, true);
@@ -370,8 +371,7 @@ namespace EasyCPDLC
                         if (directWeather)
                         {
                             await FetchDirectWeatherAsync(
-                                Vns430WeatherClient.ParseSource(workflow.Value("SOURCE")),
-                                Vns430WorkflowKind.AocAtis, station, workflow.Value("TYPE")).ConfigureAwait(false);
+                                wxSource, Vns430WorkflowKind.AocAtis, station, workflow.Value("TYPE")).ConfigureAwait(false);
                             break;
                         }
                         if (!TryResolveAtisRequestTarget(station, workflow.Value("TYPE"), out recipient, out string warning))

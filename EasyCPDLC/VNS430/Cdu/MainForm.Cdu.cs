@@ -29,6 +29,7 @@ namespace EasyCPDLC
             Setup,
             SetupAccount,
             SetupPrinter,
+            SetupTechnical,
             Load
         }
 
@@ -37,6 +38,7 @@ namespace EasyCPDLC
         private CduPageId cduPage = CduPageId.Menu;
         private CPDLCMessage cduSelectedMessage;
         private int cduDetailScroll;
+        private int cduTechPage;      // SETUP > TECHNICAL current page
         private bool cduMsgSent;      // MessageList filter: false = received, true = sent
         private bool cduStatusError;  // lights the FAIL annunciator while an error is shown
         private readonly List<CPDLCMessage> cduVisibleInbox = new();
@@ -208,6 +210,9 @@ namespace EasyCPDLC
                 case CduPageId.SetupPrinter:
                     HandleCduSetupPrinterLsk(rightSide, index);
                     break;
+                case CduPageId.SetupTechnical:
+                    HandleCduSetupTechnicalLsk(rightSide, index);
+                    break;
                 case CduPageId.Load:
                     HandleCduLoadLsk(rightSide, index);
                     break;
@@ -269,6 +274,9 @@ namespace EasyCPDLC
                 case CduPageId.SetupPrinter:
                     RenderCduSetupPrinter(grid, snapshot);
                     break;
+                case CduPageId.SetupTechnical:
+                    RenderCduSetupTechnical(grid, snapshot);
+                    break;
                 case CduPageId.Load:
                     RenderCduLoad(grid, snapshot);
                     break;
@@ -312,7 +320,7 @@ namespace EasyCPDLC
                 snapshot.Connected ? CduColor.Green : CduColor.Amber, small: true);
         }
 
-        private static void RenderCduMenu(CduGrid grid, Vns430BackendSnapshot snapshot)
+        private void RenderCduMenu(CduGrid grid, Vns430BackendSnapshot snapshot)
         {
             RenderCduHeader(grid, "MCDU MENU", snapshot);
 
@@ -328,8 +336,26 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.LabelRow(4), unread > 0 ? unread + " UNREAD" : "INBOX",
                 unread > 0 ? CduColor.Amber : CduColor.Cyan, small: true);
             grid.WriteLeft(CduLayout.DataRow(4), "<MSG", unread > 0 ? CduColor.Amber : CduColor.White, inverse: unread > 0);
-            grid.WriteLeft(CduLayout.LabelRow(5), "CONFIG", CduColor.Cyan, small: true);
-            grid.WriteLeft(CduLayout.DataRow(5), "<SETUP", CduColor.White);
+
+            // SETUP is highlighted (like MSG) when a required credential for the active
+            // network is missing, so the config need is visible from the menu.
+            bool setupAttn = CduSetupNeedsAttention();
+            grid.WriteLeft(CduLayout.LabelRow(5), setupAttn ? "CHECK SETUP" : "CONFIG",
+                setupAttn ? CduColor.Amber : CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(5), "<SETUP", setupAttn ? CduColor.Amber : CduColor.White, inverse: setupAttn);
+        }
+
+        // SETUP wants attention when a credential the pilot needs to connect/operate is
+        // missing: the Hoppie code and SimBrief are always needed, and the active ATC
+        // network needs its own credential (VATSIM -> Hoppie, SI -> SayIntentions key).
+        private bool CduSetupNeedsAttention()
+        {
+            bool hoppieMissing = string.IsNullOrWhiteSpace(SavedHoppieCode);
+            bool simbriefMissing = string.IsNullOrWhiteSpace(SimbriefID);
+            bool networkMissing = ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions
+                ? string.IsNullOrWhiteSpace(SavedSayIntentionsApiKey)
+                : string.IsNullOrWhiteSpace(SavedHoppieCode);
+            return hoppieMissing || simbriefMissing || networkMissing;
         }
 
         private void RenderCduDlk(CduGrid grid, Vns430BackendSnapshot snapshot)
@@ -373,6 +399,9 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(1), "<RECEIVED", unread > 0 ? CduColor.Amber : CduColor.White);
             grid.WriteLeft(CduLayout.LabelRow(2), sent + " MSGS", CduColor.Cyan, small: true);
             grid.WriteLeft(CduLayout.DataRow(2), "<SENT", CduColor.White);
+
+            // CLEAR ALL MSG lives under SENT; it is destructive so it is EXEC-armed.
+            grid.WriteLeft(CduLayout.DataRow(3), "<CLEAR ALL MSG", CduColor.White, inverse: CduArmed("CLEARALL"));
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
 
@@ -389,8 +418,13 @@ namespace EasyCPDLC
                 cduVisibleInbox.Add(message.Source);
                 CduColor colour = cduMsgSent ? CduColor.Cyan : (message.Unread ? CduColor.Amber : CduColor.White);
                 string station = string.IsNullOrWhiteSpace(message.Station) ? message.Type : message.Station;
-                string label = (cduMsgSent ? ">" : "<") + Truncate(station + " " + message.Type, CduGrid.HalfCols - 1);
-                grid.WriteLeft(CduLayout.DataRow(i + 1), label, colour);
+
+                // Use the full row width so long senders (e.g. a full facility callsign)
+                // are not clipped to the half column. The last row leaves space for the
+                // RETURN> label on the right.
+                int width = i + 1 == CduLayout.LskCount ? CduGrid.Cols - 9 : CduGrid.Cols - 1;
+                string label = (cduMsgSent ? ">" : "<") + Truncate(station + " " + message.Type, width);
+                grid.Write(CduLayout.DataRow(i + 1), 0, label, colour);
             }
 
             if (all.Count == 0)
@@ -634,6 +668,14 @@ namespace EasyCPDLC
             {
                 case 1: cduMsgSent = false; cduPage = CduPageId.MessageList; break;
                 case 2: cduMsgSent = true; cduPage = CduPageId.MessageList; break;
+                case 3:
+                    // Destructive, so arm it; EXEC clears the whole inbox.
+                    CduArm("CLEARALL", "CLEAR ALL MSG", () =>
+                    {
+                        DeleteAllElement(this, EventArgs.Empty);
+                        cduStatusLine = "MESSAGES CLEARED";
+                    });
+                    break;
                 case 6: cduPage = CduPageId.Menu; break;
             }
         }
@@ -937,31 +979,55 @@ namespace EasyCPDLC
         private void RenderCduSetup(CduGrid grid, Vns430BackendSnapshot snapshot)
         {
             grid.WriteCentered(CduLayout.TitleRow, "SETUP", CduColor.White);
-            grid.WriteLeft(CduLayout.DataRow(1), "<ACCOUNT", CduColor.White);
+
+            // Left column: sub-pages. ACCOUNT is highlighted when a required credential
+            // is missing so the attention carries through from the menu.
+            bool acctAttn = CduSetupNeedsAttention();
+            grid.WriteLeft(CduLayout.DataRow(1), "<ACCOUNT", acctAttn ? CduColor.Amber : CduColor.White, inverse: acctAttn);
             grid.WriteLeft(CduLayout.DataRow(2), "<PRINTER", CduColor.White);
-            grid.WriteLeft(CduLayout.DataRow(3), "<CLEAR ALL MSG", CduColor.White, inverse: CduArmed("CLEARALL"));
+            grid.WriteLeft(CduLayout.DataRow(3), "<TECHNICAL", CduColor.White);
+
+            // Right column: display/network/weather cycles (same design as DCDU STYLE).
             RenderCduSetupField(grid, 1, true, "DCDU STYLE", DcduStyleManager.CurrentStyle);
+            RenderCduSetupField(grid, 2, true, "ATC NETWORK", AtcNetworkText());
+            RenderCduSetupField(grid, 3, true, "WX SOURCE", WxSourceText());
+
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
+        }
+
+        private static string AtcNetworkText() =>
+            ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions ? "SI" : "VATSIM";
+
+        // WX source display: AUTO when following the network, otherwise the chosen source.
+        private static string WxSourceText()
+        {
+            string over = SavedWxSourceOverride;
+            if (string.IsNullOrWhiteSpace(over))
+            {
+                return "AUTO";
+            }
+            return Vns430WeatherClient.SourceLabel(Vns430WeatherClient.ParseSource(over));
         }
 
         private void RenderCduSetupAccount(CduGrid grid, Vns430BackendSnapshot snapshot)
         {
             grid.WriteCentered(CduLayout.TitleRow, "ACCOUNT / LOGIN", CduColor.White);
 
-            // Values use the full row width so codes and keys are not truncated.
-            RenderCduAccountField(grid, 1, "VATSIM CID", SavedCID > 0 ? SavedCID.ToString() : null);
-            RenderCduAccountField(grid, 2, "HOPPIE CODE", SavedHoppieCode);
-            RenderCduAccountField(grid, 3, "SIMBRIEF", SimbriefID);
-            RenderCduAccountField(grid, 4, "ELOAD KEY", SavedELoadControlApiKey);
-            RenderCduAccountField(grid, 5, "SAYINTENTIONS KEY", SavedSayIntentionsApiKey);
+            // Identifiers (CID / SimBrief) show their value; secret codes/keys show SET so
+            // the actual value is not exposed here (view it on the TECHNICAL page).
+            RenderCduAccountField(grid, 1, "VATSIM CID", SavedCID > 0 ? SavedCID.ToString() : null, secret: false);
+            RenderCduAccountField(grid, 2, "HOPPIE CODE", SavedHoppieCode, secret: true);
+            RenderCduAccountField(grid, 3, "SIMBRIEF", SimbriefID, secret: false);
+            RenderCduAccountField(grid, 4, "ELOAD KEY", SavedELoadControlApiKey, secret: true);
+            RenderCduAccountField(grid, 5, "SAYINTENTIONS KEY", SavedSayIntentionsApiKey, secret: true);
 
             grid.WriteLeft(CduLayout.DataRow(6), "<SETUP", CduColor.White);
             RenderCduScratchpad(grid);
         }
 
         // A credential field: cyan label on its LSK label row, the value on the full-width
-        // data row below it, so long values are not clipped to the half column.
-        private void RenderCduAccountField(CduGrid grid, int lsk, string label, string value)
+        // data row below it. Secret fields show "SET" instead of the value.
+        private void RenderCduAccountField(CduGrid grid, int lsk, string label, string value, bool secret)
         {
             grid.WriteLeft(CduLayout.LabelRow(lsk), label, CduColor.Cyan, small: true);
             bool empty = string.IsNullOrWhiteSpace(value);
@@ -971,14 +1037,86 @@ namespace EasyCPDLC
                 return;
             }
 
-            // Long API keys are shown truncated with a trailing ">" so it is clear the
-            // stored value continues past the row width.
+            if (secret)
+            {
+                grid.Write(CduLayout.DataRow(lsk), 0, "<SET", CduColor.Green);
+                return;
+            }
+
             string shown = "<" + value;
             if (shown.Length > CduGrid.Cols)
             {
                 shown = shown.Substring(0, CduGrid.Cols - 1) + ">";
             }
             grid.Write(CduLayout.DataRow(lsk), 0, shown, CduColor.Green);
+        }
+
+        // TECHNICAL: a full-screen dump of every stored credential/config value, paged if
+        // it does not all fit. This is the one place the actual secret codes are shown.
+        private const int CduTechContentRows = 11;   // grid rows 1..11
+
+        private void RenderCduSetupTechnical(CduGrid grid, Vns430BackendSnapshot snapshot)
+        {
+            List<(string Text, CduColor Colour, bool Small)> rows = new();
+
+            void AddEntry(string label, string value)
+            {
+                rows.Add((label, CduColor.Cyan, true));
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    rows.Add(("----", CduColor.Grey, false));
+                    return;
+                }
+                foreach (string line in WrapCduText(value, CduGrid.Cols))
+                {
+                    rows.Add((line, CduColor.Green, false));
+                }
+            }
+
+            AddEntry("VATSIM CID", SavedCID > 0 ? SavedCID.ToString() : null);
+            AddEntry("HOPPIE CODE", SavedHoppieCode);
+            AddEntry("SIMBRIEF", SimbriefID);
+            AddEntry("ELOAD KEY", SavedELoadControlApiKey);
+            AddEntry("SAYINTENTIONS KEY", SavedSayIntentionsApiKey);
+            AddEntry("ATC NETWORK", AtcNetworkText());
+            AddEntry("WX SOURCE", WxSourceText() + " (" + Vns430WeatherClient.SourceLabel(EffectiveWxSource()) + ")");
+            AddEntry("PRINTER", SelectedPrinterName);
+
+            int pageCount = Math.Max(1, (rows.Count + CduTechContentRows - 1) / CduTechContentRows);
+            cduTechPage = Math.Clamp(cduTechPage, 0, pageCount - 1);
+
+            string title = pageCount > 1 ? "TECHNICAL " + (cduTechPage + 1) + "/" + pageCount : "TECHNICAL";
+            grid.WriteCentered(CduLayout.TitleRow, title, CduColor.White);
+
+            int start = cduTechPage * CduTechContentRows;
+            for (int i = 0; i < CduTechContentRows; i++)
+            {
+                int idx = start + i;
+                if (idx >= rows.Count)
+                {
+                    break;
+                }
+                (string text, CduColor colour, bool small) = rows[idx];
+                grid.Write(i + 1, 0, Truncate(text, CduGrid.Cols), colour, small: small);
+            }
+
+            grid.WriteLeft(CduLayout.DataRow(6), "<SETUP", CduColor.White);
+            if (pageCount > 1)
+            {
+                bool canPrev = cduTechPage > 0;
+                bool canNext = cduTechPage < pageCount - 1;
+                string hint = (canPrev ? "PREV PAGE? " : string.Empty) + (canNext ? "NEXT PAGE?" : string.Empty);
+                hint = hint.Trim();
+                grid.Write(CduLayout.ScratchpadRow, Math.Max(0, CduGrid.Cols - hint.Length), hint, CduColor.Cyan, small: true);
+            }
+        }
+
+        private void HandleCduSetupTechnicalLsk(bool rightSide, int index)
+        {
+            if (!rightSide && index == 6)
+            {
+                cduPage = CduPageId.Setup;
+            }
         }
 
         private void RenderCduSetupPrinter(CduGrid grid, Vns430BackendSnapshot snapshot)
@@ -1041,23 +1179,42 @@ namespace EasyCPDLC
                 {
                     case 1: cduPage = CduPageId.SetupAccount; break;
                     case 2: cduPage = CduPageId.SetupPrinter; break;
-                    case 3:
-                        // Destructive, so arm it; EXEC clears the inbox.
-                        CduArm("CLEARALL", "CLEAR ALL MSG", () =>
-                        {
-                            DeleteAllElement(this, EventArgs.Empty);
-                            cduStatusLine = "MESSAGES CLEARED";
-                        });
-                        break;
+                    case 3: cduTechPage = 0; cduPage = CduPageId.SetupTechnical; break;
                     case 6: cduPage = CduPageId.Menu; break;
                 }
                 return;
             }
 
-            if (index == 1)
+            switch (index)
             {
-                CduCycleStyle();
+                case 1: CduCycleStyle(); break;
+                case 2: CduCycleAtcNetwork(); break;
+                case 3: CduCycleWxSource(); break;
             }
+        }
+
+        private void CduCycleAtcNetwork()
+        {
+            ActiveAtcNetwork = ActiveAtcNetwork == Vns430AtcNetwork.Vatsim
+                ? Vns430AtcNetwork.SayIntentions
+                : Vns430AtcNetwork.Vatsim;
+            Properties.Settings.Default.Save();
+            cduStatusLine = "ATC NETWORK " + AtcNetworkText();
+        }
+
+        // AUTO (follow network) -> VATSIM -> REAL WORLD -> SAYINTENTIONS -> AUTO.
+        private void CduCycleWxSource()
+        {
+            string current = SavedWxSourceOverride;
+            SavedWxSourceOverride = current switch
+            {
+                "" or null => "VATSIM",
+                "VATSIM" => "REAL WORLD",
+                "REAL WORLD" => "SAYINTENTIONS",
+                _ => string.Empty
+            };
+            Properties.Settings.Default.Save();
+            cduStatusLine = "WX SOURCE " + WxSourceText();
         }
 
         private void HandleCduSetupAccountLsk(bool rightSide, int index)
@@ -1356,11 +1513,21 @@ namespace EasyCPDLC
                         cduDetailScroll = Math.Max(0, cduDetailScroll - 6);
                         RefreshCduDisplay();
                     }
+                    else if (cduPage == CduPageId.SetupTechnical)
+                    {
+                        cduTechPage = Math.Max(0, cduTechPage - 1);
+                        RefreshCduDisplay();
+                    }
                     break;
                 case Vns430Command.CduNextPage:
                     if (cduPage == CduPageId.MessageDetail)
                     {
                         cduDetailScroll += 6;   // the render clamps to the last page
+                        RefreshCduDisplay();
+                    }
+                    else if (cduPage == CduPageId.SetupTechnical)
+                    {
+                        cduTechPage += 1;       // the render clamps to the last page
                         RefreshCduDisplay();
                     }
                     break;

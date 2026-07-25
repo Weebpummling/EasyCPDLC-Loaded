@@ -17350,6 +17350,44 @@ airbusAocSendLabel = null;
             }
         }
 
+        private const string AtcNetworkSettingName = "AtcNetwork";
+        private const string WxSourceOverrideSettingName = "WxSourceOverride";
+
+        // The ATC network the datalink targets. VATSIM (Hoppie) is the default; SI uses
+        // the SayIntentions datalink/weather. Stored as a short token.
+        internal static Vns430AtcNetwork ActiveAtcNetwork
+        {
+            get => string.Equals(ReadFixedStringSetting(AtcNetworkSettingName, "VATSIM"), "SI", StringComparison.OrdinalIgnoreCase)
+                ? Vns430AtcNetwork.SayIntentions
+                : Vns430AtcNetwork.Vatsim;
+            set
+            {
+                SaveFixedStringSetting(AtcNetworkSettingName, value == Vns430AtcNetwork.SayIntentions ? "SI" : "VATSIM");
+            }
+        }
+
+        // Weather-source override. Empty means "follow the ATC network"; otherwise one of
+        // VATSIM / REAL WORLD / SAYINTENTIONS.
+        public static string SavedWxSourceOverride
+        {
+            get => ReadFixedStringSetting(WxSourceOverrideSettingName, string.Empty);
+            set => SaveFixedStringSetting(WxSourceOverrideSettingName, (value ?? string.Empty).Trim());
+        }
+
+        // The weather source actually used for METAR/ATIS requests: the override if set,
+        // otherwise derived from the active ATC network.
+        internal static Vns430WeatherSource EffectiveWxSource()
+        {
+            string over = SavedWxSourceOverride;
+            if (!string.IsNullOrWhiteSpace(over))
+            {
+                return Vns430WeatherClient.ParseSource(over);
+            }
+            return ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions
+                ? Vns430WeatherSource.SayIntentions
+                : Vns430WeatherSource.Vatsim;
+        }
+
         private static DatalinkPrinterMode PrinterMode
         {
             get
@@ -27592,7 +27630,7 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             switch (embeddedSetupPage)
             {
                 case EmbeddedSetupPage.MainMenu:
-                    return (!rightSide && ((index >= 1 && index <= (DcduStyleManager.IsBoeing ? 5 : 4)) || index == bottom)) ||
+                    return (!rightSide && ((index >= 1 && index <= (DcduStyleManager.IsBoeing ? 4 : 3)) || index == bottom)) ||
                            (rightSide && index == 1);
 
                 case EmbeddedSetupPage.Account:
@@ -27662,27 +27700,24 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             switch (embeddedSetupPage)
             {
                 case EmbeddedSetupPage.MainMenu:
+                    // ACCOUNT / LOGIN was removed; the left items reflow up by one.
                     if (rightSide && index == 1)
                     {
                         ShowEmbeddedSetupDisplayPage();
                     }
                     else if (!rightSide && index == 1)
                     {
-                        ShowEmbeddedSetupAccountPage();
-                    }
-                    else if (!rightSide && index == 2)
-                    {
                         ShowEmbeddedSetupOptionsPage();
                     }
-                    else if (!rightSide && index == 3 && DcduStyleManager.IsBoeing)
+                    else if (!rightSide && index == 2 && DcduStyleManager.IsBoeing)
                     {
                         ShowEmbeddedSetupPrinterMenu();
                     }
-                    else if (!rightSide && index == (DcduStyleManager.IsBoeing ? 4 : 3))
+                    else if (!rightSide && index == (DcduStyleManager.IsBoeing ? 3 : 2))
                     {
                         ShowEmbeddedSetupStylePage();
                     }
-                    else if (!rightSide && index == (DcduStyleManager.IsBoeing ? 5 : 4))
+                    else if (!rightSide && index == (DcduStyleManager.IsBoeing ? 4 : 3))
                     {
                         ShowEmbeddedSetupUpdateRollbackPage(true);
                     }
@@ -28125,21 +28160,23 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             Color color = MainPrimaryTextColor();
 
             AddEmbeddedSetupLabel(page, "SETUP MENU", 0, 2, page.Width, 24, ContentAlignment.MiddleCenter, color, titleFont);
-            AddEmbeddedSetupLabel(page, "<ACCOUNT / LOGIN", 4, EmbeddedSetupLskTextY(page, 1), 260, 30, ContentAlignment.MiddleLeft, color, menuFont);
+            // ACCOUNT / LOGIN is retired here: credentials are now managed centrally
+            // (tray "Connection credentials..." and the CDU ACCOUNT page). The remaining
+            // items reflow up so OPTIONS takes the first line select.
+            AddEmbeddedSetupLabel(page, "<OPTIONS", 4, EmbeddedSetupLskTextY(page, 1), 220, 30, ContentAlignment.MiddleLeft, color, menuFont);
             AddEmbeddedSetupLabel(page, "DISPLAY>", page.Width - 170, EmbeddedSetupRightLskTextY(page, 1), 166, 30, ContentAlignment.MiddleRight, color, menuFont);
-            AddEmbeddedSetupLabel(page, "<OPTIONS", 4, EmbeddedSetupLskTextY(page, 2), 220, 30, ContentAlignment.MiddleLeft, color, menuFont);
             if (DcduStyleManager.IsBoeing)
             {
-                AddEmbeddedSetupLabel(page, "<PRINTER", 4, EmbeddedSetupLskTextY(page, 3), 220, 30, ContentAlignment.MiddleLeft, color, menuFont);
-                AddEmbeddedSetupLabel(page, "<DCDU STYLE", 4, EmbeddedSetupLskTextY(page, 4), 240, 30, ContentAlignment.MiddleLeft, color, menuFont);
-                AddEmbeddedSetupLabel(page, DcduStyleManager.CurrentStyle.ToUpperInvariant(), page.Width - 180, EmbeddedSetupRightLskTextY(page, 4), 176, 30, ContentAlignment.MiddleRight, DcduTheme.Amber, menuFont);
-                AddEmbeddedSetupLabel(page, "<UPDATE / ROLLBACK", 4, EmbeddedSetupLskTextY(page, 5), 310, 30, ContentAlignment.MiddleLeft, color, menuFont);
-            }
-            else
-            {
+                AddEmbeddedSetupLabel(page, "<PRINTER", 4, EmbeddedSetupLskTextY(page, 2), 220, 30, ContentAlignment.MiddleLeft, color, menuFont);
                 AddEmbeddedSetupLabel(page, "<DCDU STYLE", 4, EmbeddedSetupLskTextY(page, 3), 240, 30, ContentAlignment.MiddleLeft, color, menuFont);
                 AddEmbeddedSetupLabel(page, DcduStyleManager.CurrentStyle.ToUpperInvariant(), page.Width - 180, EmbeddedSetupRightLskTextY(page, 3), 176, 30, ContentAlignment.MiddleRight, DcduTheme.Amber, menuFont);
                 AddEmbeddedSetupLabel(page, "<UPDATE / ROLLBACK", 4, EmbeddedSetupLskTextY(page, 4), 310, 30, ContentAlignment.MiddleLeft, color, menuFont);
+            }
+            else
+            {
+                AddEmbeddedSetupLabel(page, "<DCDU STYLE", 4, EmbeddedSetupLskTextY(page, 2), 240, 30, ContentAlignment.MiddleLeft, color, menuFont);
+                AddEmbeddedSetupLabel(page, DcduStyleManager.CurrentStyle.ToUpperInvariant(), page.Width - 180, EmbeddedSetupRightLskTextY(page, 2), 176, 30, ContentAlignment.MiddleRight, DcduTheme.Amber, menuFont);
+                AddEmbeddedSetupLabel(page, "<UPDATE / ROLLBACK", 4, EmbeddedSetupLskTextY(page, 3), 310, 30, ContentAlignment.MiddleLeft, color, menuFont);
             }
             AddEmbeddedSetupLabel(page, "<RETURN", 4, EmbeddedSetupLskTextY(page, EmbeddedSetupBottomIndex()), 190, 30, ContentAlignment.MiddleLeft, color, menuFont);
         }

@@ -20,6 +20,16 @@ namespace EasyCPDLC
         SayIntentions
     }
 
+    /// <summary>
+    /// The ATC network the datalink connects to. Drives which credentials are required
+    /// and the default weather source. IVAO is planned once its datalink is understood.
+    /// </summary>
+    internal enum Vns430AtcNetwork
+    {
+        Vatsim,
+        SayIntentions
+    }
+
     internal sealed class Vns430WeatherException : Exception
     {
         public Vns430WeatherException(string message) : base(message) { }
