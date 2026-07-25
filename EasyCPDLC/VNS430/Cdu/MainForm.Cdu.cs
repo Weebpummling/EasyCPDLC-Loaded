@@ -987,8 +987,10 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(2), "<PRINTER", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(3), "<TECHNICAL", CduColor.White);
 
-            // Right column: display/network/weather cycles (same design as DCDU STYLE).
-            RenderCduSetupField(grid, 1, true, "DCDU STYLE", DcduStyleManager.CurrentStyle);
+            // Right column: instrument selector (CDU <-> GNS430) plus the network/weather
+            // cycles. The Airbus/Boeing skins are hidden, so the instrument choices are the
+            // CDU and the GNS430 (VNS430) panel.
+            RenderCduSetupField(grid, 1, true, "INSTRUMENT", InstrumentText());
             RenderCduSetupField(grid, 2, true, "ATC NETWORK", AtcNetworkText());
             RenderCduSetupField(grid, 3, true, "WX SOURCE", WxSourceText());
 
@@ -1187,9 +1189,27 @@ namespace EasyCPDLC
 
             switch (index)
             {
-                case 1: CduCycleStyle(); break;
+                case 1: CduCycleInstrument(); break;
                 case 2: CduCycleAtcNetwork(); break;
                 case 3: CduCycleWxSource(); break;
+            }
+        }
+
+        private string InstrumentText() => IsVns430PanelVisibleForInstrument() ? "GNS430" : "CDU";
+
+        // Instruments are mutually-exclusive modes. From the CDU SETUP the CDU is the active
+        // instrument, so selecting here switches to the GNS430 (which hides the CDU window).
+        private void CduCycleInstrument()
+        {
+            if (IsVns430PanelVisibleForInstrument())
+            {
+                SelectCduInstrument();
+                cduStatusLine = "INSTRUMENT CDU";
+            }
+            else
+            {
+                cduStatusLine = "INSTRUMENT GNS430";
+                SelectGns430Instrument();
             }
         }
 
@@ -1298,18 +1318,6 @@ namespace EasyCPDLC
             cduScratchpad = string.Empty;
             Properties.Settings.Default.Save();
             cduStatusLine = name + " SAVED";
-        }
-
-        private void CduCycleStyle()
-        {
-            string next = DcduStyleManager.CurrentStyle switch
-            {
-                DcduStyleManager.Cdu => DcduStyleManager.Airbus,
-                DcduStyleManager.Airbus => DcduStyleManager.Boeing,
-                _ => DcduStyleManager.Cdu
-            };
-            DcduStyleManager.CurrentStyle = next;
-            ApplyDisplayStyle(); // leaving CDU tears the panel down and shows the DCDU
         }
 
         private void CduCyclePrinter()

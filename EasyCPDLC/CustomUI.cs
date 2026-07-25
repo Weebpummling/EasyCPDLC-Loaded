@@ -96,6 +96,11 @@ namespace EasyCPDLC
         // Boeing layouts completely untouched (they remain in their own branches).
         public const string Cdu = "CDU";
 
+        // The Airbus and Boeing 2D DCDU skins are hidden while the replica Airbus DCDU is
+        // rebuilt to match the real unit; the app runs the CDU front end exclusively for
+        // now. Flip this to false (and restore the file-based selection) to re-enable them.
+        private const bool LegacySkinsHidden = true;
+
         private static string currentStyle = LoadStyle();
 
         public static string CurrentStyle
@@ -103,7 +108,12 @@ namespace EasyCPDLC
             get => currentStyle;
             set
             {
-                currentStyle = NormalizeStyle(value);
+                string normalized = NormalizeStyle(value);
+                if (LegacySkinsHidden && !string.Equals(normalized, Cdu, StringComparison.OrdinalIgnoreCase))
+                {
+                    normalized = Cdu;
+                }
+                currentStyle = normalized;
                 SaveStyle(currentStyle);
             }
         }
@@ -148,12 +158,13 @@ namespace EasyCPDLC
 
         private static string LoadStyle()
         {
+            string loaded = Airbus;
             try
             {
                 string path = StyleFilePath;
                 if (File.Exists(path))
                 {
-                    return NormalizeStyle(File.ReadAllText(path).Trim());
+                    loaded = NormalizeStyle(File.ReadAllText(path).Trim());
                 }
             }
             catch
@@ -161,7 +172,10 @@ namespace EasyCPDLC
                 // Fall back to Airbus if config cannot be read.
             }
 
-            return Airbus;
+            // While the legacy skins are hidden the app always starts on the CDU, so a
+            // previously-saved Airbus/Boeing style does not strand the user on a UI they
+            // can no longer switch away from.
+            return LegacySkinsHidden ? Cdu : loaded;
         }
 
         private static void SaveStyle(string style)

@@ -3425,9 +3425,8 @@ private TelexForm tForm;
         private ToolStripMenuItem trayOnScreenButtonsMenuItem;
         private ToolStripMenuItem trayDcduCompanionMenuItem;
         private ToolStripMenuItem trayVns430ScreenMenuItem;
-        private ToolStripMenuItem trayStyleAirbusItem;
-        private ToolStripMenuItem trayStyleBoeingItem;
-        private ToolStripMenuItem trayStyleCduItem;
+        private ToolStripMenuItem trayInstrumentCduItem;
+        private ToolStripMenuItem trayInstrumentGnsItem;
         private bool applyingMainWindowLayout;
         private readonly DcduHotspotButton mainMinimizeButton = new();
         private readonly DcduHotspotButton mainReloadFlightPlanButton = new();
@@ -19116,57 +19115,77 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
             {
                 trayMenu?.Dispose();
 
+                // The Airbus/Boeing DCDU skins are hidden while the replica Airbus DCDU is
+                // rebuilt, so the tray no longer carries a style switcher. The menu is
+                // grouped: window actions at the top, then Display / Panels & hardware /
+                // CDU tools submenus, then credentials and exit.
                 trayMenu = new ContextMenuStrip();
                 trayMenu.Items.Add("Show EasyCPDLC", null, (_, __) => BringEasyCpdlcWindowToFront());
+                trayMenu.Items.Add("Hide EasyCPDLC", null, (_, __) => Hide());
+                trayMenu.Items.Add(new ToolStripSeparator());
 
-                ToolStripMenuItem styleMenu = new("DCDU display style");
-                trayStyleAirbusItem = new ToolStripMenuItem("Airbus DCDU", null, (_, __) => SetDcduStyleFromTray(DcduStyleManager.Airbus));
-                trayStyleBoeingItem = new ToolStripMenuItem("Boeing DCDU", null, (_, __) => SetDcduStyleFromTray(DcduStyleManager.Boeing));
-                trayStyleCduItem = new ToolStripMenuItem("737 CDU (MCDU)", null, (_, __) => SetDcduStyleFromTray(DcduStyleManager.Cdu));
-                styleMenu.DropDownItems.Add(trayStyleAirbusItem);
-                styleMenu.DropDownItems.Add(trayStyleBoeingItem);
-                styleMenu.DropDownItems.Add(trayStyleCduItem);
-                ToolStripMenuItem cduLampTest = new("CDU annunciator lamp test")
+                trayMenu.Items.Add("Connection credentials...", null, (_, __) => ShowSharedCredentialEditor());
+                trayMenu.Items.Add(new ToolStripSeparator());
+
+                // Instrument selector: which front end the pilot flies. The Airbus/Boeing
+                // DCDU skins are hidden; the choices are the 737 CDU and the GNS430 (VNS430)
+                // panel. (The Airbus DCDU replica rejoins here once it is rebuilt.)
+                ToolStripMenuItem instrumentMenu = new("Instrument");
+                trayInstrumentCduItem = new ToolStripMenuItem("737 CDU", null, (_, __) => SelectCduInstrument());
+                trayInstrumentGnsItem = new ToolStripMenuItem("GNS430", null, (_, __) => SelectGns430Instrument());
+                instrumentMenu.DropDownItems.Add(trayInstrumentCduItem);
+                instrumentMenu.DropDownItems.Add(trayInstrumentGnsItem);
+                instrumentMenu.DropDownOpening += (_, __) => SyncTrayInstrumentMenuState();
+                trayMenu.Items.Add(instrumentMenu);
+                trayMenu.Items.Add(new ToolStripSeparator());
+
+                // Display submenu.
+                ToolStripMenuItem displayMenu = new("Display");
+                trayArtworkMenuItem = new ToolStripMenuItem("Show panel artwork", null, (_, __) => SetPanelArtworkVisible(!ShowPanelArtwork));
+                trayOnScreenButtonsMenuItem = new ToolStripMenuItem("Enable on-screen buttons", null, (_, __) => SetOnScreenButtonsEnabled(!EnableOnScreenButtons));
+                displayMenu.DropDownItems.Add(trayArtworkMenuItem);
+                displayMenu.DropDownItems.Add(trayOnScreenButtonsMenuItem);
+                displayMenu.DropDownItems.Add("Open Display Settings", null, (_, __) =>
                 {
-                    CheckOnClick = false
-                };
-                cduLampTest.Click += (_, __) => { ToggleCduAnnunciatorTest(); cduLampTest.Checked = IsCduAnnunciatorTest(); };
-                styleMenu.DropDownItems.Add(cduLampTest);
-                styleMenu.DropDownItems.Add("Test vPilot Contact Me", null, (_, __) => SendTestVpilotContactMe());
-                trayMenu.Items.Add(styleMenu);
+                    BringEasyCpdlcWindowToFront();
+                    ShowEmbeddedSetupDisplayPage();
+                });
+                displayMenu.DropDownItems.Add("Reset window size", null, (_, __) => SetEmbeddedSetupWindowScale(100));
+                trayMenu.Items.Add(displayMenu);
 
-                trayMenu.Items.Add("Open VNS430 panel", null, (_, __) => ShowVns430Panel());
+                // Panels & hardware submenu.
+                ToolStripMenuItem hardwareMenu = new("Panels & hardware");
                 trayVns430ScreenMenuItem = new ToolStripMenuItem("VNS430 screen mode (no artwork/zones)")
                 {
                     CheckOnClick = false
                 };
                 trayVns430ScreenMenuItem.Click += (_, __) => ToggleVns430ScreenMode();
-                trayMenu.Items.Add(trayVns430ScreenMenuItem);
-                trayMenu.Items.Add("Hide EasyCPDLC", null, (_, __) => Hide());
-                trayMenu.Items.Add(new ToolStripSeparator());
-                trayMenu.Items.Add("Connection credentials...", null, (_, __) => ShowSharedCredentialEditor());
+                hardwareMenu.DropDownItems.Add(trayVns430ScreenMenuItem);
                 trayDcduCompanionMenuItem = new ToolStripMenuItem("Use MSFS module for DCDU controls")
                 {
                     CheckOnClick = false
                 };
                 trayDcduCompanionMenuItem.Click += (_, __) => ToggleDcduCompanionMode();
-                trayMenu.Items.Add(trayDcduCompanionMenuItem);
-                trayMenu.Items.Add("Open Display Settings", null, (_, __) =>
+                hardwareMenu.DropDownItems.Add(trayDcduCompanionMenuItem);
+                trayMenu.Items.Add(hardwareMenu);
+
+                // CDU tools submenu.
+                ToolStripMenuItem cduToolsMenu = new("CDU tools");
+                ToolStripMenuItem cduLampTest = new("CDU annunciator lamp test")
                 {
-                    BringEasyCpdlcWindowToFront();
-                    ShowEmbeddedSetupDisplayPage();
-                });
-                trayArtworkMenuItem = new ToolStripMenuItem("Show panel artwork", null, (_, __) => SetPanelArtworkVisible(!ShowPanelArtwork));
-                trayOnScreenButtonsMenuItem = new ToolStripMenuItem("Enable on-screen buttons", null, (_, __) => SetOnScreenButtonsEnabled(!EnableOnScreenButtons));
-                trayMenu.Items.Add(trayArtworkMenuItem);
-                trayMenu.Items.Add(trayOnScreenButtonsMenuItem);
-                trayMenu.Items.Add("Reset window size", null, (_, __) => SetEmbeddedSetupWindowScale(100));
+                    CheckOnClick = false
+                };
+                cduLampTest.Click += (_, __) => { ToggleCduAnnunciatorTest(); cduLampTest.Checked = IsCduAnnunciatorTest(); };
+                cduToolsMenu.DropDownItems.Add(cduLampTest);
+                cduToolsMenu.DropDownItems.Add("Test vPilot Contact Me", null, (_, __) => SendTestVpilotContactMe());
+                trayMenu.Items.Add(cduToolsMenu);
+
                 trayMenu.Items.Add(new ToolStripSeparator());
                 trayMenu.Items.Add("Exit EasyCPDLC", null, (_, __) => ExitButton_Click(exitButton, EventArgs.Empty));
                 SyncTrayDisplayMenuState();
                 SyncTrayCompanionMenuState();
                 SyncTrayVns430ScreenMenuState();
-                SyncTrayStyleMenuState();
+                SyncTrayInstrumentMenuState();
 
                 trayIcon?.Dispose();
                 trayIcon = new NotifyIcon
@@ -19251,31 +19270,41 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
             }
         }
 
-        // Switch the main-window display design from the tray. Today the choices are the
-        // Airbus/Boeing DCDU skins and the 737 CDU; as the grid emulators mature this is
-        // where the Airbus DCDU replica and GNS430 front ends will be selected too.
-        private void SetDcduStyleFromTray(string style)
+
+        // Instruments (CDU, GNS430, and the future DCDU replica) are mutually-exclusive
+        // modes: exactly one is on screen at a time. Selecting the CDU hides the GNS430
+        // panel and shows the main window; selecting the GNS430 does the reverse.
+        private void SelectCduInstrument()
         {
-            DcduStyleManager.CurrentStyle = DcduStyleManager.NormalizeStyle(style);
-            Properties.Settings.Default.Save();
-            ApplyDisplayStyle();
-            SyncTrayStyleMenuState();
+            if (IsVns430PanelVisibleForInstrument())
+            {
+                vns430Panel.Hide();
+            }
+            Show();
             BringEasyCpdlcWindowToFront();
+            SyncTrayInstrumentMenuState();
         }
 
-        private void SyncTrayStyleMenuState()
+        private void SelectGns430Instrument()
         {
-            if (trayStyleAirbusItem != null)
+            ShowVns430Panel();
+            Hide();   // only one instrument is visible at a time
+            SyncTrayInstrumentMenuState();
+        }
+
+        private bool IsVns430PanelVisibleForInstrument() =>
+            vns430Panel != null && !vns430Panel.IsDisposed && vns430Panel.Visible;
+
+        private void SyncTrayInstrumentMenuState()
+        {
+            bool gns = IsVns430PanelVisibleForInstrument();
+            if (trayInstrumentCduItem != null)
             {
-                trayStyleAirbusItem.Checked = string.Equals(DcduStyleManager.CurrentStyle, DcduStyleManager.Airbus, StringComparison.OrdinalIgnoreCase);
+                trayInstrumentCduItem.Checked = !gns;
             }
-            if (trayStyleBoeingItem != null)
+            if (trayInstrumentGnsItem != null)
             {
-                trayStyleBoeingItem.Checked = string.Equals(DcduStyleManager.CurrentStyle, DcduStyleManager.Boeing, StringComparison.OrdinalIgnoreCase);
-            }
-            if (trayStyleCduItem != null)
-            {
-                trayStyleCduItem.Checked = DcduStyleManager.IsCdu;
+                trayInstrumentGnsItem.Checked = gns;
             }
         }
 
