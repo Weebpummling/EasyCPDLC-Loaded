@@ -17439,6 +17439,11 @@ airbusAocSendLabel = null;
             set => SaveFixedStringSetting(WxSourceOverrideSettingName, (value ?? string.Empty).Trim());
         }
 
+        // NOTE: the WinWing CDU seat is deliberately NOT persisted. It lives in memory for
+        // the session only (MainForm.Cdu cduWinwingSeat) so the app can never claim a CDU
+        // on startup that is already showing an active aircraft display. The pilot selects
+        // the seat each session from SETUP > WINWING.
+
         // The weather source actually used for METAR/ATIS requests: the override if set,
         // otherwise derived from the active ATC network.
         internal static Vns430WeatherSource EffectiveWxSource()

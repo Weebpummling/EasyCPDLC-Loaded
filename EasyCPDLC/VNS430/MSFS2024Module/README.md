@@ -21,6 +21,7 @@ keyboard alone. Install this only if you want physical controls.
 2. [Turn on hardware keys](#2-turn-on-hardware-keys)
 3. [Verify it works](#3-verify-it-works)
 4. [Bind the 737 CDU](#4-bind-the-737-cdu)
+4b. [Mirror the screen to a WinWing CDU](#4b-mirror-the-screen-to-a-winwing-cdu)
 5. [CDU key reference](#5-cdu-key-reference)
 6. [Status outputs (annunciators)](#6-status-outputs-annunciators)
 7. [GNS430 hardware (alternative)](#7-gns430-hardware-alternative)
@@ -161,6 +162,66 @@ binds directly — exactly like a WinWing profile for any other aircraft.
 4. Leave the **command** side of each row alone — that is the private binding and
    is already correct.
 5. Save the project.
+
+---
+
+## 4b. Mirror the screen to a WinWing CDU
+
+The keys above send input *in*. This sends the **screen out**, so a physical WinWing
+CDU shows exactly what the app shows.
+
+MobiFlight hosts a websocket server on port `8320` with one endpoint per seat and
+drives the panel over HID itself, so EasyCPDLC-Loaded simply publishes frames to it —
+there is no fight over the USB device.
+
+### Set it up
+
+1. In **SimAppPro**, set the unit to `CAPTAIN`, `CO-PILOT`, or `OBSERVER`. Each seat
+   enumerates as its own USB device, so this is what decides which endpoint receives
+   the frames.
+2. **Exit SimAppPro completely.** MobiFlight and SimAppPro cannot both hold a CDU.
+3. Start **MobiFlight Connector** (it must be running — the port only exists while it
+   is up).
+4. On the CDU go to `SETUP` → `<WINWING`. Pick the seat you set in step 1:
+
+   ```text
+   WINWING CDU              LINK
+   <OFF                      OFF
+   <CAPT
+   <FO
+   <OBS
+   ```
+
+   The active choice is shown highlighted.
+
+   ![WINWING CDU page](../../../assets/screenshots/cdu-winwing.png)
+
+### It resets every session — on purpose
+
+The seat is **never saved**. Every launch starts at `OFF` and you pick a seat again.
+
+That is deliberate: the app can never grab a CDU on startup that is already showing a
+live aircraft display. Nothing is mirrored until you deliberately ask for it, each
+session.
+
+### Reading the LINK field
+
+| LINK | Meaning |
+|---|---|
+| `OFF` | No seat selected; nothing is sent |
+| `WAITING` | Seat selected but not connected — MobiFlight is closed, or no CDU is set to that seat |
+| `SENDING` | Connected; frames are going out |
+
+`WAITING → SENDING` is your confirmation it worked. Selecting a seat while MobiFlight
+is closed is harmless: it retries every five seconds in the background and never
+blocks the app.
+
+### What is sent
+
+The full screen every repaint — 336 cells (24 columns × 14 rows), as
+`{"Target":"Display","Data":[…]}`, preceded once by `{"Target":"Font","Data":"Boeing"}`
+to select the 737 typeface. Frames are coalesced, so a slow socket can never make the
+app stutter.
 
 ---
 

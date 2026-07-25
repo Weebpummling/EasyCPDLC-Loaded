@@ -30,6 +30,7 @@ namespace EasyCPDLC
             SetupAccount,
             SetupPrinter,
             SetupTechnical,
+            SetupWinwing,
             Load
         }
 
@@ -64,6 +65,15 @@ namespace EasyCPDLC
 
         // Lamp test: light every side annunciator so their look can be verified/tuned.
         private bool cduAnnunciatorTest;
+
+        // Live WinWing mirror, when a seat is selected. Null while OFF, which also keeps the
+        // paint path from serialising frames nobody consumes.
+        //
+        // Session-only on purpose: the seat is never persisted, so a fresh launch always
+        // starts OFF and can never grab a CDU that is already showing a live aircraft
+        // display. The pilot picks the seat each session.
+        private WinwingCduSink cduWinwingSink;
+        private WinwingSeat cduWinwingSeat = WinwingSeat.Off;
 
         internal bool IsCduAnnunciatorTest() => cduAnnunciatorTest;
 
@@ -146,6 +156,20 @@ namespace EasyCPDLC
         private void TeardownCduMode()
         {
             cduRefreshTimer?.Stop();
+
+            // Close the WinWing socket; leaving the CDU means nothing is producing frames.
+            // The seat stays saved, so re-entering CDU mode reconnects it.
+            if (cduWinwingSink != null)
+            {
+                cduWinwingSink.Dispose();
+                cduWinwingSink = null;
+                cduWinwingSeat = WinwingSeat.Off;
+                if (cduDisplayPanel != null && !cduDisplayPanel.IsDisposed)
+                {
+                    cduDisplayPanel.Sink = NullCduDisplaySink.Instance;
+                }
+            }
+
             if (cduDisplayPanel != null)
             {
                 cduDisplayPanel.Visible = false;
@@ -213,6 +237,9 @@ namespace EasyCPDLC
                 case CduPageId.SetupTechnical:
                     HandleCduSetupTechnicalLsk(rightSide, index);
                     break;
+                case CduPageId.SetupWinwing:
+                    HandleCduSetupWinwingLsk(rightSide, index);
+                    break;
                 case CduPageId.Load:
                     HandleCduLoadLsk(rightSide, index);
                     break;
@@ -276,6 +303,9 @@ namespace EasyCPDLC
                     break;
                 case CduPageId.SetupTechnical:
                     RenderCduSetupTechnical(grid, snapshot);
+                    break;
+                case CduPageId.SetupWinwing:
+                    RenderCduSetupWinwing(grid, snapshot);
                     break;
                 case CduPageId.Load:
                     RenderCduLoad(grid, snapshot);
@@ -1011,6 +1041,7 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(1), "<ACCOUNT", acctAttn ? CduColor.Amber : CduColor.White, inverse: acctAttn);
             grid.WriteLeft(CduLayout.DataRow(2), "<PRINTER", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(3), "<TECHNICAL", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(4), "<WINWING", CduColor.White);
 
             // Right column: instrument selector (CDU <-> GNS430) plus the network/weather
             // cycles. The Airbus/Boeing skins are hidden, so the instrument choices are the
@@ -1211,6 +1242,7 @@ namespace EasyCPDLC
                     case 1: cduPage = CduPageId.SetupAccount; break;
                     case 2: cduPage = CduPageId.SetupPrinter; break;
                     case 3: cduTechPage = 0; cduPage = CduPageId.SetupTechnical; break;
+                    case 4: cduPage = CduPageId.SetupWinwing; break;
                     case 6: cduPage = CduPageId.Menu; break;
                 }
                 return;
@@ -1228,6 +1260,101 @@ namespace EasyCPDLC
         // Turn the MSFS module's CDU/DCDU hardware keys on or off. Without this the
         // EASYCPDLC_CDU_* / EASYCPDLC_DCDU_* L-vars are ignored, so a physical CDU cannot
         // drive the panel.
+        // WINWING sub-page: the four cockpit positions as explicit choices, so the seat is
+        // picked deliberately rather than cycled past. The active one is shown inverse.
+        private void RenderCduSetupWinwing(CduGrid grid, Vns430BackendSnapshot snapshot)
+        {
+            grid.WriteCentered(CduLayout.TitleRow, "WINWING CDU", CduColor.White);
+
+            WinwingSeat active = cduWinwingSeat;
+            RenderCduWinwingChoice(grid, 1, "OFF", WinwingSeat.Off, active);
+            RenderCduWinwingChoice(grid, 2, "CAPT", WinwingSeat.Captain, active);
+            RenderCduWinwingChoice(grid, 3, "FO", WinwingSeat.FirstOfficer, active);
+            RenderCduWinwingChoice(grid, 4, "OBS", WinwingSeat.Observer, active);
+
+            // Live link state, so "selected" and "actually sending" are distinguishable.
+            grid.WriteRight(CduLayout.LabelRow(1), "LINK", CduColor.Cyan, small: true);
+            if (active == WinwingSeat.Off)
+            {
+                grid.WriteRight(CduLayout.DataRow(1), "OFF", CduColor.Grey);
+            }
+            else if (cduWinwingSink?.Connected == true)
+            {
+                grid.WriteRight(CduLayout.DataRow(1), "SENDING", CduColor.Green);
+            }
+            else
+            {
+                grid.WriteRight(CduLayout.DataRow(1), "WAITING", CduColor.Amber);
+            }
+
+            // Both lines must fit the 24-column grid or they are clipped mid-word.
+            grid.Write(CduLayout.LabelRow(5), 0, "SET SEAT IN SIMAPPPRO,", CduColor.Cyan, small: true);
+            grid.Write(CduLayout.DataRow(5), 0, "CLOSE IT, RUN MOBIFLIGHT", CduColor.Cyan, small: true);
+
+            grid.WriteLeft(CduLayout.DataRow(6), "<SETUP", CduColor.White);
+            RenderCduScratchpad(grid);
+        }
+
+        private static void RenderCduWinwingChoice(CduGrid grid, int lsk, string label, WinwingSeat seat, WinwingSeat active)
+        {
+            bool selected = seat == active;
+            grid.WriteLeft(CduLayout.DataRow(lsk), "<" + label,
+                selected ? CduColor.Green : CduColor.White, inverse: selected);
+        }
+
+        private void HandleCduSetupWinwingLsk(bool rightSide, int index)
+        {
+            if (rightSide)
+            {
+                return;
+            }
+
+            cduStatusLine = string.Empty;
+            switch (index)
+            {
+                case 1: CduSelectWinwingSeat(WinwingSeat.Off); break;
+                case 2: CduSelectWinwingSeat(WinwingSeat.Captain); break;
+                case 3: CduSelectWinwingSeat(WinwingSeat.FirstOfficer); break;
+                case 4: CduSelectWinwingSeat(WinwingSeat.Observer); break;
+                case 6: cduPage = CduPageId.Setup; break;
+            }
+        }
+
+        // Session-only: deliberately not written to settings, so the next launch starts OFF.
+        private void CduSelectWinwingSeat(WinwingSeat seat)
+        {
+            cduWinwingSeat = seat;
+            ApplyCduWinwingSeat(seat);
+            cduStatusLine = "WINWING " + WinwingCduSink.Label(seat);
+        }
+
+        // Attach a sink for the chosen seat, or detach entirely when OFF. Detaching restores
+        // the null sink so the paint path stops serialising frames.
+        private void ApplyCduWinwingSeat(WinwingSeat seat)
+        {
+            if (cduWinwingSink != null && cduWinwingSink.Seat == seat)
+            {
+                return;
+            }
+
+            cduWinwingSink?.Dispose();
+            cduWinwingSink = null;
+
+            if (cduDisplayPanel == null || cduDisplayPanel.IsDisposed)
+            {
+                return;
+            }
+
+            if (seat == WinwingSeat.Off)
+            {
+                cduDisplayPanel.Sink = NullCduDisplaySink.Instance;
+                return;
+            }
+
+            cduWinwingSink = new WinwingCduSink(seat);
+            cduDisplayPanel.Sink = cduWinwingSink;
+        }
+
         private void CduToggleHardwareKeys()
         {
             bool enable = !IsDcduCompanionModeEnabled();

@@ -1,0 +1,200 @@
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Net.WebSockets;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace EasyCPDLC.VNS430.Cdu
+{
+    // Which physical CDU the frames are addressed to. The unit's seat is set in WinWing
+    // SimAppPro (each seat enumerates as its own USB product id), and MobiFlight serves a
+    // separate websocket path per seat, so this has to match what SimAppPro is set to.
+    internal enum WinwingSeat
+    {
+        Off,
+        Captain,
+        FirstOfficer,
+        Observer
+    }
+
+    /// <summary>
+    /// Streams the CDU screen to a WinWing CDU through MobiFlight.
+    /// </summary>
+    /// <remarks>
+    /// MobiFlight owns the USB device (SimAppPro must be closed) and hosts a websocket
+    /// server on port 8320 with one endpoint per seat. We are a client of that server, so
+    /// there is no contention for the hardware: MobiFlight drives the panel over HID and we
+    /// simply hand it frames.
+    ///
+    /// Push() is called from the paint path, so it never blocks or does I/O: it stores the
+    /// latest frame and a background pump sends it. Frames are coalesced — if paints outrun
+    /// the socket, only the newest frame is sent, which is what a display wants anyway.
+    /// </remarks>
+    internal sealed class WinwingCduSink : ICduDisplaySink, IDisposable
+    {
+        private const string Host = "ws://localhost:8320/winwing/";
+        private const string FontName = "Boeing";   // 737 CDU/PFP typeface shipped by MobiFlight
+        private static readonly TimeSpan RetryDelay = TimeSpan.FromSeconds(5);
+        private static readonly TimeSpan IdlePoll = TimeSpan.FromMilliseconds(50);
+
+        private readonly Uri endpoint;
+        private readonly CancellationTokenSource cancellation = new();
+        private readonly Task pump;
+        private ClientWebSocket socket;
+        private IReadOnlyList<object[]> pending;
+        private volatile bool connected;
+
+        internal WinwingCduSink(WinwingSeat seat)
+        {
+            Seat = seat;
+            endpoint = new Uri(Host + PathFor(seat));
+            pump = Task.Run(() => PumpAsync(cancellation.Token));
+        }
+
+        internal WinwingSeat Seat { get; }
+
+        // True once frames are actually going out, so the UI can show more than "selected".
+        internal bool Connected => connected;
+
+        internal static string PathFor(WinwingSeat seat) => seat switch
+        {
+            WinwingSeat.FirstOfficer => "cdu-co-pilot",
+            WinwingSeat.Observer => "cdu-observer",
+            _ => "cdu-captain"
+        };
+
+        internal static string Label(WinwingSeat seat) => seat switch
+        {
+            WinwingSeat.Captain => "CAPT",
+            WinwingSeat.FirstOfficer => "FO",
+            WinwingSeat.Observer => "OBS",
+            _ => "OFF"
+        };
+
+        internal static WinwingSeat ParseSeat(string value) => (value ?? string.Empty).Trim().ToUpperInvariant() switch
+        {
+            "CAPT" => WinwingSeat.Captain,
+            "FO" => WinwingSeat.FirstOfficer,
+            "OBS" => WinwingSeat.Observer,
+            _ => WinwingSeat.Off
+        };
+
+        public void Push(IReadOnlyList<object[]> cells)
+        {
+            // Newest frame wins; never block the paint thread.
+            Interlocked.Exchange(ref pending, cells);
+        }
+
+        private async Task PumpAsync(CancellationToken token)
+        {
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    if (socket == null || socket.State != WebSocketState.Open)
+                    {
+                        await ConnectAsync(token).ConfigureAwait(false);
+                    }
+
+                    IReadOnlyList<object[]> frame = Interlocked.Exchange(ref pending, null);
+                    if (frame == null)
+                    {
+                        await Task.Delay(IdlePoll, token).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    await SendAsync(new { Target = "Display", Data = frame }, token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception)
+                {
+                    // MobiFlight not running, closed, or the seat is not connected. Drop the
+                    // socket and retry; this is the normal state until the user starts it.
+                    DropSocket();
+                    try
+                    {
+                        await Task.Delay(RetryDelay, token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                }
+            }
+
+            DropSocket();
+        }
+
+        private async Task ConnectAsync(CancellationToken token)
+        {
+            DropSocket();
+            ClientWebSocket next = new();
+            await next.ConnectAsync(endpoint, token).ConfigureAwait(false);
+            socket = next;
+
+            // MobiFlight expects the font selection before frames, and needs a moment to
+            // push it to the device before the first display write.
+            await SendAsync(new { Target = "Font", Data = FontName }, token).ConfigureAwait(false);
+            await Task.Delay(TimeSpan.FromSeconds(1), token).ConfigureAwait(false);
+            connected = true;
+        }
+
+        private async Task SendAsync(object message, CancellationToken token)
+        {
+            ClientWebSocket current = socket;
+            if (current == null || current.State != WebSocketState.Open)
+            {
+                throw new InvalidOperationException("WinWing socket is not open.");
+            }
+
+            byte[] payload = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message));
+            await current
+                .SendAsync(new ArraySegment<byte>(payload), WebSocketMessageType.Text, true, token)
+                .ConfigureAwait(false);
+        }
+
+        private void DropSocket()
+        {
+            connected = false;
+            ClientWebSocket current = Interlocked.Exchange(ref socket, null);
+            if (current == null)
+            {
+                return;
+            }
+
+            try
+            {
+                current.Abort();
+            }
+            catch (Exception)
+            {
+                // Nothing useful to do; the socket is being discarded either way.
+            }
+            current.Dispose();
+        }
+
+        public void Dispose()
+        {
+            try
+            {
+                cancellation.Cancel();
+                // Do not block the UI thread on a socket that may be mid-retry.
+                pump?.Wait(TimeSpan.FromMilliseconds(250));
+            }
+            catch (Exception)
+            {
+                // Shutdown is best-effort.
+            }
+            finally
+            {
+                DropSocket();
+                cancellation.Dispose();
+            }
+        }
+    }
+}
