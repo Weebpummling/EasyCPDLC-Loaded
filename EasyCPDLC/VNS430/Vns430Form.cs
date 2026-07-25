@@ -119,6 +119,7 @@ namespace EasyCPDLC.VNS430
         private bool pressedScreen;
         private Point screenPressOrigin;
         private bool screenDragging;
+        private bool clearAllArmed;   // GNS430 menu CLEAR ALL MESSAGES confirm state
         private Vns430Workflow workflow;
         private int workflowCharacter;
         private Vns430LoadControlSession loadSession;
@@ -802,6 +803,12 @@ namespace EasyCPDLC.VNS430
 
         private void ActivateMenuItem(int index)
         {
+            // Any menu action other than re-selecting CLEAR ALL cancels its armed confirm.
+            if (index != 5)
+            {
+                clearAllArmed = false;
+            }
+
             switch (index)
             {
                 case 0:
@@ -816,13 +823,36 @@ namespace EasyCPDLC.VNS430
                     SetPage(Vns430Page.AocMenu, true, Vns430PageGroup.Aux);
                     break;
                 case 3:
+                    // Cycle the ATC network (mirrors the CDU SETUP); stay on the menu so
+                    // the updated label is visible.
+                    SetTransient("ATC NETWORK " + backend.Vns430CycleAtcNetwork());
+                    break;
+                case 4:
+                    SetTransient("WX SOURCE " + backend.Vns430CycleWxSource());
+                    break;
+                case 5:
+                    // Destructive, so require a second press to confirm (the label shows
+                    // "CONFIRM CLEAR ALL?" while armed).
+                    if (clearAllArmed)
+                    {
+                        clearAllArmed = false;
+                        backend.Vns430ClearAllMessages();
+                        SetTransient("MESSAGES CLEARED");
+                    }
+                    else
+                    {
+                        clearAllArmed = true;
+                        SetTransient("PRESS AGAIN TO CLEAR");
+                    }
+                    break;
+                case 6:
                     backend.Vns430OpenSettings();
                     SetTransient("SETTINGS OPENED");
                     break;
-                case 4:
+                case 7:
                     ToggleCompanionModule();
                     break;
-                case 5:
+                case 8:
                     pageBeforeOverlay = Vns430Page.Menu;
                     SetPage(Vns430Page.Help, false);
                     break;
@@ -923,6 +953,8 @@ namespace EasyCPDLC.VNS430
 
         private void ToggleMenu()
         {
+            clearAllArmed = false;   // never carry an armed CLEAR ALL across menu open/close
+
             if (page == Vns430Page.Menu)
             {
                 pageGroup = groupBeforeOverlay;
@@ -997,6 +1029,9 @@ namespace EasyCPDLC.VNS430
                 snapshot.Connected ? "DISCONNECT VATSIM" : "CONNECT VATSIM",
                 "ATC REQUEST MENU",
                 "AOC / TELEX MENU",
+                "ATC NETWORK: " + backend.Vns430AtcNetworkLabel(),
+                "WX SOURCE: " + backend.Vns430WxSourceLabel(),
+                clearAllArmed ? "CONFIRM CLEAR ALL?" : "CLEAR ALL MESSAGES",
                 "EASYCPDLC SETTINGS",
                 "MSFS MODULE: " + companionInput.Status,
                 "INPUT HELP"

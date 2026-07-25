@@ -62,6 +62,44 @@ namespace EasyCPDLC
         internal bool IsCompanionModuleConnected() =>
             vns430Panel != null && !vns430Panel.IsDisposed && vns430Panel.CompanionModuleActive;
 
+        // ---- GNS430 config parity with the CDU SETUP -----------------------
+
+        internal void Vns430ClearAllMessages() => DeleteAllElement(this, EventArgs.Empty);
+
+        internal string Vns430AtcNetworkLabel() =>
+            ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions ? "SI" : "VATSIM";
+
+        internal string Vns430CycleAtcNetwork()
+        {
+            ActiveAtcNetwork = ActiveAtcNetwork == Vns430AtcNetwork.Vatsim
+                ? Vns430AtcNetwork.SayIntentions
+                : Vns430AtcNetwork.Vatsim;
+            Properties.Settings.Default.Save();
+            return Vns430AtcNetworkLabel();
+        }
+
+        // AUTO (follow network) label, or the explicit override source.
+        internal string Vns430WxSourceLabel()
+        {
+            string over = SavedWxSourceOverride;
+            return string.IsNullOrWhiteSpace(over)
+                ? "AUTO"
+                : Vns430WeatherClient.SourceLabel(Vns430WeatherClient.ParseSource(over));
+        }
+
+        internal string Vns430CycleWxSource()
+        {
+            SavedWxSourceOverride = SavedWxSourceOverride switch
+            {
+                "" or null => "VATSIM",
+                "VATSIM" => "REAL WORLD",
+                "REAL WORLD" => "SAYINTENTIONS",
+                _ => string.Empty
+            };
+            Properties.Settings.Default.Save();
+            return Vns430WxSourceLabel();
+        }
+
         internal bool IsVns430ScreenOnlyMode()
         {
             if (vns430Panel != null && !vns430Panel.IsDisposed)
