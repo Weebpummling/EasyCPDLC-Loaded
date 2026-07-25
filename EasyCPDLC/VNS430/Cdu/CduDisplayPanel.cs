@@ -282,21 +282,19 @@ namespace EasyCPDLC.VNS430.Cdu
                 Color colour = amber ? Color.FromArgb(255, 176, 48) : Color.FromArgb(240, 244, 240);
                 RectangleF r = ToPixels(rect);
 
-                // Colour wash over the lettering to make it read as illuminated.
-                using (SolidBrush wash = new(Color.FromArgb(55, colour)))
-                {
-                    using GraphicsPath body = RoundedRect(r, Math.Min(r.Width, r.Height) * 0.28f);
-                    g.FillPath(wash, body);
-                }
-
-                // Soft hue around the label, with a long gentle falloff to the edge.
-                RectangleF glowRect = RectangleF.Inflate(r, r.Width * 1.3f, r.Height * 0.4f);
+                // Hue around the label as a halo: transparent at the edge, strongest at a
+                // mid ring, and weak over the centre so the lettering keeps its contrast.
+                RectangleF glowRect = RectangleF.Inflate(r, r.Width * 1.0f, r.Height * 0.4f);
                 using GraphicsPath glow = RoundedRect(glowRect, Math.Min(glowRect.Width, glowRect.Height) * 0.45f);
                 using PathGradientBrush hue = new(glow)
                 {
-                    CenterColor = Color.FromArgb(70, colour),
+                    CenterColor = Color.FromArgb(30, colour),
                     SurroundColors = new[] { Color.FromArgb(0, colour) },
-                    FocusScales = new PointF(0.25f, 0.25f)
+                    InterpolationColors = new ColorBlend
+                    {
+                        Colors = new[] { Color.FromArgb(0, colour), Color.FromArgb(70, colour), Color.FromArgb(30, colour) },
+                        Positions = new[] { 0f, 0.55f, 1f }
+                    }
                 };
                 g.FillPath(hue, glow);
             }
