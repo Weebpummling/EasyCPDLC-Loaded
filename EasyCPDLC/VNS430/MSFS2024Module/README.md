@@ -179,6 +179,11 @@ there is no fight over the USB device.
 1. In **SimAppPro**, set the unit to `CAPTAIN`, `CO-PILOT`, or `OBSERVER`. Each seat
    enumerates as its own USB device, so this is what decides which endpoint receives
    the frames.
+
+   > **Use `OBSERVER`.** The 737 only has captain and first-officer CDUs, so nothing
+   > in the sim ever drives the observer unit — it is the one seat guaranteed not to
+   > fight your aircraft's own CDU for the panel. Only pick `CAPTAIN` or `CO-PILOT` if
+   > you specifically want the datalink *on* that seat's hardware.
 2. **Exit SimAppPro completely.** MobiFlight and SimAppPro cannot both hold a CDU.
 3. Start **MobiFlight Connector** (it must be running — the port only exists while it
    is up).

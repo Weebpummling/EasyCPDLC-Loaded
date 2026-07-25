@@ -1,6 +1,6 @@
 # EasyCPDLC-Loaded
 
-![Version](https://img.shields.io/badge/version-1.0.0--beta-yellow)
+![Version](https://img.shields.io/badge/version-1.0.1-brightgreen)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Networks](https://img.shields.io/badge/networks-VATSIM%20%C2%B7%20SayIntentions-blue)
@@ -36,6 +36,8 @@ Also: **[Manual](docs/MANUAL.md)** (ships in the release) ·
   and its keys drive the app back. Captain, First Officer and Observer units are all
   supported, and the `MSG` / `CALL` / `FAIL` / `OFST` / `EXEC` lamps light on your
   hardware exactly when they light in software.
+  **Set the unit to `OBSERVER`** — the 737 only has captain and first-officer CDUs, so
+  the observer seat is never driven by the sim and cannot clash with the aircraft's own.
 - **Any small screen** — a spare monitor, a USB display panel, a tablet. Run the
   instrument bare, with no bezel artwork, and it becomes a clean cockpit display.
 - **A touchscreen** — every key and line-select is clickable, so a cheap touch panel
@@ -162,7 +164,7 @@ dotnet test .\EasyCPDLC.Tests\EasyCPDLC.Tests.csproj -c Release
 Package a release (produces the ZIP with both bridges and the manual):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version 1.0.0 -VersionSuffix beta
+powershell -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version 1.0.1
 ```
 
 ---

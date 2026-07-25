@@ -207,10 +207,12 @@ A prebuilt module is included — you do **not** need the MSFS SDK.
 
 Puts this screen on a real WinWing CDU/MCDU/PFP.
 
-1. In **SimAppPro**, set the unit to `CAPTAIN`, `CO-PILOT` or `OBSERVER`
+1. In **SimAppPro**, set the unit to `OBSERVER` (recommended — the 737 only has
+   captain and first-officer CDUs, so nothing in the sim ever uses the observer unit
+   and it cannot clash with your aircraft's own CDU)
 2. **Close SimAppPro completely** — it and MobiFlight cannot both hold the CDU
 3. Start **MobiFlight Connector**
-4. In the app: CDU `SETUP` → `<WINWING` → pick the matching seat
+4. In the app: CDU `SETUP` → `<WINWING` → pick the matching seat, then press **`EXEC`**
 
 `LINK` shows `WAITING` until it connects, then `SENDING`.
 
