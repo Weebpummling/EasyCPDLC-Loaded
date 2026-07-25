@@ -331,7 +331,11 @@ namespace EasyCPDLC.VNS430.Cdu
             SmoothingMode prevSmoothing = g.SmoothingMode;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            float radius = Math.Min(r.Width, r.Height) * 0.32f;
+            // Round the highlight to the key shape: near-square keys (the numeric keypad)
+            // read as circular; the rectangular keys stay squircles.
+            float minSide = Math.Min(r.Width, r.Height);
+            float aspect = minSide / Math.Max(r.Width, r.Height);
+            float radius = aspect > 0.94f ? minSide * 0.5f : minSide * 0.30f;
             using GraphicsPath key = RoundedRect(r, radius);
 
             Region prevClip = g.Clip;
