@@ -113,9 +113,20 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-VPilotBridge.ps1') -Des
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-vPilot-Bridge.cmd') -Destination $vpilotDir -Force
 Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\VPILOT-BRIDGE-INSTALL.txt') -Destination $vpilotDir -Force
 
-# Manual and docs.
+# Manual at the root; the numbered guides and README under Docs. Screenshots come
+# along so the guides render offline.
 Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\MANUAL.md') -Destination $packageDirectory -Force
-Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination $docsDir -Force
+# README stays at the package root: its links are repo-root relative, so moving it
+# under Docs would break every image and guide link in it.
+Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination $packageDirectory -Force
+foreach ($guide in @('1-INSTALLATION.md', '2-CDU-GUIDE.md', '3-GNS430-GUIDE.md')) {
+    Copy-Item -LiteralPath (Join-Path $repoRoot "docs\$guide") -Destination $docsDir -Force
+}
+# Screenshots go beside Docs, not inside it, so the guides' "../assets/screenshots"
+# links resolve exactly as they do in the repo.
+$docsAssets = Join-Path $packageDirectory 'assets\screenshots'
+New-Item -ItemType Directory -Path $docsAssets -Force | Out-Null
+Copy-Item -Path (Join-Path $repoRoot 'assets\screenshots\*') -Destination $docsAssets -Force
 
 $vns430Root = Join-Path $repoRoot 'EasyCPDLC\VNS430'
 $moduleRoot = Join-Path $vns430Root 'MSFS2024Module'
@@ -140,6 +151,10 @@ Copy-Item -LiteralPath $cduMobiFlightProfile -Destination $profilesDir -Force
 
 # Reference documentation.
 Copy-Item -LiteralPath (Join-Path $vns430Root 'README.md') -Destination (Join-Path $docsDir 'GNS430.md') -Force
+# GNS430.md embeds images from the component's own Docs\images folder.
+$gnsImages = Join-Path $docsDir 'Docs\images'
+New-Item -ItemType Directory -Path $gnsImages -Force | Out-Null
+Copy-Item -Path (Join-Path $vns430Root 'Docs\images\*') -Destination $gnsImages -Force
 Copy-Item -LiteralPath (Join-Path $moduleRoot 'README.md') -Destination (Join-Path $docsDir 'Hardware-Guide.md') -Force
 Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\HOPPIE-AIRCRAFT-ACARS-ROUTING.md') -Destination $docsDir -Force
 
