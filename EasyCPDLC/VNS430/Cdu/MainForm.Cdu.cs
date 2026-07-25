@@ -421,14 +421,7 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(5), "<LOGON", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(6), "<RETURN", CduColor.White);
 
-            if (!string.IsNullOrWhiteSpace(cduStatusLine))
-            {
-                grid.WriteCentered(CduLayout.ScratchpadRow, Truncate(cduStatusLine, CduGrid.Cols), CduColor.Amber, small: true);
-            }
-            else
-            {
-                grid.WriteCentered(CduLayout.ScratchpadRow, "[" + Truncate(cduScratchpad, CduGrid.Cols - 2) + "]", CduColor.White);
-            }
+            RenderCduScratchpad(grid);
         }
 
         private void HandleCduLogonLsk(bool rightSide, int index)
@@ -651,14 +644,7 @@ namespace EasyCPDLC
             }
 
             // Scratchpad (or the last status message) sits just above the RETURN/SEND row.
-            if (!string.IsNullOrWhiteSpace(cduStatusLine))
-            {
-                grid.WriteCentered(CduLayout.ScratchpadRow, Truncate(cduStatusLine, CduGrid.Cols), CduColor.Amber, small: true);
-            }
-            else
-            {
-                grid.WriteCentered(CduLayout.ScratchpadRow, "[" + Truncate(cduScratchpad, CduGrid.Cols - 2) + "]", CduColor.White);
-            }
+            RenderCduScratchpad(grid);
 
             grid.WriteLeft(CduLayout.DataRow(6), "<RETURN", CduColor.White);
             grid.WriteRight(CduLayout.DataRow(6), cduRequestSending ? "SENDING" : "SEND>",
@@ -735,11 +721,25 @@ namespace EasyCPDLC
             RefreshCduDisplay();
         }
 
+        // The scratchpad occupies the bottom row, typed left to right with no brackets.
+        // A transient status message (amber) replaces it until the next keystroke.
+        private void RenderCduScratchpad(CduGrid grid)
+        {
+            if (!string.IsNullOrWhiteSpace(cduStatusLine))
+            {
+                grid.Write(CduLayout.ScratchpadRow, 0, Truncate(cduStatusLine, CduGrid.Cols), CduColor.Amber, small: true);
+            }
+            else
+            {
+                grid.Write(CduLayout.ScratchpadRow, 0, Truncate(cduScratchpad, CduGrid.Cols), CduColor.White);
+            }
+        }
+
         private bool CduScratchpadActive() => cduPage is CduPageId.Request or CduPageId.Setup or CduPageId.Logon;
 
         private void CduScratchpadType(char c)
         {
-            if (CduScratchpadActive() && cduScratchpad.Length < CduGrid.Cols - 2)
+            if (CduScratchpadActive() && cduScratchpad.Length < CduGrid.Cols)
             {
                 cduScratchpad += c;
                 cduStatusLine = string.Empty;
@@ -781,14 +781,7 @@ namespace EasyCPDLC
             RenderCduSetupField(grid, 3, true, "PRINTER",
                 string.IsNullOrWhiteSpace(SelectedPrinterName) ? "SELECT" : Truncate(SelectedPrinterName, CduGrid.HalfCols - 1));
 
-            if (!string.IsNullOrWhiteSpace(cduStatusLine))
-            {
-                grid.WriteCentered(CduLayout.ScratchpadRow, Truncate(cduStatusLine, CduGrid.Cols), CduColor.Amber, small: true);
-            }
-            else
-            {
-                grid.WriteCentered(CduLayout.ScratchpadRow, "[" + Truncate(cduScratchpad, CduGrid.Cols - 2) + "]", CduColor.White);
-            }
+            RenderCduScratchpad(grid);
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
 
