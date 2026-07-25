@@ -26,6 +26,8 @@ namespace EasyCPDLC
             Aoc,
             Request,
             Setup,
+            SetupAccount,
+            SetupPrinter,
             Load
         }
 
@@ -192,6 +194,12 @@ namespace EasyCPDLC
                 case CduPageId.Setup:
                     HandleCduSetupLsk(rightSide, index);
                     break;
+                case CduPageId.SetupAccount:
+                    HandleCduSetupAccountLsk(rightSide, index);
+                    break;
+                case CduPageId.SetupPrinter:
+                    HandleCduSetupPrinterLsk(rightSide, index);
+                    break;
                 case CduPageId.Load:
                     HandleCduLoadLsk(rightSide, index);
                     break;
@@ -243,6 +251,12 @@ namespace EasyCPDLC
                     break;
                 case CduPageId.Setup:
                     RenderCduSetup(grid, snapshot);
+                    break;
+                case CduPageId.SetupAccount:
+                    RenderCduSetupAccount(grid, snapshot);
+                    break;
+                case CduPageId.SetupPrinter:
+                    RenderCduSetupPrinter(grid, snapshot);
                     break;
                 case CduPageId.Load:
                     RenderCduLoad(grid, snapshot);
@@ -802,7 +816,8 @@ namespace EasyCPDLC
             }
         }
 
-        private bool CduScratchpadActive() => cduPage is CduPageId.Request or CduPageId.Setup or CduPageId.Logon;
+        private bool CduScratchpadActive() =>
+            cduPage is CduPageId.Request or CduPageId.Logon or CduPageId.SetupAccount or CduPageId.SetupPrinter;
 
         private void CduScratchpadType(char c)
         {
@@ -835,22 +850,55 @@ namespace EasyCPDLC
 
         // ---- SETUP page ----------------------------------------------------
 
+        // SETUP is a menu of sub-pages so no single page is overcrowded.
         private void RenderCduSetup(CduGrid grid, Vns430BackendSnapshot snapshot)
         {
             grid.WriteCentered(CduLayout.TitleRow, "SETUP", CduColor.White);
-
-            RenderCduSetupField(grid, 2, false, "VATSIM CID", SavedCID > 0 ? SavedCID.ToString() : null);
-            RenderCduSetupField(grid, 3, false, "HOPPIE CODE", string.IsNullOrWhiteSpace(SavedHoppieCode) ? null : "SET");
-            RenderCduSetupField(grid, 4, false, "SIMBRIEF", string.IsNullOrWhiteSpace(SimbriefID) ? null : SimbriefID);
-            RenderCduSetupField(grid, 5, false, "ELOAD KEY", string.IsNullOrWhiteSpace(SavedELoadControlApiKey) ? null : "SET");
-
-            RenderCduSetupField(grid, 2, true, "DCDU STYLE", DcduStyleManager.CurrentStyle);
-            RenderCduSetupField(grid, 3, true, "PRINTER",
-                string.IsNullOrWhiteSpace(SelectedPrinterName) ? "SELECT" : Truncate(SelectedPrinterName, CduGrid.HalfCols - 1));
-
-            RenderCduScratchpad(grid);
+            grid.WriteLeft(CduLayout.DataRow(1), "<ACCOUNT", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(2), "<PRINTER", CduColor.White);
+            RenderCduSetupField(grid, 1, true, "DCDU STYLE", DcduStyleManager.CurrentStyle);
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
+
+        private void RenderCduSetupAccount(CduGrid grid, Vns430BackendSnapshot snapshot)
+        {
+            grid.WriteCentered(CduLayout.TitleRow, "ACCOUNT / LOGIN", CduColor.White);
+            RenderCduSetupField(grid, 1, false, "VATSIM CID", SavedCID > 0 ? SavedCID.ToString() : null);
+            RenderCduSetupField(grid, 2, false, "HOPPIE CODE", string.IsNullOrWhiteSpace(SavedHoppieCode) ? null : "SET");
+            RenderCduSetupField(grid, 3, false, "SIMBRIEF", string.IsNullOrWhiteSpace(SimbriefID) ? null : SimbriefID);
+            RenderCduSetupField(grid, 4, false, "ELOAD KEY", string.IsNullOrWhiteSpace(SavedELoadControlApiKey) ? null : "SET");
+            grid.WriteLeft(CduLayout.DataRow(6), "<SETUP", CduColor.White);
+            RenderCduScratchpad(grid);
+        }
+
+        private void RenderCduSetupPrinter(CduGrid grid, Vns430BackendSnapshot snapshot)
+        {
+            grid.WriteCentered(CduLayout.TitleRow, "PRINTER", CduColor.White);
+
+            // The printer name gets a full-width row so long queue names are not truncated.
+            grid.WriteLeft(CduLayout.LabelRow(1), "PRINTER", CduColor.Cyan, small: true);
+            bool hasPrinter = !string.IsNullOrWhiteSpace(SelectedPrinterName);
+            grid.Write(CduLayout.DataRow(1), 0, "<" + (hasPrinter ? Truncate(SelectedPrinterName, CduGrid.Cols - 1) : "SELECT PRINTER"),
+                hasPrinter ? CduColor.Green : CduColor.Amber);
+
+            RenderCduSetupField(grid, 2, false, "MODE", PrinterModeText(PrinterMode));
+            RenderCduSetupField(grid, 3, false, "PROFILE", DatalinkPrinter.GetProfileDisplayName(PrinterProfile));
+            RenderCduSetupField(grid, 4, false, "CUT", PrinterCutMode.ToString().ToUpperInvariant());
+
+            RenderCduSetupField(grid, 2, true, "FEED LINES", PrinterFeedLines.ToString());
+            grid.WriteRight(CduLayout.LabelRow(3), "TEST", CduColor.Cyan, small: true);
+            grid.WriteRight(CduLayout.DataRow(3), "PRINT>", CduColor.White);
+
+            grid.WriteLeft(CduLayout.DataRow(6), "<SETUP", CduColor.White);
+            RenderCduScratchpad(grid);
+        }
+
+        private static string PrinterModeText(DatalinkPrinterMode mode) => mode switch
+        {
+            DatalinkPrinterMode.RawEscPos => "ESC/POS",
+            DatalinkPrinterMode.MockFile => "MOCK FILE",
+            _ => "WINDOWS"
+        };
 
         private static void RenderCduSetupField(CduGrid grid, int lsk, bool right, string label, string value)
         {
@@ -876,19 +924,69 @@ namespace EasyCPDLC
             {
                 switch (index)
                 {
-                    case 2: CduApplyCidFromScratchpad(); break;
-                    case 3: CduApplyTextSetting(v => SavedHoppieCode = v.ToUpperInvariant(), "HOPPIE"); break;
-                    case 4: CduApplyTextSetting(v => SimbriefID = v, "SIMBRIEF"); break;
-                    case 5: CduApplyTextSetting(v => SavedELoadControlApiKey = v, "ELOAD KEY"); break;
+                    case 1: cduPage = CduPageId.SetupAccount; break;
+                    case 2: cduPage = CduPageId.SetupPrinter; break;
                     case 6: cduPage = CduPageId.Menu; break;
+                }
+                return;
+            }
+
+            if (index == 1)
+            {
+                CduCycleStyle();
+            }
+        }
+
+        private void HandleCduSetupAccountLsk(bool rightSide, int index)
+        {
+            if (rightSide)
+            {
+                return;
+            }
+
+            cduStatusLine = string.Empty;
+            switch (index)
+            {
+                case 1: CduApplyCidFromScratchpad(); break;
+                case 2: CduApplyTextSetting(v => SavedHoppieCode = v.ToUpperInvariant(), "HOPPIE"); break;
+                case 3: CduApplyTextSetting(v => SimbriefID = v, "SIMBRIEF"); break;
+                case 4: CduApplyTextSetting(v => SavedELoadControlApiKey = v, "ELOAD KEY"); break;
+                case 6: cduPage = CduPageId.Setup; break;
+            }
+        }
+
+        private void HandleCduSetupPrinterLsk(bool rightSide, int index)
+        {
+            cduStatusLine = string.Empty;
+            if (!rightSide)
+            {
+                switch (index)
+                {
+                    case 1: CduCyclePrinter(); break;
+                    case 2: PrinterMode = PrinterMode switch
+                    {
+                        DatalinkPrinterMode.RawEscPos => DatalinkPrinterMode.Windows,
+                        DatalinkPrinterMode.Windows => DatalinkPrinterMode.MockFile,
+                        _ => DatalinkPrinterMode.RawEscPos
+                    }; break;
+                    case 3: PrinterProfile = PrinterProfile == DatalinkPrinterProfile.CitizenCtS4000_112Mm
+                        ? DatalinkPrinterProfile.GenericEscPos80Mm
+                        : DatalinkPrinterProfile.CitizenCtS4000_112Mm; break;
+                    case 4: PrinterCutMode = PrinterCutMode switch
+                    {
+                        DatalinkCutMode.Partial => DatalinkCutMode.Full,
+                        DatalinkCutMode.Full => DatalinkCutMode.Off,
+                        _ => DatalinkCutMode.Partial
+                    }; break;
+                    case 6: cduPage = CduPageId.Setup; break;
                 }
                 return;
             }
 
             switch (index)
             {
-                case 2: CduCycleStyle(); break;
-                case 3: CduCyclePrinter(); break;
+                case 2: PrinterFeedLines = (PrinterFeedLines + 1) % 7; break;
+                case 3: RunEmbeddedPrinterTest(); cduStatusLine = "TEST SENT"; break;
             }
         }
 
