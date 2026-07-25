@@ -403,13 +403,15 @@ namespace EasyCPDLC
                 }
             }
 
-            if (lines.Count > bodyRows)
+            // Compact scroll hint on the small line above PRINT: which page directions exist.
+            bool canPrev = cduDetailScroll > 0;
+            bool canNext = cduDetailScroll + bodyRows < lines.Count;
+            if (canPrev || canNext)
             {
-                int first = cduDetailScroll + 1;
-                int last = Math.Min(lines.Count, cduDetailScroll + bodyRows);
-                grid.Write(CduLayout.ScratchpadRow, 0,
-                    Truncate("LN " + first + "-" + last + "/" + lines.Count + "  PREV/NEXT PAGE", CduGrid.Cols),
-                    CduColor.Cyan, small: true);
+                string hint = (canPrev ? "PREV" : string.Empty)
+                    + (canPrev && canNext ? "/" : string.Empty)
+                    + (canNext ? "NEXT" : string.Empty);
+                grid.WriteRight(CduLayout.LabelRow(4), hint, CduColor.Cyan, small: true);
             }
 
             // Bottom-left LSKs (4,5,6): available CPDLC replies.
