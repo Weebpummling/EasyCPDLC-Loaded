@@ -190,6 +190,11 @@ In the **ATC** group, turn the small knob to the **PDC** page. It shows the clea
 status, the issuing facility, and offers `REQUEST CLEARANCE` when one is available —
 push `CRSR`, then `ENT`.
 
+On **VATSIM**, availability follows the online controllers and their Hoppie
+stations. On **SI** the facility is always SayIntentions' ATSU `PKGM`, and the page
+shows `AVAIL` as soon as your SI API key and SimBrief plan are set — the request is
+built from the SimBrief OFP, so no VATSIM connection is needed.
+
 ---
 
 ## Screen-only mode

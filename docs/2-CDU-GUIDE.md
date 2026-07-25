@@ -101,12 +101,21 @@ press the line-select key next to the field. Press `CLR` to backspace.
 
 ## Workflow: connect and log on
 
+**On VATSIM:**
+
 1. `MENU` → `<DLK`
 2. `<CONNECT` — the right column shows `VATSIM CONNECTED`
 3. `<LOGON` — online CPDLC facilities are listed automatically; a tuned-frequency
    match shows in green
 4. Select a facility (or type a 4-letter code and press `<LOGON`)
 5. Press **`EXEC`** to transmit
+
+**On SI (SayIntentions):** there is nothing to connect. With your SI API key and a
+filed SimBrief plan in place, the datalink is live immediately — the `LOGON` page
+offers **`PKGM`** (SayIntentions' always-on ATSU) as the first candidate, and PDC and
+CPDLC route to the SayIntentions ACARS network automatically. Your callsign comes
+from the SimBrief OFP, so file it before you request. Hoppie keeps being polled in
+parallel: VA telex and loadsheets still arrive.
 
 `<DLK` also has `<RELOAD FP` (re-fetch the SimBrief plan — this also clears the inbox
 for the new leg, so it is EXEC-armed) and `<PRINT LAST` / `<REPRINT`.

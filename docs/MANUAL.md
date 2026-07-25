@@ -102,6 +102,21 @@ If something required is missing, the `<SETUP` item on the CDU menu turns **ambe
 `REAL WORLD` pulls genuine METAR/TAF and real D-ATIS. `AUTO` uses VATSIM weather on
 VATSIM and SayIntentions weather on SI.
 
+### What SI mode changes
+
+On `SI`, the **datalink itself** moves to the SayIntentions ACARS network — not just
+the weather:
+
+- **PDC and CPDLC** go to SayIntentions' always-on ATSU, station **`PKGM`**, using
+  your **SI API key**. No VATSIM connection is needed; `REQ CLR` and `LOGON` work as
+  soon as the key and a **filed SimBrief plan** are in place. SI's ATC identifies
+  your flight by that SimBrief plan, so file the OFP before requesting.
+- **Your VA's ACARS keeps working.** The app polls Hoppie *and* SayIntentions at the
+  same time: ATC traffic arrives from SI, VA telex and loadsheets from Hoppie.
+- **Do not run another SI ACARS client at the same time** — SayIntentions' own
+  "ACARS Bridge" app, or an aircraft connected to SI ACARS directly, competes for
+  the same messages exactly like a second Hoppie client would.
+
 ### Pick your instrument
 
 Tray → **Instrument** → **737 CDU** or **GNS430**. Only one runs at a time.

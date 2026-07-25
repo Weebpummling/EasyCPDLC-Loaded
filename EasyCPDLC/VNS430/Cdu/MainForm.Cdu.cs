@@ -399,16 +399,16 @@ namespace EasyCPDLC
         }
 
         // SETUP wants attention when a credential the pilot needs to connect/operate is
-        // missing: the Hoppie code and SimBrief are always needed, and the active ATC
-        // network needs its own credential (VATSIM -> Hoppie, SI -> SayIntentions key).
+        // missing: SimBrief is always needed, and the active ATC network needs its own
+        // credential (VATSIM -> Hoppie, SI -> SayIntentions key). On SI the Hoppie code
+        // is optional - it only adds VA telex - so its absence alone must not flag.
         private bool CduSetupNeedsAttention()
         {
-            bool hoppieMissing = string.IsNullOrWhiteSpace(SavedHoppieCode);
             bool simbriefMissing = string.IsNullOrWhiteSpace(SimbriefID);
             bool networkMissing = ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions
                 ? string.IsNullOrWhiteSpace(SavedSayIntentionsApiKey)
                 : string.IsNullOrWhiteSpace(SavedHoppieCode);
-            return hoppieMissing || simbriefMissing || networkMissing;
+            return simbriefMissing || networkMissing;
         }
 
         private void RenderCduDlk(CduGrid grid, Vns430BackendSnapshot snapshot)

@@ -294,20 +294,42 @@ namespace EasyCPDLC
                 })
                 .ToList();
 
+            // SI mode: the one logon target is the SI ATSU. Offer it first so the CDU
+            // LOGON page and GNS430 work without any VATSIM controller discovery.
+            if (IsSayIntentionsDatalinkActive &&
+                !candidates.Any(candidate => string.Equals(candidate.Code, DatalinkRouting.SayIntentionsAtsu, StringComparison.OrdinalIgnoreCase)))
+            {
+                candidates.Insert(0, new Vns430CpdlcCandidate
+                {
+                    Code = DatalinkRouting.SayIntentionsAtsu,
+                    Controller = "SAYINTENTIONS ATC",
+                    Frequency = string.Empty,
+                    Reason = "SI ATSU",
+                    TunedMatch = false
+                });
+            }
+
             string pdcStatus = (datalinkStatusText ?? string.Empty)
                 .Replace("PDC", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
 
+            bool siMode = IsSayIntentionsDatalinkActive;
             return new Vns430BackendSnapshot
             {
-                Connected = Connected,
+                // To the instruments, Connected means "the datalink is usable". On SI
+                // that is true as soon as the prerequisites are met - there is no
+                // session to establish, the ATSU is always on.
+                Connected = Connected || (siMode && SayIntentionsDatalinkPrerequisitesMet),
                 Callsign = (callsign ?? string.Empty).Trim().ToUpperInvariant(),
                 CurrentAtcUnit = currentUnit,
                 PendingLogon = (pendingLogon ?? string.Empty).Trim().ToUpperInvariant(),
-                Departure = AirbusAocDeparture(),
-                Arrival = AirbusAocArrival(),
-                Aircraft = AirbusAocAircraft(),
+                Departure = siMode ? SayIntentionsDeparture() : AirbusAocDeparture(),
+                Arrival = siMode ? SayIntentionsArrival() : AirbusAocArrival(),
+                Aircraft = siMode ? SayIntentionsAircraft() : AirbusAocAircraft(),
                 Messages = messages,
-                AtcUnitOnline = Connected && currentUnit.Length > 0 && IsHoppieLogonOnline(currentUnit),
+                AtcUnitOnline = currentUnit.Length > 0 &&
+                    (siMode
+                        ? string.Equals(currentUnit, DatalinkRouting.SayIntentionsAtsu, StringComparison.OrdinalIgnoreCase) || (Connected && IsHoppieLogonOnline(currentUnit))
+                        : Connected && IsHoppieLogonOnline(currentUnit)),
                 CpdlcCandidates = candidates,
                 PdcStatus = pdcStatus,
                 PdcLogonCode = pdcDiscoveryLogonCode ?? string.Empty,
@@ -341,6 +363,30 @@ namespace EasyCPDLC
         internal async Task Vns430RequestLogonAsync(string station)
         {
             string cleanStation = (station ?? string.Empty).Trim().ToUpperInvariant();
+
+            // SI mode needs no VATSIM connection: the flight identity comes from the
+            // SimBrief OFP and the logon goes to the fixed SI ATSU when no station is
+            // given explicitly.
+            if (IsSayIntentionsDatalinkActive)
+            {
+                if (!SayIntentionsDatalinkPrerequisitesMet)
+                {
+                    WriteMessage("CPDLC LOGON NOT READY: SET SAYINTENTIONS KEY AND SIMBRIEF ID", "SYSTEM", "SYSTEM");
+                    return;
+                }
+                if (!await EnsureSayIntentionsFlightAsync())
+                {
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(cleanStation))
+                {
+                    cleanStation = DatalinkRouting.SayIntentionsAtsu;
+                }
+
+                await SendCpdlcLogonRequestAsync(cleanStation, false);
+                return;
+            }
+
             if (!Connected)
             {
                 WriteMessage("CPDLC LOGON NOT READY: CONNECT TO VATSIM FIRST", "SYSTEM", "SYSTEM");
@@ -392,7 +438,20 @@ namespace EasyCPDLC
                 (workflow.Kind == Vns430WorkflowKind.AocMetar || workflow.Kind == Vns430WorkflowKind.AocAtis) &&
                 wxSource != Vns430WeatherSource.Vatsim;
 
-            if (!Connected && !directWeather)
+            // SI mode: the datalink runs over the SayIntentions ACARS network, so a
+            // VATSIM connection is not required - the SI prerequisites are.
+            if (IsSayIntentionsDatalinkActive && !directWeather)
+            {
+                if (!SayIntentionsDatalinkPrerequisitesMet)
+                {
+                    return new Vns430OperationResult { Status = "SET SI KEY + SIMBRIEF ID" };
+                }
+                if (!Connected && !await EnsureSayIntentionsFlightAsync())
+                {
+                    return new Vns430OperationResult { Status = "LOAD SIMBRIEF PLAN FIRST" };
+                }
+            }
+            else if (!Connected && !directWeather)
             {
                 return new Vns430OperationResult { Status = "CONNECT VATSIM FIRST" };
             }

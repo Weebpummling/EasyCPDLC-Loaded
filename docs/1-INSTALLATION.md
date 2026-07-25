@@ -49,10 +49,10 @@ Right-click the tray icon → **Connection credentials…**
 | Field | Required? | Notes |
 |---|---|---|
 | **VATSIM CID** | For VATSIM | Your numeric ID |
-| **Hoppie logon code** | **Yes** | Required for all ACARS/CPDLC traffic |
-| **SimBrief username / ID** | Optional | Flight plan + loadsheet data |
+| **Hoppie logon code** | For VATSIM | All ACARS/CPDLC on VATSIM; on SI it only adds VA telex |
+| **SimBrief username / ID** | For SI | Flight plan + loadsheet data; SI ATC identifies your flight by the filed OFP |
 | **eLoadControl API key** | Optional | Loadsheet generation |
-| **SayIntentions API key** | Optional | SayIntentions network + weather |
+| **SayIntentions API key** | For SI | SI datalink (PDC/CPDLC via `PKGM`) + SI weather |
 
 You can also enter these on the CDU itself: `SETUP` → `<ACCOUNT`.
 

@@ -6952,6 +6952,28 @@ private System.Windows.Forms.Label airbusAocSendLabel;
 
         private void UpdateOnlineStatusLabel()
         {
+            // SayIntentions serves the entire world from one always-on ATSU (PKGM), so
+            // there is nothing to discover: PDC is available whenever the prerequisites
+            // (API key, plus SimBrief or a live connection) are met.
+            if (IsSayIntentionsDatalinkActive)
+            {
+                bool ready = SayIntentionsDatalinkPrerequisitesMet;
+                datalinkStatusText = ready ? "PDC AVAIL" : "PDC --";
+                pdcDiscoveryHoverText = ready
+                    ? "SayIntentions ATSU " + DatalinkRouting.SayIntentionsAtsu
+                    : "Set the SayIntentions API key and SimBrief ID first";
+                pdcDiscoveryLogonCode = ready ? DatalinkRouting.SayIntentionsAtsu : string.Empty;
+                pdcDiscoveryController = ready ? "SAYINTENTIONS" : string.Empty;
+                pdcDiscoverySource = "SAYINTENTIONS";
+                pdcDiscoveryIsFallbackCandidate = false;
+                pdcDiscoveryAllowReqClr = ready;
+                UpdateCpdlcDiscoveryFromVatsim();
+                atisStatusText = BuildDotBadgeText("ATIS");
+                UpdateClearanceStatusLabel();
+                UpdateFlightPhaseBadge();
+                return;
+            }
+
             string station = GetSmartAtisStationForHover();
 
             if (string.IsNullOrWhiteSpace(station))
@@ -11546,6 +11568,13 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                 return !string.IsNullOrWhiteSpace(pdcDiscoveryLogonCode);
             }
 
+            // SI mode: the ATSU is always on and no VATSIM connection or Hoppie station
+            // list is involved - only the SI prerequisites and being on the ground.
+            if (IsSayIntentionsDatalinkActive)
+            {
+                return SayIntentionsDatalinkPrerequisitesMet && !IsAirborneForStatusBadges();
+            }
+
             if (!Connected ||
                 !IsHoppieCallsignReadyForInteractiveMenus() ||
                 string.IsNullOrWhiteSpace(pdcDiscoveryLogonCode) ||
@@ -11570,6 +11599,11 @@ private System.Windows.Forms.Label airbusAocSendLabel;
             if (DebugUiPreviewMode)
             {
                 return !string.IsNullOrWhiteSpace(pdcDiscoveryLogonCode);
+            }
+
+            if (IsSayIntentionsDatalinkActive)
+            {
+                return SayIntentionsDatalinkPrerequisitesMet && !IsAirborneForStatusBadges();
             }
 
             if (!Connected ||
@@ -11880,11 +11914,37 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                 return;
             }
 
-            string recipient = pdcDiscoveryLogonCode.Trim().ToUpperInvariant();
-            string clearanceCallsign = GetConnectedPilotCallsign();
-            string departure = userVATSIMData?.flight_plan?.departure?.Trim().ToUpperInvariant() ?? string.Empty;
-            string arrival = userVATSIMData?.flight_plan?.arrival?.Trim().ToUpperInvariant() ?? string.Empty;
-            string aircraft = userVATSIMData?.flight_plan?.aircraft_short?.Trim().ToUpperInvariant() ?? string.Empty;
+            string recipient;
+            string clearanceCallsign;
+            string departure;
+            string arrival;
+            string aircraft;
+
+            if (IsSayIntentionsDatalinkActive)
+            {
+                // SI identifies the flight by its SimBrief plan; pull identity from the
+                // OFP (VATSIM data still wins when connected) and address the fixed ATSU.
+                if (!await EnsureSayIntentionsFlightAsync())
+                {
+                    HideQuickActionButtons();
+                    return;
+                }
+
+                recipient = DatalinkRouting.SayIntentionsAtsu;
+                clearanceCallsign = FirstNonBlank(GetConnectedPilotCallsign(), siFlightCallsign);
+                departure = SayIntentionsDeparture();
+                arrival = SayIntentionsArrival();
+                aircraft = SayIntentionsAircraft();
+            }
+            else
+            {
+                recipient = pdcDiscoveryLogonCode.Trim().ToUpperInvariant();
+                clearanceCallsign = GetConnectedPilotCallsign();
+                departure = userVATSIMData?.flight_plan?.departure?.Trim().ToUpperInvariant() ?? string.Empty;
+                arrival = userVATSIMData?.flight_plan?.arrival?.Trim().ToUpperInvariant() ?? string.Empty;
+                aircraft = userVATSIMData?.flight_plan?.aircraft_short?.Trim().ToUpperInvariant() ?? string.Empty;
+            }
+
             string atisLetter = GetBestDepartureAtisLetter(departure);
 
             if (string.IsNullOrWhiteSpace(clearanceCallsign) ||
@@ -11982,7 +12042,9 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                 return;
             }
 
-            if (requireHoppieOnline && !IsHoppieLogonOnline(recipient))
+            // The Hoppie online-station list only describes Hoppie; the SI ATSU is
+            // always on and never appears in it.
+            if (requireHoppieOnline && !IsSayIntentionsDatalinkActive && !IsHoppieLogonOnline(recipient))
             {
                 WriteMessage("CPDLC LOGON NOT AVAILABLE: " + recipient + " NOT ONLINE", "SYSTEM", "SYSTEM");
                 HideQuickActionButtons();
@@ -21858,6 +21920,17 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
 
                 await SendCPDLCMessage("NONE", "poll", "");
 
+                // In SI mode the same cadence also polls the SayIntentions ACARS network,
+                // where the ATC-session traffic lives. Hoppie polling continues above so
+                // VA telex and loadsheets keep arriving - both networks stay live.
+                if (IsSayIntentionsDatalinkActive &&
+                    !string.IsNullOrWhiteSpace(SavedSayIntentionsApiKey) &&
+                    !string.IsNullOrWhiteSpace(callsign))
+                {
+                    Logger.Debug("Polling SayIntentions ACARS for new messages");
+                    await SendCPDLCMessage("NONE", "poll", "", true, AcarsRoute.SayIntentions);
+                }
+
                 try
                 {
                     TimeSpan nextPollDelay = HoppiePollingPolicy.NextDelay();
@@ -21980,10 +22053,30 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             return "OTHER";
         }
 
-        public async Task SendCPDLCMessage(string recipient, string messageType, string packetData, bool _write = true)
+        public async Task SendCPDLCMessage(string recipient, string messageType, string packetData, bool _write = true, AcarsRoute route = AcarsRoute.Auto)
         {
+            // CPDLC and ATSU-addressed traffic follow the active ATC network; VA telex,
+            // pings and the Hoppie poll always stay on Hoppie. See DatalinkRouting.
+            bool viaSayIntentions = DatalinkRouting.RoutesToSayIntentions(
+                route, messageType, recipient,
+                ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions);
+
+            string networkLogon = viaSayIntentions ? SavedSayIntentionsApiKey : logonCode;
+            string connectUrl = viaSayIntentions ? DatalinkRouting.SayIntentionsConnectUrl : HoppieConnectUrl;
+            string networkName = viaSayIntentions ? "SAYINTENTIONS" : "HOPPIE";
+
+            if (viaSayIntentions && string.IsNullOrWhiteSpace(networkLogon))
+            {
+                if (_write && messageType != "poll")
+                {
+                    WriteMessage("SET SAYINTENTIONS API KEY IN CONNECTION CREDENTIALS", "SYSTEM", "SYSTEM");
+                }
+                UpdateSendingProgress(() => SendingProgress.Visible = false);
+                return;
+            }
+
             var connectionValues = new Dictionary<string, string> {
-                {"logon", logonCode ?? String.Empty},
+                {"logon", networkLogon ?? String.Empty},
                 {"from", callsign ?? String.Empty},
                 {"to", recipient ?? String.Empty},
                 {"type", messageType ?? String.Empty},
@@ -22017,14 +22110,14 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
                     UpdateSendingProgress(() => SendingProgress.PerformStep());
                 }
 
-                var response = await webclient.PostAsync(HoppieConnectUrl, content);
+                var response = await webclient.PostAsync(connectUrl, content);
 
                 UpdateSendingProgress(() => SendingProgress.PerformStep());
 
-                Logger.Debug(String.Format("PACKET SENT: to={0} | type={1} | packetLen={2} | write={3}", SafeLogValue(recipient), SafeLogValue(messageType), (packetData ?? string.Empty).Length, _write));
+                Logger.Debug(String.Format("PACKET SENT: net={0} | to={1} | type={2} | packetLen={3} | write={4}", networkName, SafeLogValue(recipient), SafeLogValue(messageType), (packetData ?? string.Empty).Length, _write));
                 var responseString = await response.Content.ReadAsStringAsync();
                 string printString = responseString.ToString().ToUpper().Trim();
-                Logger.Debug(String.Format("HOPPIE RESPONSE: status={0} | length={1}", ClassifyHoppieResponseForLog(responseString), (responseString ?? string.Empty).Length));
+                Logger.Debug(String.Format("{0} RESPONSE: status={1} | length={2}", networkName, ClassifyHoppieResponseForLog(responseString), (responseString ?? string.Empty).Length));
 
                 if (IsHoppieNetworkLoadResponse(printString))
                 {
@@ -22041,7 +22134,7 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
                 {
                     if (isErrorState)
                     {
-                        WriteMessage("HOPPIE CONNECTIVITY RESTORED.", "SYSTEM", "SYSTEM");
+                        WriteMessage(networkName + " CONNECTIVITY RESTORED.", "SYSTEM", "SYSTEM");
                         isErrorState = false;
                     }
 
@@ -22066,7 +22159,7 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
                 if (!isErrorState)
                 {
                     Logger.Error(String.Format("{0}: {1}", e.GetType().FullName, e.Message));
-                    WriteMessage("ERROR CHECKING FOR NEW MESSAGES. THIS IS LIKELY AN ERROR WITH THE HOPPIE NETWORK. THE SYSTEM WILL CONTINUE ATTEMPTING TO CONTACT THE SERVER AND LET YOU KNOW WHEN CONNECTION IS RE-ESTABLISHED.", "SYSTEM", "SYSTEM");
+                    WriteMessage("ERROR CHECKING FOR NEW MESSAGES. THIS IS LIKELY AN ERROR WITH THE " + networkName + " NETWORK. THE SYSTEM WILL CONTINUE ATTEMPTING TO CONTACT THE SERVER AND LET YOU KNOW WHEN CONNECTION IS RE-ESTABLISHED.", "SYSTEM", "SYSTEM");
                     isErrorState = true;
                 }
                 UpdateSendingProgress(() => SendingProgress.Visible = false);

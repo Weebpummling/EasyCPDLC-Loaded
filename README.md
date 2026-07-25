@@ -50,7 +50,10 @@ None of it is required. The app works on its own with mouse and keyboard.
 
 So a pilot with CDU hardware can use **that hardware** to work the ACARS system, and
 switch networks without relearning anything. The same physical unit talks to **VATSIM**
-or **SayIntentions** — you change one setting, not your workflow.
+or **SayIntentions** — you change one setting, not your workflow. That includes the
+datalink itself: on SI, PDC and CPDLC go to SayIntentions' ATSU (`PKGM`) over its
+Hoppie-compatible ACARS network, with no VATSIM connection required — while Hoppie
+stays polled in parallel so your VA's telex and loadsheets keep arriving.
 
 It folds in **eLoadControl's** loadsheet generator, so a proper weight-and-balance
 loadsheet is a few line-selects away and prints on the same strip as everything else,
@@ -122,7 +125,7 @@ the datalink. Cursor off navigates, cursor on interacts.
 | | |
 |---|---|
 | **Networks** | VATSIM · SayIntentions (IVAO planned) |
-| **Datalink** | Hoppie ACARS — CPDLC requests, clearances, logon, PDC, oceanic |
+| **Datalink** | Hoppie ACARS on VATSIM · SayIntentions ACARS (`PKGM`) on SI — CPDLC requests, clearances, logon, PDC, oceanic; Hoppie polled in parallel for VA traffic |
 | **Weather** | VATSIM datalink, real-world METAR/TAF + D-ATIS, or SayIntentions |
 | **Loadsheets** | eLoadControl generation, plus VA loadsheets over Hoppie — both auto-tagged |
 | **Printing** | ESC/POS thermal, Windows queue, or mock-file preview |
@@ -134,8 +137,10 @@ the datalink. Cursor off navigates, cursor on interacts.
 ## Requirements
 
 - Windows 11 x64
-- A **VATSIM CID** and **Hoppie ACARS logon code**
-- Optional: SimBrief, eLoadControl API key, SayIntentions API key
+- For VATSIM: a **VATSIM CID** and **Hoppie ACARS logon code**
+- For SayIntentions: an **SI API key** and a filed **SimBrief** plan (Hoppie optional,
+  for VA traffic)
+- Optional: SimBrief, eLoadControl API key
 - Optional: MSFS 2024 + MobiFlight for hardware
 - Optional: a thermal receipt printer — see the
   [facade sizing warning](docs/1-INSTALLATION.md#troubleshooting) before buying a
