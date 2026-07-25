@@ -3425,6 +3425,9 @@ private TelexForm tForm;
         private ToolStripMenuItem trayOnScreenButtonsMenuItem;
         private ToolStripMenuItem trayDcduCompanionMenuItem;
         private ToolStripMenuItem trayVns430ScreenMenuItem;
+        private ToolStripMenuItem trayStyleAirbusItem;
+        private ToolStripMenuItem trayStyleBoeingItem;
+        private ToolStripMenuItem trayStyleCduItem;
         private bool applyingMainWindowLayout;
         private readonly DcduHotspotButton mainMinimizeButton = new();
         private readonly DcduHotspotButton mainReloadFlightPlanButton = new();
@@ -19020,6 +19023,16 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
 
                 trayMenu = new ContextMenuStrip();
                 trayMenu.Items.Add("Show EasyCPDLC", null, (_, __) => BringEasyCpdlcWindowToFront());
+
+                ToolStripMenuItem styleMenu = new("DCDU display style");
+                trayStyleAirbusItem = new ToolStripMenuItem("Airbus DCDU", null, (_, __) => SetDcduStyleFromTray(DcduStyleManager.Airbus));
+                trayStyleBoeingItem = new ToolStripMenuItem("Boeing DCDU", null, (_, __) => SetDcduStyleFromTray(DcduStyleManager.Boeing));
+                trayStyleCduItem = new ToolStripMenuItem("737 CDU (MCDU)", null, (_, __) => SetDcduStyleFromTray(DcduStyleManager.Cdu));
+                styleMenu.DropDownItems.Add(trayStyleAirbusItem);
+                styleMenu.DropDownItems.Add(trayStyleBoeingItem);
+                styleMenu.DropDownItems.Add(trayStyleCduItem);
+                trayMenu.Items.Add(styleMenu);
+
                 trayMenu.Items.Add("Open VNS430 panel", null, (_, __) => ShowVns430Panel());
                 trayVns430ScreenMenuItem = new ToolStripMenuItem("VNS430 screen mode (no artwork/zones)")
                 {
@@ -19051,6 +19064,7 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 SyncTrayDisplayMenuState();
                 SyncTrayCompanionMenuState();
                 SyncTrayVns430ScreenMenuState();
+                SyncTrayStyleMenuState();
 
                 trayIcon?.Dispose();
                 trayIcon = new NotifyIcon
@@ -19132,6 +19146,34 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
             if (trayVns430ScreenMenuItem != null)
             {
                 trayVns430ScreenMenuItem.Checked = IsVns430ScreenOnlyMode();
+            }
+        }
+
+        // Switch the main-window display design from the tray. Today the choices are the
+        // Airbus/Boeing DCDU skins and the 737 CDU; as the grid emulators mature this is
+        // where the Airbus DCDU replica and GNS430 front ends will be selected too.
+        private void SetDcduStyleFromTray(string style)
+        {
+            DcduStyleManager.CurrentStyle = DcduStyleManager.NormalizeStyle(style);
+            Properties.Settings.Default.Save();
+            ApplyDisplayStyle();
+            SyncTrayStyleMenuState();
+            BringEasyCpdlcWindowToFront();
+        }
+
+        private void SyncTrayStyleMenuState()
+        {
+            if (trayStyleAirbusItem != null)
+            {
+                trayStyleAirbusItem.Checked = string.Equals(DcduStyleManager.CurrentStyle, DcduStyleManager.Airbus, StringComparison.OrdinalIgnoreCase);
+            }
+            if (trayStyleBoeingItem != null)
+            {
+                trayStyleBoeingItem.Checked = string.Equals(DcduStyleManager.CurrentStyle, DcduStyleManager.Boeing, StringComparison.OrdinalIgnoreCase);
+            }
+            if (trayStyleCduItem != null)
+            {
+                trayStyleCduItem.Checked = DcduStyleManager.IsCdu;
             }
         }
 
@@ -27675,7 +27717,11 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
                     {
                         SetEmbeddedSetupDisplayStyle(DcduStyleManager.Boeing);
                     }
-                    else if (rightSide && index == 3)
+                    else if (!rightSide && index == 3)
+                    {
+                        SetEmbeddedSetupDisplayStyle(DcduStyleManager.Cdu);
+                    }
+                    else if (rightSide && index == 4)
                     {
                         CycleEmbeddedSetupWindowScale();
                     }
@@ -28496,7 +28542,6 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             Panel page = CreateEmbeddedSetupCanvas();
             Font titleFont = EmbeddedSetupTitleFont();
             Font menuFont = EmbeddedSetupMenuFont();
-            Font captionFont = EmbeddedSetupCaptionFont();
             Color color = MainPrimaryTextColor();
 
             AddEmbeddedSetupLabel(page, "DCDU STYLE", 0, 2, page.Width, 24, ContentAlignment.MiddleCenter, color, titleFont);
@@ -28508,10 +28553,13 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             AddEmbeddedSetupLabel(page, string.Equals(DcduStyleManager.CurrentStyle, DcduStyleManager.Boeing, StringComparison.OrdinalIgnoreCase) ? "ACTIVE" : string.Empty,
                 page.Width - 160, EmbeddedSetupRightLskTextY(page, 2), 156, 30, ContentAlignment.MiddleRight, DcduTheme.Amber, menuFont);
 
-            AddEmbeddedSetupLabel(page, "WINDOW SCALE", 4, EmbeddedSetupLskTextY(page, 3), 220, 30, ContentAlignment.MiddleLeft, color, menuFont);
-            AddEmbeddedSetupLabel(page, WindowScalePercent.ToString(System.Globalization.CultureInfo.InvariantCulture) + "%>", page.Width - 160, EmbeddedSetupRightLskTextY(page, 3), 156, 30, ContentAlignment.MiddleRight, DcduTheme.Amber, menuFont);
+            AddEmbeddedSetupLabel(page, "<CDU (MCDU)", 4, EmbeddedSetupLskTextY(page, 3), 220, 30, ContentAlignment.MiddleLeft, color, menuFont);
+            AddEmbeddedSetupLabel(page, string.Equals(DcduStyleManager.CurrentStyle, DcduStyleManager.Cdu, StringComparison.OrdinalIgnoreCase) ? "ACTIVE" : string.Empty,
+                page.Width - 160, EmbeddedSetupRightLskTextY(page, 3), 156, 30, ContentAlignment.MiddleRight, DcduTheme.Amber, menuFont);
 
-            AddEmbeddedSetupLabel(page, "STYLE/SCALE APPLIES IMMEDIATELY", 4, EmbeddedSetupLskTextY(page, 4), page.Width - 8, 22, ContentAlignment.MiddleLeft, DcduTheme.Amber, captionFont);
+            AddEmbeddedSetupLabel(page, "WINDOW SCALE", 4, EmbeddedSetupLskTextY(page, 4), 220, 30, ContentAlignment.MiddleLeft, color, menuFont);
+            AddEmbeddedSetupLabel(page, WindowScalePercent.ToString(System.Globalization.CultureInfo.InvariantCulture) + "%>", page.Width - 160, EmbeddedSetupRightLskTextY(page, 4), 156, 30, ContentAlignment.MiddleRight, DcduTheme.Amber, menuFont);
+
             AddEmbeddedSetupLabel(page, "<SETUP MENU", 4, EmbeddedSetupLskTextY(page, EmbeddedSetupBottomIndex()), 230, 30, ContentAlignment.MiddleLeft, color, menuFont);
         }
 
@@ -28697,14 +28745,18 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
 
         private void SetEmbeddedSetupDisplayStyle(string style)
         {
-            string selected = string.Equals(style, DcduStyleManager.Boeing, StringComparison.OrdinalIgnoreCase)
-                ? DcduStyleManager.Boeing
-                : DcduStyleManager.Airbus;
-
-            DcduStyleManager.CurrentStyle = selected;
+            // NormalizeStyle recognizes Airbus, Boeing and CDU; the old collapse-to-Airbus
+            // logic here silently made CDU unselectable from this page.
+            DcduStyleManager.CurrentStyle = DcduStyleManager.NormalizeStyle(style);
             Properties.Settings.Default.Save();
             ApplyDisplayStyle();
-            ShowEmbeddedSetupStylePage();
+
+            // Selecting CDU tears down the Airbus/Boeing chrome and mounts the CDU, so this
+            // embedded page no longer exists; only redraw it when staying on a DCDU skin.
+            if (!DcduStyleManager.IsCdu)
+            {
+                ShowEmbeddedSetupStylePage();
+            }
         }
 
         private void ToggleEmbeddedSetupPlaySound()
