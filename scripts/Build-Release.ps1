@@ -1,7 +1,10 @@
 [CmdletBinding()]
 param(
     [ValidatePattern('^\d+\.\d+\.\d+$')]
-    [string]$Version = '1.1.0',
+    [string]$Version = '1.0.0',
+    # Appended to the package name only (e.g. 'beta' -> 1.0.0-beta). The numeric
+    # $Version is what must match AssemblyFileVersion.
+    [string]$VersionSuffix = '',
     [ValidateSet('Debug', 'Release')]
     [string]$Configuration = 'Release',
     [string]$VPilotInstallDir = '',
@@ -40,7 +43,8 @@ if (-not $fileVersionMatch.Success -or $fileVersionMatch.Groups['version'].Value
     throw "Release version $Version does not match AssemblyFileVersion $($fileVersionMatch.Groups['version'].Value). Expected $expectedFileVersion."
 }
 
-$packageName = "EasyCPDLC-Printer-eLC-$Version-win-x64"
+$displayVersion = if ([string]::IsNullOrWhiteSpace($VersionSuffix)) { $Version } else { "$Version-$VersionSuffix" }
+$packageName = "EasyCPDLC-Loaded-$displayVersion-win-x64"
 $publishDirectory = Join-Path $OutputDirectory '_publish'
 $packageDirectory = Join-Path $OutputDirectory $packageName
 $zipPath = Join-Path $OutputDirectory "$packageName.zip"
@@ -78,14 +82,40 @@ if (-not (Test-Path -LiteralPath $bridgeOutput -PathType Leaf)) {
     throw "The compiled bridge was not found at '$bridgeOutput'."
 }
 
+# Package layout: the two things a user has to install by hand (the MSFS WASM module
+# and the vPilot bridge) sit at the top level in numbered folders, so nothing that
+# matters is buried. Reference docs go under Docs\.
+$communityDir = Join-Path $packageDirectory '1 - MSFS Community Folder'
+$vpilotDir    = Join-Path $packageDirectory '2 - vPilot Bridge'
+$profilesDir  = Join-Path $packageDirectory '3 - MobiFlight Profiles'
+$docsDir      = Join-Path $packageDirectory 'Docs'
+
 New-Item -ItemType Directory -Path $packageDirectory -Force | Out-Null
-New-Item -ItemType Directory -Path (Join-Path $packageDirectory 'Bridge') -Force | Out-Null
+foreach ($d in @($communityDir, $vpilotDir, $profilesDir, $docsDir)) {
+    New-Item -ItemType Directory -Path $d -Force | Out-Null
+}
+
+# The app itself at the root.
 Copy-Item -Path (Join-Path $publishDirectory '*') -Destination $packageDirectory -Recurse -Force
-Copy-Item -LiteralPath $bridgeOutput -Destination (Join-Path $packageDirectory 'Bridge\EasyCPDLC.VPilotBridge.dll') -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-VPilotBridge.ps1') -Destination $packageDirectory -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-vPilot-Bridge.cmd') -Destination $packageDirectory -Force
-Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\VPILOT-BRIDGE-INSTALL.txt') -Destination $packageDirectory -Force
-Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination $packageDirectory -Force
+
+# The publish output also carries the MobiFlight profiles (the csproj copies them so a
+# dev build has them alongside the exe). In the release they live in the numbered
+# folder instead, so drop the duplicate to avoid two copies of the same files.
+$publishedProfiles = Join-Path $packageDirectory 'MobiFlight'
+if (Test-Path -LiteralPath $publishedProfiles) {
+    Remove-Item -LiteralPath $publishedProfiles -Recurse -Force
+}
+
+# vPilot bridge: DLL next to its installer. Install-VPilotBridge.ps1 already looks for
+# the DLL beside itself, so no path change is needed on its side.
+Copy-Item -LiteralPath $bridgeOutput -Destination (Join-Path $vpilotDir 'EasyCPDLC.VPilotBridge.dll') -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-VPilotBridge.ps1') -Destination $vpilotDir -Force
+Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Install-vPilot-Bridge.cmd') -Destination $vpilotDir -Force
+Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\VPILOT-BRIDGE-INSTALL.txt') -Destination $vpilotDir -Force
+
+# Manual and docs.
+Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\MANUAL.md') -Destination $packageDirectory -Force
+Copy-Item -LiteralPath (Join-Path $repoRoot 'README.md') -Destination $docsDir -Force
 
 $vns430Root = Join-Path $repoRoot 'EasyCPDLC\VNS430'
 $moduleRoot = Join-Path $vns430Root 'MSFS2024Module'
@@ -103,18 +133,19 @@ if (-not (Test-Path -LiteralPath $cduMobiFlightProfile -PathType Leaf)) {
     throw "The required 737 CDU MobiFlight profile was not found at '$cduMobiFlightProfile'."
 }
 
-$vns430PackageDirectory = Join-Path $packageDirectory 'VNS430'
-$modulePackageDirectory = Join-Path $vns430PackageDirectory 'MSFS2024Module'
-$moduleMobiFlightDirectory = Join-Path $modulePackageDirectory 'MobiFlight'
-$moduleSourceDirectory = Join-Path $modulePackageDirectory 'Bridge-Sources'
-New-Item -ItemType Directory -Path $moduleMobiFlightDirectory -Force | Out-Null
+# MobiFlight profiles at the top level.
+Copy-Item -LiteralPath $mobiFlightProfile -Destination $profilesDir -Force
+Copy-Item -LiteralPath $dcduMobiFlightProfile -Destination $profilesDir -Force
+Copy-Item -LiteralPath $cduMobiFlightProfile -Destination $profilesDir -Force
+
+# Reference documentation.
+Copy-Item -LiteralPath (Join-Path $vns430Root 'README.md') -Destination (Join-Path $docsDir 'GNS430.md') -Force
+Copy-Item -LiteralPath (Join-Path $moduleRoot 'README.md') -Destination (Join-Path $docsDir 'Hardware-Guide.md') -Force
+Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\HOPPIE-AIRCRAFT-ACARS-ROUTING.md') -Destination $docsDir -Force
+
+# WASM sources are for rebuilding only; keep them out of the way under Docs.
+$moduleSourceDirectory = Join-Path $docsDir 'WASM-Sources'
 New-Item -ItemType Directory -Path $moduleSourceDirectory -Force | Out-Null
-Copy-Item -LiteralPath $mobiFlightProfile -Destination $moduleMobiFlightDirectory -Force
-Copy-Item -LiteralPath $dcduMobiFlightProfile -Destination $moduleMobiFlightDirectory -Force
-Copy-Item -LiteralPath $cduMobiFlightProfile -Destination $moduleMobiFlightDirectory -Force
-Copy-Item -LiteralPath (Join-Path $vns430Root 'README.md') -Destination $vns430PackageDirectory -Force
-Copy-Item -LiteralPath (Join-Path $moduleRoot 'README.md') -Destination $modulePackageDirectory -Force
-Copy-Item -LiteralPath (Join-Path $repoRoot 'docs\HOPPIE-AIRCRAFT-ACARS-ROUTING.md') -Destination $vns430PackageDirectory -Force
 Copy-Item -Path (Join-Path $bridgeRoot 'Sources\*') -Destination $moduleSourceDirectory -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $bridgeRoot 'Build-Wasm.ps1') -Destination $moduleSourceDirectory -Force
 
@@ -133,26 +164,100 @@ $builtCompanionWasm = if (Test-Path -LiteralPath $builtCompanionRoot -PathType C
 }
 $companionWasmIncluded = $null -ne $builtCompanionWasm
 if ($companionWasmIncluded) {
-    $companionCommunityDirectory = Join-Path $modulePackageDirectory 'Bridge-Community'
-    New-Item -ItemType Directory -Path $companionCommunityDirectory -Force | Out-Null
-    Copy-Item -Path (Join-Path $builtCompanionRoot '*') -Destination $companionCommunityDirectory -Recurse -Force
+    # Straight into the top-level Community folder so it is a single drag-and-drop.
+    Copy-Item -Path (Join-Path $builtCompanionRoot '*') -Destination $communityDir -Recurse -Force
 }
 
-$bridgeHash = (Get-FileHash -LiteralPath (Join-Path $packageDirectory 'Bridge\EasyCPDLC.VPilotBridge.dll') -Algorithm SHA256).Hash
+# Short signposts in each install folder.
+@"
+COPY THE FOLDER NEXT TO THIS FILE INTO YOUR MSFS COMMUNITY FOLDER
+=================================================================
+
+Copy the whole "easycpdlc-vns430-bridge" folder (not just the .wasm) into:
+
+  Steam     %APPDATA%\Microsoft Flight Simulator 2024\Packages\Community
+  MS Store  %LOCALAPPDATA%\Packages\Microsoft.Limitless_8wekyb3d8bbwe\LocalCache\Packages\Community
+
+Then RESTART MSFS - it only scans the Community folder at startup.
+
+This is optional. It is only needed for physical buttons, encoders and LEDs.
+You do NOT need the MSFS SDK; the module is already built.
+
+See Docs\Hardware-Guide.md for the full walkthrough.
+"@ | Set-Content -LiteralPath (Join-Path $communityDir 'READ ME FIRST.txt') -Encoding UTF8
+
+@"
+VPILOT BRIDGE INSTALLER
+=======================
+
+1. CLOSE vPilot completely.
+2. Double-click  Install-vPilot-Bridge.cmd
+3. Restart vPilot and type  .debug  to confirm "EasyCPDLC vPilot Bridge" is loaded.
+
+This is optional. It imports vTDLS PDC clearances and controller "Contact Me"
+alerts from vPilot. It does not use Hoppie and does not create a CPDLC session.
+
+See VPILOT-BRIDGE-INSTALL.txt for details.
+"@ | Set-Content -LiteralPath (Join-Path $vpilotDir 'READ ME FIRST.txt') -Encoding UTF8
+
+@"
+MOBIFLIGHT PROFILES
+===================
+
+Import into MobiFlight Connector with File > Open.
+
+  EasyCPDLC-WinWing-737-CDU.mfproj  <- START HERE for a WinWing CDU.
+                                       71 key inputs + 5 annunciator lamp outputs
+                                       (MSG, CALL, FAIL, OFST, EXEC).
+  EasyCPDLC-DCDU-Module.mfproj      <- just the 12 line-select keys + a few actions.
+  EasyCPDLC-VNS430-Module.mfproj    <- for the GNS430 instrument instead of the CDU.
+
+Every row ships bound to a PLACEHOLDER controller, so all rows show as unassigned
+until you reassign them to your own board. That is expected. Change the device on
+each row; leave the command / source side alone.
+
+Requires: CDU  SETUP > HW KEYS = ON
+
+See Docs\Hardware-Guide.md for the full walkthrough.
+"@ | Set-Content -LiteralPath (Join-Path $profilesDir 'READ ME FIRST.txt') -Encoding UTF8
+
+@"
+EasyCPDLC-Loaded $displayVersion
+================================
+
+1. Run  EasyCPDLC.exe
+2. Read MANUAL.md
+
+Everything in the numbered folders is OPTIONAL - the app works on its own with
+mouse and keyboard.
+
+  1 - MSFS Community Folder   physical buttons/encoders/LEDs via MobiFlight
+  2 - vPilot Bridge           vTDLS PDCs and Contact Me alerts
+  3 - MobiFlight Profiles     key and lamp bindings
+  Docs                        full documentation
+
+IMPORTANT: if your aircraft has its own Hoppie/ACARS setup, set it to NONE before
+connecting. Hoppie delivers each message once, so two clients on one callsign will
+split your messages between them.
+"@ | Set-Content -LiteralPath (Join-Path $packageDirectory 'START HERE.txt') -Encoding UTF8
+
+$bridgeHash = (Get-FileHash -LiteralPath (Join-Path $vpilotDir 'EasyCPDLC.VPilotBridge.dll') -Algorithm SHA256).Hash
 $manifest = [ordered]@{
     product = 'EasyCPDLC-Loaded'
-    version = $Version
+    version = $displayVersion
     runtime = 'win-x64 self-contained'
-    bridge = 'Bridge/EasyCPDLC.VPilotBridge.dll'
+    manual = 'MANUAL.md'
+    bridge = '2 - vPilot Bridge/EasyCPDLC.VPilotBridge.dll'
     bridgeSha256 = $bridgeHash
-    bridgeInstaller = 'Install-vPilot-Bridge.cmd'
-    mobiFlightProfile = 'VNS430/MSFS2024Module/MobiFlight/EasyCPDLC-VNS430-Module.mfproj'
-    dcduMobiFlightProfile = 'VNS430/MSFS2024Module/MobiFlight/EasyCPDLC-DCDU-Module.mfproj'
-    cduMobiFlightProfile = 'VNS430/MSFS2024Module/MobiFlight/EasyCPDLC-WinWing-737-CDU.mfproj'
+    bridgeInstaller = '2 - vPilot Bridge/Install-vPilot-Bridge.cmd'
+    mobiFlightProfile = '3 - MobiFlight Profiles/EasyCPDLC-VNS430-Module.mfproj'
+    dcduMobiFlightProfile = '3 - MobiFlight Profiles/EasyCPDLC-DCDU-Module.mfproj'
+    cduMobiFlightProfile = '3 - MobiFlight Profiles/EasyCPDLC-WinWing-737-CDU.mfproj'
     companionWasmIncluded = $companionWasmIncluded
-    companionCommunityPackage = if ($companionWasmIncluded) { 'VNS430/MSFS2024Module/Bridge-Community' } else { $null }
-    companionSdkSources = 'VNS430/MSFS2024Module/Bridge-Sources'
-    aircraftAcarsRoutingPlan = 'VNS430/HOPPIE-AIRCRAFT-ACARS-ROUTING.md'
+    companionCommunityPackage = if ($companionWasmIncluded) { '1 - MSFS Community Folder/easycpdlc-vns430-bridge' } else { $null }
+    companionWasmSha256 = if ($companionWasmIncluded) { (Get-FileHash -LiteralPath $builtCompanionWasm.FullName -Algorithm SHA256).Hash } else { $null }
+    companionSdkSources = 'Docs/WASM-Sources'
+    aircraftAcarsRoutingPlan = 'Docs/HOPPIE-AIRCRAFT-ACARS-ROUTING.md'
 }
 $manifest | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $packageDirectory 'release-manifest.json') -Encoding UTF8
 
@@ -161,10 +266,11 @@ $zipHash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
 "$zipHash  $packageName.zip" | Set-Content -LiteralPath $checksumPath -Encoding ASCII
 
 [pscustomobject]@{
-    Version = $Version
+    Version = $displayVersion
     Package = $zipPath
     PackageSha256 = $zipHash
-    Bridge = (Join-Path $packageDirectory 'Bridge\EasyCPDLC.VPilotBridge.dll')
+    Bridge = (Join-Path $vpilotDir 'EasyCPDLC.VPilotBridge.dll')
     BridgeSha256 = $bridgeHash
-    Installer = (Join-Path $packageDirectory 'Install-vPilot-Bridge.cmd')
+    Installer = (Join-Path $vpilotDir 'Install-vPilot-Bridge.cmd')
+    WasmIncluded = $companionWasmIncluded
 }
