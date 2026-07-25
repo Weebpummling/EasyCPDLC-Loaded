@@ -393,6 +393,11 @@ namespace EasyCPDLC
             grid.WriteRight(CduLayout.DataRow(2), Truncate(pdc, CduGrid.HalfCols),
                 snapshot.PdcAllowReqClr ? CduColor.Green : CduColor.White);
 
+            if (snapshot.PdcAllowReqClr)
+            {
+                grid.WriteRight(CduLayout.DataRow(3), "REQ CLR>", CduColor.Green);
+            }
+
             // Left column: online CPDLC logon candidates on LSK 1..4.
             cduLogonCandidates.Clear();
             List<Vns430CpdlcCandidate> candidates = snapshot.CpdlcCandidates.Take(4).ToList();
@@ -429,7 +434,20 @@ namespace EasyCPDLC
             cduStatusLine = string.Empty;
             if (rightSide)
             {
-                return; // right column is read-only status (REQ CLR is a separate follow-up)
+                if (index == 3)
+                {
+                    // REQ CLR: one-tap PDC clearance using the detected DCL logon code.
+                    if (CanQuickRequestClearance())
+                    {
+                        _ = QuickRequestPredepClearanceAsync();
+                        cduStatusLine = "REQ CLR SENT";
+                    }
+                    else
+                    {
+                        cduStatusLine = "REQ CLR NOT AVAIL";
+                    }
+                }
+                return;
             }
 
             switch (index)

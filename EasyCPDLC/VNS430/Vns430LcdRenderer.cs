@@ -78,6 +78,17 @@ namespace EasyCPDLC.VNS430
                 Mix(ref hash, Snapshot.Callsign);
                 Mix(ref hash, Snapshot.CurrentAtcUnit);
                 Mix(ref hash, Snapshot.PendingLogon);
+                Mix(ref hash, Snapshot.AtcUnitOnline);
+                Mix(ref hash, Snapshot.CpdlcCandidates?.Count ?? -1);
+                if (Snapshot.CpdlcCandidates != null)
+                {
+                    foreach (Vns430CpdlcCandidate candidate in Snapshot.CpdlcCandidates)
+                    {
+                        Mix(ref hash, candidate.Code);
+                        Mix(ref hash, candidate.Controller);
+                        Mix(ref hash, candidate.TunedMatch);
+                    }
+                }
                 Mix(ref hash, Snapshot.Departure);
                 Mix(ref hash, Snapshot.Arrival);
                 Mix(ref hash, Snapshot.Aircraft);
@@ -455,11 +466,33 @@ namespace EasyCPDLC.VNS430
             }
 
             Line(display, 61, 54, 234, 54, Cyan);
-            Text(display, 66, 61, "CURRENT", Cyan);
-            TextRight(display, 230, 61, Fit(state.Snapshot.CurrentAtcUnit, 8, "NONE"), Green);
-            Text(display, 66, 77, "PENDING", Cyan);
-            TextRight(display, 230, 77, Fit(state.Snapshot.PendingLogon, 8, "NONE"), Yellow);
-            Text(display, 66, 96, "ENT TO ACTIVATE", White);
+
+            // Online CPDLC facilities discovered from VATSIM/Hoppie. A tuned-frequency
+            // match is shown green; otherwise white. Falls back to the current/pending
+            // read-out when nothing is online.
+            IReadOnlyList<Vns430CpdlcCandidate> candidates = state.Snapshot?.CpdlcCandidates;
+            if (candidates != null && candidates.Count > 0)
+            {
+                Text(display, 66, 58, "ONLINE CPDLC", Cyan);
+                int rows = Math.Min(3, candidates.Count);
+                for (int index = 0; index < rows; index++)
+                {
+                    Vns430CpdlcCandidate candidate = candidates[index];
+                    int y = 68 + (index * 12);
+                    Color colour = candidate.TunedMatch ? Green : White;
+                    Text(display, 66, y, Fit(candidate.Code, 5, "----"), colour);
+                    TextRight(display, 230, y, Fit(candidate.Controller, 11, string.Empty), colour);
+                }
+            }
+            else
+            {
+                Text(display, 66, 61, "CURRENT", Cyan);
+                TextRight(display, 230, 61, Fit(state.Snapshot.CurrentAtcUnit, 8, "NONE"), Green);
+                Text(display, 66, 77, "PENDING", Cyan);
+                TextRight(display, 230, 77, Fit(state.Snapshot.PendingLogon, 8, "NONE"), Yellow);
+            }
+
+            Text(display, 66, 106, "ENT TO ACTIVATE", White);
         }
 
         private static void DrawMenu(Bitmap display, Vns430LcdState state)

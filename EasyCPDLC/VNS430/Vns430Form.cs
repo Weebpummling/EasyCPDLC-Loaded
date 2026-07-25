@@ -469,6 +469,7 @@ namespace EasyCPDLC.VNS430
                     SetPage(Vns430Page.AocMenu, true, Vns430PageGroup.Aux);
                     break;
                 case Vns430Command.DirectTo:
+                    PrefillLogonFromBestCandidate();
                     SetPage(Vns430Page.Logon, true, Vns430PageGroup.Wpt);
                     break;
                 case Vns430Command.Cdi:
@@ -981,6 +982,25 @@ namespace EasyCPDLC.VNS430
             }
 
             SetPage(Vns430Page.Messages, true, Vns430PageGroup.Nrst);
+        }
+
+        // Seed the logon code with the best online CPDLC facility (a tuned-frequency
+        // match wins) so opening the page offers a one-key ENT logon. A code the pilot
+        // has already typed is left untouched.
+        private void PrefillLogonFromBestCandidate()
+        {
+            if (!string.IsNullOrEmpty((logonCode ?? string.Empty).Replace("_", string.Empty).Trim()))
+            {
+                return;
+            }
+
+            Vns430CpdlcCandidate best = snapshot?.CpdlcCandidates?
+                .OrderByDescending(candidate => candidate.TunedMatch)
+                .FirstOrDefault(candidate => !string.IsNullOrWhiteSpace(candidate.Code));
+            if (best != null)
+            {
+                logonCode = best.Code.PadRight(4, '_').Substring(0, 4);
+            }
         }
 
         private void BeginWorkflow(Vns430WorkflowKind kind)
