@@ -137,6 +137,3 @@ zones).
 control states. [Assets/SOURCE.md](Assets/SOURCE.md) records the source and
 personal-use provenance. The manual-extraction and sprite-building scripts are
 maintained developer tools and do not ship generated reference contact sheets.
-
-VNS430 is for flight simulation only and is not approved for real-world
-navigation or communications.

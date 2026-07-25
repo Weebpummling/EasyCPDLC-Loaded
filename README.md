@@ -47,9 +47,6 @@ VA TELEX messages and VA-issued loadsheets arrive in the same inbox, and loadshe
 tagged automatically however they reached you. See
 [Virtual-airline ACARS over Hoppie](#virtual-airline-acars-over-hoppie).
 
-> **Flight simulation only.** Not approved for real-world aviation, dispatch,
-> communications, loading, or any safety-critical use.
-
 > ### ⚠️ Do not run the aircraft's own Hoppie connection
 >
 > If your aircraft has a built-in Hoppie/ACARS setup (PMDG, Fenix, iniBuilds, FSLabs,
@@ -457,4 +454,4 @@ upstream.
 This unofficial community project is not affiliated with or endorsed by VATSIM,
 SayIntentions, Hoppie, eLoadControl, SimBrief, PMDG, Garmin, MobiFlight, aircraft
 manufacturers, aviation authorities, or the original EasyCPDLC authors. It is provided
-as-is, without warranty. Use it only for flight simulation and at your own risk.
+as-is, without warranty. Use it at your own risk.
