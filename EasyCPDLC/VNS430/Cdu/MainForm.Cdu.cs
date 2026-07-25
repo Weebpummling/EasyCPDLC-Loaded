@@ -35,6 +35,7 @@ namespace EasyCPDLC
         private System.Windows.Forms.Timer cduRefreshTimer;
         private CduPageId cduPage = CduPageId.Menu;
         private CPDLCMessage cduSelectedMessage;
+        private int cduDetailScroll;
         private readonly List<CPDLCMessage> cduVisibleInbox = new();
 
         // Request-page (ATC/AOC) state and the shared scratchpad.
@@ -388,10 +389,27 @@ namespace EasyCPDLC
             grid.WriteRight(CduLayout.TitleRow, message.Outbound ? "SENT" : "RCVD", CduColor.Cyan, small: true);
 
             // Body text wrapped across the upper rows (1..6), clear of the bottom LSKs.
+            // Long messages (e.g. an eLoadControl loadsheet) scroll with PREV/NEXT PAGE.
+            const int bodyRows = 6;
             List<string> lines = WrapCduText(message.Text, CduGrid.Cols);
-            for (int i = 0; i < lines.Count && i < 6; i++)
+            int maxScroll = Math.Max(0, lines.Count - bodyRows);
+            cduDetailScroll = Math.Clamp(cduDetailScroll, 0, maxScroll);
+            for (int i = 0; i < bodyRows; i++)
             {
-                grid.WriteCentered(i + 1, lines[i], CduColor.Green, small: true);
+                int lineIndex = cduDetailScroll + i;
+                if (lineIndex < lines.Count)
+                {
+                    grid.Write(i + 1, 0, Truncate(lines[lineIndex], CduGrid.Cols), CduColor.Green, small: true);
+                }
+            }
+
+            if (lines.Count > bodyRows)
+            {
+                int first = cduDetailScroll + 1;
+                int last = Math.Min(lines.Count, cduDetailScroll + bodyRows);
+                grid.Write(CduLayout.ScratchpadRow, 0,
+                    Truncate("LN " + first + "-" + last + "/" + lines.Count + "  PREV/NEXT PAGE", CduGrid.Cols),
+                    CduColor.Cyan, small: true);
             }
 
             // Bottom-left LSKs (4,5,6): available CPDLC replies.
@@ -575,6 +593,7 @@ namespace EasyCPDLC
             if (position >= 0 && position < cduVisibleInbox.Count)
             {
                 cduSelectedMessage = cduVisibleInbox[position];
+                cduDetailScroll = 0;
                 MarkMessageRead(cduSelectedMessage);
                 cduPage = CduPageId.MessageDetail;
             }
@@ -1220,6 +1239,20 @@ namespace EasyCPDLC
                     ClearCduArm();
                     cduPage = CduPageId.Menu;
                     RefreshCduDisplay();
+                    break;
+                case Vns430Command.CduPrevPage:
+                    if (cduPage == CduPageId.MessageDetail)
+                    {
+                        cduDetailScroll = Math.Max(0, cduDetailScroll - 6);
+                        RefreshCduDisplay();
+                    }
+                    break;
+                case Vns430Command.CduNextPage:
+                    if (cduPage == CduPageId.MessageDetail)
+                    {
+                        cduDetailScroll += 6;   // the render clamps to the last page
+                        RefreshCduDisplay();
+                    }
                     break;
                 case Vns430Command.CduExec:
                     // EXEC runs whatever transmit action is armed; nothing happens otherwise.
