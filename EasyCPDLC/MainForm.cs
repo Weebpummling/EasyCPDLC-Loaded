@@ -17316,6 +17316,40 @@ airbusAocSendLabel = null;
             }
         }
 
+        private const string SayIntentionsApiKeySettingName = "SayIntentionsApiKey";
+
+        public static string SavedSayIntentionsApiKey
+        {
+            get
+            {
+                string storedValue = ReadFixedStringSetting(SayIntentionsApiKeySettingName, string.Empty);
+                return TryReadProtectedSetting(storedValue, "SayIntentions API key", out string decryptedValue)
+                    ? decryptedValue
+                    : string.Empty;
+            }
+            set
+            {
+                string cleanedValue = (value ?? string.Empty).Trim();
+                if (cleanedValue.Length == 0)
+                {
+                    SaveFixedStringSetting(SayIntentionsApiKeySettingName, string.Empty);
+                    return;
+                }
+
+                if (!TryProtectStringForCurrentUser(cleanedValue, out string protectedValue))
+                {
+                    throw new InvalidOperationException("WINDOWS COULD NOT SECURELY SAVE THE SAYINTENTIONS API KEY.");
+                }
+
+                string storedValue = DpapiProtectedSettingPrefix + protectedValue;
+                SaveFixedStringSetting(SayIntentionsApiKeySettingName, storedValue);
+                if (!string.Equals(ReadFixedStringSetting(SayIntentionsApiKeySettingName, string.Empty), storedValue, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException("SAYINTENTIONS API KEY COULD NOT BE SAVED TO THE USER PROFILE.");
+                }
+            }
+        }
+
         private static DatalinkPrinterMode PrinterMode
         {
             get

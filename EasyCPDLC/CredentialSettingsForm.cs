@@ -10,6 +10,7 @@ namespace EasyCPDLC
         private readonly TextBox hoppieBox = new();
         private readonly TextBox simbriefBox = new();
         private readonly TextBox eloadBox = new();
+        private readonly TextBox sayIntentionsBox = new();
 
         internal CredentialSettingsForm()
         {
@@ -20,7 +21,7 @@ namespace EasyCPDLC
             MinimizeBox = false;
             ShowInTaskbar = false;
             TopMost = true;
-            ClientSize = new Size(520, 354);
+            ClientSize = new Size(520, 404);
             BackColor = Color.FromArgb(9, 17, 23);
             ForeColor = Color.FromArgb(218, 238, 242);
             Font = new Font("Segoe UI", 9.2f, FontStyle.Regular);
@@ -36,16 +37,18 @@ namespace EasyCPDLC
             AddField("Hoppie logon code", hoppieBox, 20, 146, true, 64);
             AddField("SimBrief username / pilot ID", simbriefBox, 20, 196, false, 64);
             AddField("eLoadControl API key", eloadBox, 20, 246, true, 128);
+            AddField("SayIntentions API key", sayIntentionsBox, 20, 296, true, 128);
 
             cidBox.Text = MainForm.SavedCID > 0 ? MainForm.SavedCID.ToString() : string.Empty;
             hoppieBox.Text = MainForm.SavedHoppieCode;
             simbriefBox.Text = MainForm.SimbriefID;
             eloadBox.Text = MainForm.SavedELoadControlApiKey;
+            sayIntentionsBox.Text = MainForm.SavedSayIntentionsApiKey;
 
             CheckBox reveal = new()
             {
                 Text = "Show protected codes",
-                Location = new Point(20, 300),
+                Location = new Point(20, 350),
                 Size = new Size(190, 28),
                 ForeColor = ForeColor,
                 BackColor = BackColor
@@ -54,12 +57,13 @@ namespace EasyCPDLC
             {
                 hoppieBox.UseSystemPasswordChar = !reveal.Checked;
                 eloadBox.UseSystemPasswordChar = !reveal.Checked;
+                sayIntentionsBox.UseSystemPasswordChar = !reveal.Checked;
             };
             Controls.Add(reveal);
 
-            Button cancel = NewButton("Cancel", 322, 302, 82);
+            Button cancel = NewButton("Cancel", 322, 352, 82);
             cancel.DialogResult = DialogResult.Cancel;
-            Button save = NewButton("Save", 414, 302, 82);
+            Button save = NewButton("Save", 414, 352, 82);
             save.Click += SaveClicked;
             Controls.Add(cancel);
             Controls.Add(save);
@@ -121,6 +125,7 @@ namespace EasyCPDLC
                 MainForm.SavedHoppieCode = hoppieBox.Text.Trim();
                 MainForm.SimbriefID = simbriefBox.Text.Trim();
                 MainForm.SavedELoadControlApiKey = eloadBox.Text.Trim();
+                MainForm.SavedSayIntentionsApiKey = sayIntentionsBox.Text.Trim();
                 Properties.Settings.Default.Save();
                 DialogResult = DialogResult.OK;
                 Close();

@@ -952,23 +952,8 @@ namespace EasyCPDLC
             RenderCduAccountField(grid, 1, "VATSIM CID", SavedCID > 0 ? SavedCID.ToString() : null);
             RenderCduAccountField(grid, 2, "HOPPIE CODE", SavedHoppieCode);
             RenderCduAccountField(grid, 3, "SIMBRIEF", SimbriefID);
-
-            // ELOAD KEY on LSK4, wrapping onto the LSK5 row for long API keys.
-            grid.WriteLeft(CduLayout.LabelRow(4), "ELOAD KEY", CduColor.Cyan, small: true);
-            string key = SavedELoadControlApiKey ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(key))
-            {
-                grid.Write(CduLayout.DataRow(4), 0, "<----", CduColor.Grey);
-            }
-            else
-            {
-                string shown = "<" + key;
-                grid.Write(CduLayout.DataRow(4), 0, Truncate(shown, CduGrid.Cols), CduColor.Green);
-                if (shown.Length > CduGrid.Cols)
-                {
-                    grid.Write(CduLayout.DataRow(5), 0, Truncate(shown.Substring(CduGrid.Cols), CduGrid.Cols), CduColor.Green);
-                }
-            }
+            RenderCduAccountField(grid, 4, "ELOAD KEY", SavedELoadControlApiKey);
+            RenderCduAccountField(grid, 5, "SAYINTENTIONS KEY", SavedSayIntentionsApiKey);
 
             grid.WriteLeft(CduLayout.DataRow(6), "<SETUP", CduColor.White);
             RenderCduScratchpad(grid);
@@ -980,8 +965,20 @@ namespace EasyCPDLC
         {
             grid.WriteLeft(CduLayout.LabelRow(lsk), label, CduColor.Cyan, small: true);
             bool empty = string.IsNullOrWhiteSpace(value);
-            grid.Write(CduLayout.DataRow(lsk), 0, "<" + (empty ? "----" : Truncate(value, CduGrid.Cols - 1)),
-                empty ? CduColor.Grey : CduColor.Green);
+            if (empty)
+            {
+                grid.Write(CduLayout.DataRow(lsk), 0, "<----", CduColor.Grey);
+                return;
+            }
+
+            // Long API keys are shown truncated with a trailing ">" so it is clear the
+            // stored value continues past the row width.
+            string shown = "<" + value;
+            if (shown.Length > CduGrid.Cols)
+            {
+                shown = shown.Substring(0, CduGrid.Cols - 1) + ">";
+            }
+            grid.Write(CduLayout.DataRow(lsk), 0, shown, CduColor.Green);
         }
 
         private void RenderCduSetupPrinter(CduGrid grid, Vns430BackendSnapshot snapshot)
@@ -1077,6 +1074,7 @@ namespace EasyCPDLC
                 case 2: CduApplyTextSetting(v => SavedHoppieCode = v.ToUpperInvariant(), "HOPPIE"); break;
                 case 3: CduApplyTextSetting(v => SimbriefID = v, "SIMBRIEF"); break;
                 case 4: CduApplyTextSetting(v => SavedELoadControlApiKey = v, "ELOAD KEY"); break;
+                case 5: CduApplyTextSetting(v => SavedSayIntentionsApiKey = v, "SAYINTENTIONS KEY"); break;
                 case 6: cduPage = CduPageId.Setup; break;
             }
         }

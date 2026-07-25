@@ -297,7 +297,13 @@ namespace EasyCPDLC
                 return new Vns430OperationResult { Status = error };
             }
 
-            if (!Connected)
+            // REAL WORLD / SAYINTENTIONS weather is fetched directly over HTTP and does
+            // not need a VATSIM datalink connection; only the VATSIM (INFOREQ) path does.
+            bool directWeather =
+                (workflow.Kind == Vns430WorkflowKind.AocMetar || workflow.Kind == Vns430WorkflowKind.AocAtis) &&
+                Vns430WeatherClient.ParseSource(workflow.Value("SOURCE")) != Vns430WeatherSource.Vatsim;
+
+            if (!Connected && !directWeather)
             {
                 return new Vns430OperationResult { Status = "CONNECT VATSIM FIRST" };
             }
@@ -348,12 +354,26 @@ namespace EasyCPDLC
 
                     case Vns430WorkflowKind.AocMetar:
                         recipient = workflow.Value("STATION");
+                        if (directWeather)
+                        {
+                            await FetchDirectWeatherAsync(
+                                Vns430WeatherClient.ParseSource(workflow.Value("SOURCE")),
+                                Vns430WorkflowKind.AocMetar, recipient, string.Empty).ConfigureAwait(false);
+                            break;
+                        }
                         WriteMessage("METAR REQUEST", "METAR", recipient, true);
                         ArtificialDelay("METAR " + recipient, "INFOREQ", "REQUEST");
                         break;
 
                     case Vns430WorkflowKind.AocAtis:
                         string station = workflow.Value("STATION");
+                        if (directWeather)
+                        {
+                            await FetchDirectWeatherAsync(
+                                Vns430WeatherClient.ParseSource(workflow.Value("SOURCE")),
+                                Vns430WorkflowKind.AocAtis, station, workflow.Value("TYPE")).ConfigureAwait(false);
+                            break;
+                        }
                         if (!TryResolveAtisRequestTarget(station, workflow.Value("TYPE"), out recipient, out string warning))
                         {
                             return new Vns430OperationResult { Status = warning };
@@ -371,6 +391,54 @@ namespace EasyCPDLC
             {
                 Logger.Debug("VNS430 request failed: " + ex.Message);
                 return new Vns430OperationResult { Status = SafeVns430Error(ex) };
+            }
+        }
+
+        /// <summary>
+        /// Fetches REAL WORLD / SAYINTENTIONS weather over HTTP and writes the reply
+        /// straight into the inbox, bypassing the Hoppie datalink. Marshals the
+        /// WriteMessage calls back onto the UI thread. Throws on failure so the caller
+        /// reports the reason on the CDU status line and lights FAIL.
+        /// </summary>
+        private async Task FetchDirectWeatherAsync(
+            Vns430WeatherSource source,
+            Vns430WorkflowKind kind,
+            string station,
+            string type)
+        {
+            string label = kind == Vns430WorkflowKind.AocAtis ? "ATIS" : "METAR";
+            string cleanStation = (station ?? string.Empty).Trim().ToUpperInvariant();
+            string sourceLabel = Vns430WeatherClient.SourceLabel(source);
+
+            void OnUi(Action action)
+            {
+                if (InvokeRequired)
+                {
+                    Invoke(action);
+                }
+                else
+                {
+                    action();
+                }
+            }
+
+            // Record the outbound request on the SENT list before the fetch.
+            OnUi(() => WriteMessage(label + " REQUEST " + sourceLabel, label, cleanStation, true));
+
+            try
+            {
+                string apiKey = SavedSayIntentionsApiKey;
+                Vns430WeatherClient weather = new();
+                string body = kind == Vns430WorkflowKind.AocAtis
+                    ? await weather.FetchAtisAsync(source, cleanStation, type, apiKey, CancellationToken.None).ConfigureAwait(false)
+                    : await weather.FetchMetarAsync(source, cleanStation, apiKey, CancellationToken.None).ConfigureAwait(false);
+
+                OnUi(() => WriteMessage(body, label, cleanStation, false));
+            }
+            catch (Exception ex)
+            {
+                string reason = ex is Vns430WeatherException ? ex.Message : SafeVns430Error(ex);
+                throw new InvalidOperationException(reason);
             }
         }
 
