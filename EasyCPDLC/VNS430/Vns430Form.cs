@@ -34,7 +34,10 @@ namespace EasyCPDLC.VNS430
         // companion SimConnect registration survives the toggle.
         private const int WmNcHitTest = 0x0084;
         private const int WmNcCalcSize = 0x0083;
+        private const int HtClient = 1;
         private const int HtCaption = 2;
+        private const int WmNcLButtonDown = 0x00A1;
+        private const double DefaultLoadScale = 1.4;
         private const int HtLeft = 10;
         private const int HtRight = 11;
         private const int HtTop = 12;
@@ -52,6 +55,12 @@ namespace EasyCPDLC.VNS430
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool SetWindowPos(
             IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern bool ReleaseCapture();
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern IntPtr SendMessage(IntPtr hWnd, int msg, IntPtr wParam, IntPtr lParam);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct Rect
@@ -108,6 +117,8 @@ namespace EasyCPDLC.VNS430
         private PanelButton pressedPanelButton;
         private bool pressedCursor;
         private bool pressedScreen;
+        private Point screenPressOrigin;
+        private bool screenDragging;
         private Vns430Workflow workflow;
         private int workflowCharacter;
         private Vns430LoadControlSession loadSession;
@@ -140,7 +151,9 @@ namespace EasyCPDLC.VNS430
             Text = "EasyCPDLC - GNS430 Datalink";
             StartPosition = FormStartPosition.Manual;
             MinimumSize = new Size(730, 355);
-            ClientSize = new Size(LogicalWidth, LogicalHeight);
+            // A larger default so the GNS430 is comfortably readable on load (only used the
+            // first time, before a saved size exists).
+            ClientSize = new Size((int)(LogicalWidth * DefaultLoadScale), (int)(LogicalHeight * DefaultLoadScale));
             BackColor = BezelDark;
             DoubleBuffered = true;
             // The whole panel is drawn through a size-dependent ScaleTransform, so a
@@ -149,7 +162,9 @@ namespace EasyCPDLC.VNS430
             ResizeRedraw = true;
             TopMost = true;
             Icon = backend.Icon;
-            FormBorderStyle = FormBorderStyle.SizableToolWindow;
+            // Borderless: no title bar. The window is dragged by its bezel (and by the LCD
+            // via a small drag threshold) and resized from the edges, handled in WndProc.
+            FormBorderStyle = FormBorderStyle.None;
             MaximizeBox = false;
 
             Rectangle saved = new(preferences.Left, preferences.Top, preferences.Width, preferences.Height);
@@ -175,6 +190,7 @@ namespace EasyCPDLC.VNS430
             Paint += PaintPanel;
             MouseDown += PanelMouseDown;
             MouseUp += PanelMouseUp;
+            MouseMove += PanelMouseMove;
             MouseWheel += PanelMouseWheel;
             MouseCaptureChanged += PanelMouseCaptureChanged;
             FormClosing += PanelFormClosing;
@@ -184,6 +200,12 @@ namespace EasyCPDLC.VNS430
                 {
                     RefreshSnapshot();
                     Invalidate();
+                }
+                else if (IsHandleCreated && WindowState == FormWindowState.Normal)
+                {
+                    // Persist size/position when the panel is hidden (e.g. switching back to
+                    // the CDU instrument), not just on close.
+                    preferences.Save(Bounds);
                 }
             };
         }
@@ -226,37 +248,30 @@ namespace EasyCPDLC.VNS430
                 return;
             }
 
-            // Screen mode resizes freely; the LCD is letterboxed, so the panel
-            // aspect no longer has to be enforced.
+            // Panel mode keeps the fixed photographic aspect; screen mode letterboxes the
+            // LCD so it can resize freely.
             if (m.Msg == WmSizing && !preferences.ScreenOnlyMode)
             {
                 ConstrainToPanelAspect(ref m);
                 return;
             }
 
-            // Screen mode: no chrome at all. Collapse the non-client frame so the
-            // client fills the window (removing the title bar and sizing border),
-            // and hit-test the edges ourselves so it still resizes, with the body
-            // acting as a caption so it drags from the centre.
-            if (preferences.ScreenOnlyMode)
+            // The window is borderless (no title bar) in both modes, so we hit-test the
+            // edges ourselves for resizing and treat the body as a caption for dragging.
+            if (m.Msg == WmNcHitTest)
             {
-                if (m.Msg == WmNcCalcSize && m.WParam != IntPtr.Zero)
-                {
-                    m.Result = IntPtr.Zero;
-                    return;
-                }
-
-                if (m.Msg == WmNcHitTest)
-                {
-                    m.Result = (IntPtr)ScreenModeHitTest();
-                    return;
-                }
+                m.Result = (IntPtr)HitTestBorderless();
+                return;
             }
 
             base.WndProc(ref m);
         }
 
-        private int ScreenModeHitTest()
+        // Edge = resize, body = drag. In screen mode the whole body drags. In panel mode
+        // the interactive controls (buttons, right knob, LCD) stay client so clicks work;
+        // the surrounding bezel drags, and the LCD also drags past a small move threshold
+        // (handled in PanelMouseMove) so it can still be clicked to select.
+        private int HitTestBorderless()
         {
             Point point = PointToClient(Cursor.Position);
             int width = ClientSize.Width;
@@ -274,7 +289,27 @@ namespace EasyCPDLC.VNS430
             if (right) return HtRight;
             if (top) return HtTop;
             if (bottom) return HtBottom;
-            return HtCaption;
+
+            if (preferences.ScreenOnlyMode)
+            {
+                return HtCaption;
+            }
+
+            // Panel mode: interactive spots stay client so PanelMouseDown/Up handle them.
+            PointF logical = ToLogicalPoint(point);
+            if (panelButtons.Any(button => button.Bounds.Contains(logical)))
+            {
+                return HtClient;
+            }
+            if (KnobPushCommandAt(logical, new PointF(878, 326)) == Vns430Command.CursorPush)
+            {
+                return HtClient;
+            }
+            if (ScreenBounds.Contains(logical))
+            {
+                return HtClient;   // click selects; PanelMouseMove promotes a drag
+            }
+            return HtCaption;      // bezel drags the window
         }
 
         // The panel is a fixed-aspect photograph drawn through a ScaleTransform, so a
@@ -1788,7 +1823,30 @@ namespace EasyCPDLC.VNS430
             if (ScreenBounds.Contains(logical))
             {
                 pressedScreen = true;
+                screenPressOrigin = e.Location;
+                screenDragging = false;
                 Capture = true;
+            }
+        }
+
+        // A press-and-drag on the LCD moves the window (the LCD doubles as a grab point);
+        // a press-and-release without crossing the threshold is treated as a click.
+        private void PanelMouseMove(object sender, MouseEventArgs e)
+        {
+            if (preferences.ScreenOnlyMode || !pressedScreen || screenDragging)
+            {
+                return;
+            }
+
+            if (Math.Abs(e.X - screenPressOrigin.X) > ScreenModeResizeBorder ||
+                Math.Abs(e.Y - screenPressOrigin.Y) > ScreenModeResizeBorder)
+            {
+                // Promote to a window drag and cancel the pending screen click.
+                screenDragging = true;
+                pressedScreen = false;
+                ReleasePointerPress();
+                ReleaseCapture();
+                SendMessage(Handle, WmNcLButtonDown, (IntPtr)HtCaption, IntPtr.Zero);
             }
         }
 
