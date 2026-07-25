@@ -1,6 +1,6 @@
 # EasyCPDLC-Loaded
 
-![Version](https://img.shields.io/badge/version-1.0.0-brightgreen)
+![Version](https://img.shields.io/badge/version-1.0.0--beta-yellow)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Networks](https://img.shields.io/badge/networks-VATSIM%20%C2%B7%20SayIntentions-blue)
@@ -8,7 +8,7 @@
 
 **EasyCPDLC-Loaded** is a datalink client for flight simulation that presents the
 same backend through swappable cockpit **instruments**. Two instruments ship in
-1.0.0:
+1.0.0-beta:
 
 - a **Boeing 737 CDU** (an LSK + keypad MCDU front end), and
 - a **GNS430** desktop unit (a knob-and-key front end you can also drive with
@@ -62,7 +62,7 @@ run a release build.
 
 ## Installation
 
-1. Download the latest **EasyCPDLC-Loaded 1.0.0** release build (or build from source —
+1. Download the latest **EasyCPDLC-Loaded 1.0.0-beta** release build (or build from source —
    see [Build from source](#build-from-source)).
 2. Extract the folder anywhere you like and run `EasyCPDLC.exe`.
 3. The app starts directly into the last-used instrument (default: the **737 CDU**)

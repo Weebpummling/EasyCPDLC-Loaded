@@ -34,6 +34,9 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
+// AssemblyVersion/AssemblyFileVersion must stay purely numeric; the pre-release
+// designation lives on the informational version, which is what the About/UI text
+// and release tags use.
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
-[assembly: AssemblyInformationalVersion("EasyCPDLC-Loaded-v1.0.0")]
+[assembly: AssemblyInformationalVersion("EasyCPDLC-Loaded-v1.0.0-beta")]
