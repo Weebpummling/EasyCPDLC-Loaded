@@ -26,6 +26,81 @@ namespace EasyCPDLC
         private string siFlightAircraft = string.Empty;
         private DateTime siFlightFetchedUtc = DateTime.MinValue;
 
+        private System.Threading.CancellationTokenSource siPollCancellationSource;
+        private static readonly TimeSpan SayIntentionsPollInterval = TimeSpan.FromSeconds(20);
+
+        /// <summary>
+        /// Starts or stops the SayIntentions poll loop to match the active network.
+        /// </summary>
+        /// <remarks>
+        /// The Hoppie poll loop only exists while VATSIM-connected (it is started by a
+        /// successful connect), but on SI there is no connect step - the datalink is
+        /// live as soon as the key is set. Without a loop of its own, SI sends worked
+        /// and the replies were simply never fetched. Call this at startup and whenever
+        /// the ATC network selection changes.
+        /// </remarks>
+        internal void SyncSayIntentionsPolling()
+        {
+            bool shouldRun = IsSayIntentionsDatalinkActive &&
+                !string.IsNullOrWhiteSpace(SavedSayIntentionsApiKey) &&
+                !DebugUiPreviewMode;
+
+            if (shouldRun && siPollCancellationSource == null)
+            {
+                siPollCancellationSource = new System.Threading.CancellationTokenSource();
+                _ = PeriodicSayIntentionsPoll(siPollCancellationSource.Token);
+            }
+            else if (!shouldRun && siPollCancellationSource != null)
+            {
+                siPollCancellationSource.Cancel();
+                siPollCancellationSource.Dispose();
+                siPollCancellationSource = null;
+            }
+        }
+
+        private async Task PeriodicSayIntentionsPoll(System.Threading.CancellationToken token)
+        {
+            Logger.Debug("SayIntentions poll loop started");
+            while (!token.IsCancellationRequested)
+            {
+                try
+                {
+                    // The poll needs a callsign for its 'from' field. The OFP fetch is
+                    // cached, so this settles once and then only refreshes when stale.
+                    if (string.IsNullOrWhiteSpace(callsign))
+                    {
+                        await EnsureSayIntentionsFlightAsync();
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(callsign))
+                    {
+                        await SendCPDLCMessage("NONE", "poll", "", true, AcarsRoute.SayIntentions);
+
+                        // Keep VA traffic alive too: when the VATSIM loop is not running
+                        // (not connected) but a Hoppie code exists, poll Hoppie from here.
+                        if (!Connected && !string.IsNullOrWhiteSpace(logonCode))
+                        {
+                            await SendCPDLCMessage("NONE", "poll", "", true, AcarsRoute.Hoppie);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Debug("SayIntentions poll iteration failed: " + ex.Message);
+                }
+
+                try
+                {
+                    await Task.Delay(SayIntentionsPollInterval, token);
+                }
+                catch (TaskCanceledException)
+                {
+                    break;
+                }
+            }
+            Logger.Debug("SayIntentions poll loop stopped");
+        }
+
         internal bool IsSayIntentionsDatalinkActive =>
             ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions;
 

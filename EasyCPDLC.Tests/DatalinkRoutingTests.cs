@@ -67,5 +67,31 @@ namespace EasyCPDLC.Tests
             Assert.Equal("https://acars.sayintentions.ai/acars/system/connect.html", DatalinkRouting.SayIntentionsConnectUrl);
             Assert.Equal("PKGM", DatalinkRouting.SayIntentionsAtsu);
         }
+
+        // The Hoppie poll loop only exists while VATSIM-connected, so SI polling must
+        // NOT live inside it: sends then work but replies are never fetched unless the
+        // user also connects to VATSIM. SI needs its own loop, started independently.
+        [Fact]
+        public void SiPolling_HasItsOwnLoopOutsideTheVatsimConnectedOne()
+        {
+            string root = System.IO.Path.GetFullPath(System.IO.Path.Combine(
+                System.AppContext.BaseDirectory, "..", "..", "..", "..", "EasyCPDLC"));
+            string siPartial = System.IO.File.ReadAllText(System.IO.Path.Combine(root, "MainForm.SayIntentions.cs"));
+            string mainForm = System.IO.File.ReadAllText(System.IO.Path.Combine(root, "MainForm.cs"));
+
+            Assert.Contains("PeriodicSayIntentionsPoll", siPartial);
+            Assert.Contains("SyncSayIntentionsPolling", siPartial);
+            Assert.Contains("AcarsRoute.SayIntentions", siPartial);
+
+            // Started at construction, not from the VATSIM connect path.
+            Assert.Contains("SyncSayIntentionsPolling();", mainForm);
+
+            // And the VATSIM-connected loop must not poll SI itself - two loops would
+            // double-poll whenever both networks are in use.
+            int loopStart = mainForm.IndexOf("private async Task PeriodicCheckMessage");
+            Assert.True(loopStart >= 0);
+            string loop = mainForm.Substring(loopStart, System.Math.Min(4000, mainForm.Length - loopStart));
+            Assert.DoesNotContain("AcarsRoute.SayIntentions", loop);
+        }
     }
 }

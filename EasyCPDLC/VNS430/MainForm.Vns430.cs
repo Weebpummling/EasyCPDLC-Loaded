@@ -95,6 +95,8 @@ namespace EasyCPDLC
                 ? Vns430AtcNetwork.SayIntentions
                 : Vns430AtcNetwork.Vatsim;
             Properties.Settings.Default.Save();
+            SyncSayIntentionsPolling();
+            UpdateOnlineStatusLabel();
             return Vns430AtcNetworkLabel();
         }
 

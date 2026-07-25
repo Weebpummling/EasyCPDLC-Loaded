@@ -3747,6 +3747,7 @@ private System.Windows.Forms.Label airbusAocSendLabel;
             this.ShowInTaskbar = false;
             ConfigureTrayIcon();
             RestoreVns430CompanionHost();
+            SyncSayIntentionsPolling();
             ConfigureMainFrameButtonHotspots();
             StartVpilotBridge();
             dcduFrame.Paint += DcduFrame_PaintPrinterButton;
@@ -19349,6 +19350,10 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 logonCode = SavedHoppieCode;
             }
 
+            // A newly-entered SI key may enable (or a removed one disable) SI polling.
+            SyncSayIntentionsPolling();
+            UpdateOnlineStatusLabel();
+
             string note = Connected
                 ? "Credentials saved. The active Hoppie session is unchanged; reconnect to use the new CID or Hoppie code."
                 : "Credentials saved for the CDU, GNS430, SimBrief, and eLoadControl interfaces.";
@@ -21918,18 +21923,10 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
 
                 Logger.Debug("Attempting to poll Hoppie for new messages");
 
+                // SI polling is NOT done here: this loop only exists while VATSIM-
+                // connected, and SI must poll regardless. PeriodicSayIntentionsPoll owns
+                // the SI cadence (plus Hoppie-for-VA when this loop is not running).
                 await SendCPDLCMessage("NONE", "poll", "");
-
-                // In SI mode the same cadence also polls the SayIntentions ACARS network,
-                // where the ATC-session traffic lives. Hoppie polling continues above so
-                // VA telex and loadsheets keep arriving - both networks stay live.
-                if (IsSayIntentionsDatalinkActive &&
-                    !string.IsNullOrWhiteSpace(SavedSayIntentionsApiKey) &&
-                    !string.IsNullOrWhiteSpace(callsign))
-                {
-                    Logger.Debug("Polling SayIntentions ACARS for new messages");
-                    await SendCPDLCMessage("NONE", "poll", "", true, AcarsRoute.SayIntentions);
-                }
 
                 try
                 {

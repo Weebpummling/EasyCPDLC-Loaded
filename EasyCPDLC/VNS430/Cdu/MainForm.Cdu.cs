@@ -1414,6 +1414,8 @@ namespace EasyCPDLC
                 ? Vns430AtcNetwork.SayIntentions
                 : Vns430AtcNetwork.Vatsim;
             Properties.Settings.Default.Save();
+            SyncSayIntentionsPolling();
+            UpdateOnlineStatusLabel();
             cduStatusLine = "ATC NETWORK " + AtcNetworkText();
         }
 
