@@ -53,6 +53,10 @@ namespace EasyCPDLC.VNS430.Cdu
         public event EventHandler ScratchpadBackspace;
         public event EventHandler ScratchpadClear;
 
+        // Raised when the left button is pressed on empty panel area (not on a key),
+        // so the host can drag the window. Lets the CDU be moved with no title bar.
+        public event EventHandler DragMoveRequested;
+
         public void RefreshDisplay() => Invalidate();
 
         private static Image LoadPanelArt()
@@ -175,6 +179,9 @@ namespace EasyCPDLC.VNS430.Cdu
                     return;
                 }
             }
+
+            // Empty area (bezel or screen background) drags the window.
+            DragMoveRequested?.Invoke(this, EventArgs.Empty);
         }
 
         protected override void OnMouseUp(MouseEventArgs e)

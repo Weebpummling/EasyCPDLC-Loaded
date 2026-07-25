@@ -27032,6 +27032,14 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
                 _ = SendMessage(Handle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
             }
         }
+
+        // Begin a window drag from anywhere (used by grid front ends with no title bar,
+        // e.g. the CDU dragging from empty panel area).
+        internal void BeginWindowDrag()
+        {
+            ReleaseCapture();
+            _ = SendMessage(Handle, WM_NCLBUTTONDOWN, HT_CAPTION, 0);
+        }
         private async void RetrieveButton_Click(object sender, EventArgs e)
         {
             string response = "";
