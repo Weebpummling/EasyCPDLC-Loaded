@@ -294,7 +294,7 @@ namespace EasyCPDLC.VNS430.Cdu
                     InterpolationColors = new ColorBlend
                     {
                         // Position 0 = outer edge, 1 = centre.
-                        Colors = new[] { Color.FromArgb(0, colour), Color.FromArgb(58, colour), Color.FromArgb(12, colour), Color.FromArgb(0, colour) },
+                        Colors = new[] { Color.FromArgb(0, colour), Color.FromArgb(110, colour), Color.FromArgb(38, colour), Color.FromArgb(0, colour) },
                         Positions = new[] { 0f, 0.5f, 0.8f, 1f }
                     }
                 };
