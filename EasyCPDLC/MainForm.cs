@@ -607,7 +607,7 @@ private TelexForm tForm;
             {
                 string storedValue = ReadFixedStringSetting(ProtectedCidSettingName, string.Empty);
 
-                if (TryReadProtectedSetting(storedValue, "VATSIM CID", out string decryptedValue) &&
+                if (TryReadProtectedSettingCached("CID", storedValue, "VATSIM CID", out string decryptedValue) &&
                     int.TryParse(decryptedValue, out int protectedCid) &&
                     protectedCid > 0)
                 {
@@ -650,7 +650,7 @@ private TelexForm tForm;
             {
                 string storedValue = Properties.Settings.Default.HoppieCode ?? string.Empty;
 
-                if (TryReadProtectedSetting(storedValue, "Hoppie code", out string decryptedValue))
+                if (TryReadProtectedSettingCached("HOPPIE", storedValue, "Hoppie code", out string decryptedValue))
                 {
                     return decryptedValue;
                 }
@@ -691,7 +691,7 @@ private TelexForm tForm;
             {
                 string storedValue = Properties.Settings.Default.SimbriefUsername ?? string.Empty;
 
-                if (TryReadProtectedSetting(storedValue, "SimBrief username", out string decryptedValue))
+                if (TryReadProtectedSettingCached("SIMBRIEF", storedValue, "SimBrief username", out string decryptedValue))
                 {
                     return NormalizeSimbriefID(decryptedValue);
                 }
@@ -757,6 +757,34 @@ private TelexForm tForm;
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr LocalFree(IntPtr hMem);
+
+        // DPAPI-decrypt cache. The credential getters are read from the CDU/GNS430 render
+        // paths (SETUP highlight, ACCOUNT/TECHNICAL pages) on every refresh tick, and each
+        // read used to run a CryptUnprotectData round-trip. Cache the decrypted value keyed
+        // on the raw stored string: when a setter stores a new value the raw string differs,
+        // so the cache re-decrypts without any invalidation plumbing.
+        private static readonly object protectedReadCacheLock = new();
+        private static readonly Dictionary<string, (string Raw, string Value, bool Ok)> protectedReadCache = new(StringComparer.Ordinal);
+
+        private static bool TryReadProtectedSettingCached(string cacheKey, string storedValue, string settingDisplayName, out string decryptedValue)
+        {
+            lock (protectedReadCacheLock)
+            {
+                if (protectedReadCache.TryGetValue(cacheKey, out (string Raw, string Value, bool Ok) hit) &&
+                    string.Equals(hit.Raw, storedValue, StringComparison.Ordinal))
+                {
+                    decryptedValue = hit.Value;
+                    return hit.Ok;
+                }
+            }
+
+            bool ok = TryReadProtectedSetting(storedValue, settingDisplayName, out decryptedValue);
+            lock (protectedReadCacheLock)
+            {
+                protectedReadCache[cacheKey] = (storedValue, decryptedValue, ok);
+            }
+            return ok;
+        }
 
         private static bool TryReadProtectedSetting(string storedValue, string settingDisplayName, out string decryptedValue)
         {
@@ -1189,31 +1217,59 @@ private TelexForm tForm;
             return 0.0f;
         }
 
-        private static string ReadFixedStringSetting(string settingName, string defaultValue)
+        // Settings-file cache. Reads used to load and XML-parse the settings file from
+        // disk on every call, which the CDU/GNS430 render paths hit several times per
+        // refresh tick. The file only changes through SaveFixedStringSetting in this
+        // process, so parse it once and serve reads from memory; a save invalidates the
+        // cache so the next read re-verifies what actually landed on disk.
+        private static readonly object fixedSettingsCacheLock = new();
+        private static Dictionary<string, string> fixedSettingsCache;
+
+        private static Dictionary<string, string> LoadFixedSettingsCache()
         {
+            Dictionary<string, string> cache = new(StringComparer.OrdinalIgnoreCase);
             try
             {
                 string path = FixedEasyCpdlcSettingsPath();
-                if (string.IsNullOrWhiteSpace(settingName) || !File.Exists(path))
+                if (!File.Exists(path))
                 {
-                    return defaultValue;
+                    return cache;
                 }
 
                 System.Xml.Linq.XDocument document = System.Xml.Linq.XDocument.Load(path);
-                string value = document
-                    .Descendants()
-                    .FirstOrDefault(item =>
-                        item.Name.LocalName == "setting" &&
-                        string.Equals(item.Attribute("name")?.Value, settingName, StringComparison.OrdinalIgnoreCase))
-                    ?.Elements()
-                    .FirstOrDefault(item => item.Name.LocalName == "value")
-                    ?.Value;
-
-                return string.IsNullOrWhiteSpace(value) ? defaultValue : value;
+                foreach (System.Xml.Linq.XElement setting in document.Descendants()
+                    .Where(item => item.Name.LocalName == "setting"))
+                {
+                    string name = setting.Attribute("name")?.Value;
+                    string value = setting.Elements()
+                        .FirstOrDefault(item => item.Name.LocalName == "value")?.Value;
+                    if (!string.IsNullOrWhiteSpace(name) && value != null)
+                    {
+                        cache[name] = value;
+                    }
+                }
             }
             catch
             {
+                // A damaged settings file reads as empty; defaults apply.
+            }
+            return cache;
+        }
+
+        private static string ReadFixedStringSetting(string settingName, string defaultValue)
+        {
+            if (string.IsNullOrWhiteSpace(settingName))
+            {
                 return defaultValue;
+            }
+
+            lock (fixedSettingsCacheLock)
+            {
+                fixedSettingsCache ??= LoadFixedSettingsCache();
+                return fixedSettingsCache.TryGetValue(settingName, out string value) &&
+                       !string.IsNullOrWhiteSpace(value)
+                    ? value
+                    : defaultValue;
             }
         }
 
@@ -1283,9 +1339,20 @@ private TelexForm tForm;
                 }
 
                 document.Save(path);
+
+                // Drop the read cache so the next read re-parses what actually landed on
+                // disk (the API-key setters read back to verify persistence).
+                lock (fixedSettingsCacheLock)
+                {
+                    fixedSettingsCache = null;
+                }
             }
             catch (Exception ex)
             {
+                lock (fixedSettingsCacheLock)
+                {
+                    fixedSettingsCache = null;
+                }
                 try
                 {
                     Logger.Debug("Could not save fixed string setting " + settingName + ": " + ex.Message);
@@ -17287,7 +17354,7 @@ airbusAocSendLabel = null;
             get
             {
                 string storedValue = ReadFixedStringSetting(ELoadControlApiKeySettingName, string.Empty);
-                return TryReadProtectedSetting(storedValue, "eLoadControl API key", out string decryptedValue)
+                return TryReadProtectedSettingCached("ELOAD", storedValue, "eLoadControl API key", out string decryptedValue)
                     ? decryptedValue
                     : string.Empty;
             }
@@ -17321,7 +17388,7 @@ airbusAocSendLabel = null;
             get
             {
                 string storedValue = ReadFixedStringSetting(SayIntentionsApiKeySettingName, string.Empty);
-                return TryReadProtectedSetting(storedValue, "SayIntentions API key", out string decryptedValue)
+                return TryReadProtectedSettingCached("SAYINTENTIONS", storedValue, "SayIntentions API key", out string decryptedValue)
                     ? decryptedValue
                     : string.Empty;
             }

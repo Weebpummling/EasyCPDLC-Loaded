@@ -1,6 +1,7 @@
 using EasyCPDLC.VNS430;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,8 +53,22 @@ namespace EasyCPDLC
 
         internal void SetVns430ScreenOnlyMode(bool enabled)
         {
-            EnsureVns430Panel();
-            vns430Panel.SetScreenOnlyMode(enabled);
+            // Do not instantiate the GNS430 just to record the preference: the artwork
+            // toggle also routes here, and creating the form starts its refresh timer even
+            // though the window is never shown. Apply live if the panel exists; otherwise
+            // persist the choice for when it is opened.
+            if (vns430Panel != null && !vns430Panel.IsDisposed)
+            {
+                vns430Panel.SetScreenOnlyMode(enabled);
+                return;
+            }
+
+            Vns430Preferences preferences = Vns430Preferences.Load();
+            if (preferences.ScreenOnlyMode != enabled)
+            {
+                preferences.ScreenOnlyMode = enabled;
+                preferences.Save(new Rectangle(preferences.Left, preferences.Top, preferences.Width, preferences.Height));
+            }
         }
 
         // Whether the MSFS WASM module is currently connected. The companion host runs in
@@ -218,6 +233,24 @@ namespace EasyCPDLC
             }
         }
 
+        // Per-message cache for the content-based loadsheet classification. The snapshot is
+        // rebuilt on every CDU/GNS430 refresh tick and IsELoadControlLoadsheet runs regexes
+        // over the whole message body; a message's text never changes after it is written,
+        // so classify each one once. Entries are dropped with their message controls.
+        private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CPDLCMessage, object> loadsheetClassCache = new();
+
+        private static bool IsLoadsheetCached(CPDLCMessage message)
+        {
+            if (loadsheetClassCache.TryGetValue(message, out object cached))
+            {
+                return (bool)cached;
+            }
+
+            bool result = DatalinkPrinter.IsELoadControlLoadsheet(message);
+            loadsheetClassCache.AddOrUpdate(message, result);
+            return result;
+        }
+
         internal Vns430BackendSnapshot GetVns430Snapshot()
         {
             List<Vns430MessageSnapshot> messages = outputTable == null || outputTable.IsDisposed
@@ -232,7 +265,7 @@ namespace EasyCPDLC
                         // Tag loadsheets by content so an inbound VA/eLoadControl loadsheet
                         // (which arrives as a plain TELEX over Hoppie) shows as LOADSHEET in
                         // the CDU and GNS430 lists rather than TELEX.
-                        Type = DatalinkPrinter.IsELoadControlLoadsheet(message)
+                        Type = IsLoadsheetCached(message)
                             ? "LOADSHEET"
                             : (message.type ?? string.Empty).Trim().ToUpperInvariant(),
                         Station = (message.recipient ?? string.Empty).Trim().ToUpperInvariant(),

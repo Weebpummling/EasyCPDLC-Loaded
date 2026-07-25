@@ -386,6 +386,15 @@ namespace EasyCPDLC.VNS430
 
             companionInput.UpdateStatus(snapshot, page, cursorActive, preferences.DcduCompanionMode);
             refreshTick += 1;
+
+            // Hidden with no hardware bridge attached (e.g. the CDU is the active
+            // instrument): nothing consumes the snapshot or the LCD, so skip the per-tick
+            // rebuild. Showing the panel refreshes immediately via VisibleChanged.
+            if (!Visible && !companionInput.Enabled)
+            {
+                return;
+            }
+
             if (refreshTick % 3 == 0)
             {
                 RefreshSnapshot();
@@ -1440,7 +1449,10 @@ namespace EasyCPDLC.VNS430
                 LogonCharacter = logonCharacter,
                 TransientStatus = DateTime.UtcNow < transientStatusUntilUtc ? transientStatus : string.Empty,
                 MessageFilter = MessageFilterLabel(),
-                MenuItems = MenuItems(),
+                // The menu list reads live config for its labels; only build it while the
+                // menu overlay is actually displayed. The fingerprint covers Page, so
+                // opening the menu re-renders with the real items.
+                MenuItems = page == Vns430Page.Menu ? MenuItems() : Array.Empty<string>(),
                 Workflow = workflow,
                 WorkflowCharacter = workflowCharacter,
                 LoadSession = loadSession,

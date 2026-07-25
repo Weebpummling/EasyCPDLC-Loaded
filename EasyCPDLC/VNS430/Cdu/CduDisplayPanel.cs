@@ -56,6 +56,13 @@ namespace EasyCPDLC.VNS430.Cdu
             if (disposing)
             {
                 pressTimer?.Dispose();
+                cachedLargeFont?.Dispose();
+                cachedSmallFont?.Dispose();
+                foreach (SolidBrush brush in brushCache.Values)
+                {
+                    brush.Dispose();
+                }
+                brushCache.Clear();
             }
             base.Dispose(disposing);
         }
@@ -172,37 +179,71 @@ namespace EasyCPDLC.VNS430.Cdu
 
             DrawCornerHandles(g);
 
-            Sink?.Push(Grid.ToWinwingData());
+            // Serialising the grid to the WinWing payload allocates ~336 arrays; skip it
+            // entirely while no real sink is attached.
+            if (Sink != null && !ReferenceEquals(Sink, NullCduDisplaySink.Instance))
+            {
+                Sink.Push(Grid.ToWinwingData());
+            }
         }
 
-        private void DrawScreen(Graphics g, RectangleF screen)
+        // Paint caches. The panel repaints on a 750 ms timer plus every key press, and the
+        // old path allocated two fonts, a StringFormat, and up to two brushes per cell on
+        // every paint. Fonts are rebuilt only when the computed pixel size changes (i.e. a
+        // window resize); brushes are one-per-colour for the panel's small fixed palette.
+        private Font cachedLargeFont;
+        private Font cachedSmallFont;
+        private float cachedLargeSize;
+        private float cachedSmallSize;
+        private readonly Dictionary<Color, SolidBrush> brushCache = new();
+        private static readonly StringFormat CellFormat = new(StringFormat.GenericTypographic)
         {
-            using (SolidBrush black = new(Color.Black))
+            Alignment = StringAlignment.Center,
+            LineAlignment = StringAlignment.Center,
+            FormatFlags = StringFormatFlags.NoWrap
+        };
+
+        private SolidBrush CachedBrush(Color colour)
+        {
+            if (!brushCache.TryGetValue(colour, out SolidBrush brush))
             {
-                g.FillRectangle(black, screen);
+                brush = new SolidBrush(colour);
+                brushCache[colour] = brush;
+            }
+            return brush;
+        }
+
+        private void EnsureCellFonts(float large, float small)
+        {
+            if (cachedLargeFont != null && cachedLargeSize == large && cachedSmallSize == small)
+            {
+                return;
             }
 
-            // Lay the character grid in the LSK-aligned text area, not the full glass, so
-            // the data rows line up with the physical keys.
-            RectangleF grid = ToPixels(CduPanelLayout.TextArea);
-            float cellW = grid.Width / CduGrid.Cols;
-            float cellH = grid.Height / CduGrid.Rows;
-            float large = Math.Max(6f, cellH * 0.82f);
-            float small = Math.Max(5f, cellH * 0.64f);
+            cachedLargeFont?.Dispose();
+            cachedSmallFont?.Dispose();
 
             // B612 Mono is the typeface designed for aircraft cockpit displays and ships
             // with the app; it reads far truer on the CDU than Consolas and, being a real
             // fixed-grid monospace, aligns cleanly to the character cells.
             FontFamily family = EasyCPDLC.VNS430.Vns430FontLoader.Family;
             FontStyle boldStyle = family.IsStyleAvailable(FontStyle.Bold) ? FontStyle.Bold : FontStyle.Regular;
-            using Font largeFont = new(family, large, boldStyle, GraphicsUnit.Pixel);
-            using Font smallFont = new(family, small, FontStyle.Regular, GraphicsUnit.Pixel);
-            using StringFormat fmt = new(StringFormat.GenericTypographic)
-            {
-                Alignment = StringAlignment.Center,
-                LineAlignment = StringAlignment.Center,
-                FormatFlags = StringFormatFlags.NoWrap
-            };
+            cachedLargeFont = new Font(family, large, boldStyle, GraphicsUnit.Pixel);
+            cachedSmallFont = new Font(family, small, FontStyle.Regular, GraphicsUnit.Pixel);
+            cachedLargeSize = large;
+            cachedSmallSize = small;
+        }
+
+        private void DrawScreen(Graphics g, RectangleF screen)
+        {
+            g.FillRectangle(CachedBrush(Color.Black), screen);
+
+            // Lay the character grid in the LSK-aligned text area, not the full glass, so
+            // the data rows line up with the physical keys.
+            RectangleF grid = ToPixels(CduPanelLayout.TextArea);
+            float cellW = grid.Width / CduGrid.Cols;
+            float cellH = grid.Height / CduGrid.Rows;
+            EnsureCellFonts(Math.Max(6f, cellH * 0.82f), Math.Max(5f, cellH * 0.64f));
 
             for (int row = 0; row < CduGrid.Rows; row++)
             {
@@ -218,15 +259,18 @@ namespace EasyCPDLC.VNS430.Cdu
                     Color colour = cell.Color.Rgb();
                     if (cell.Inverse)
                     {
-                        using SolidBrush block = new(colour);
-                        g.FillRectangle(block, cr.X, cr.Y + 1, cr.Width, cr.Height - 2);
+                        g.FillRectangle(CachedBrush(colour), cr.X, cr.Y + 1, cr.Width, cr.Height - 2);
                     }
                     if (cell.Glyph == ' ')
                     {
                         continue;
                     }
-                    using SolidBrush text = new(cell.Inverse ? Color.Black : colour);
-                    g.DrawString(cell.Glyph.ToString(), cell.Small ? smallFont : largeFont, text, cr, fmt);
+                    g.DrawString(
+                        cell.Glyph.ToString(),
+                        cell.Small ? cachedSmallFont : cachedLargeFont,
+                        CachedBrush(cell.Inverse ? Color.Black : colour),
+                        cr,
+                        CellFormat);
                 }
             }
         }
