@@ -6955,17 +6955,18 @@ private System.Windows.Forms.Label airbusAocSendLabel;
         {
             // SayIntentions serves the entire world from one always-on ATSU (PKGM), so
             // there is nothing to discover: PDC is available whenever the prerequisites
-            // (API key, plus SimBrief or a live connection) are met.
-            if (IsSayIntentionsDatalinkActive)
+            // (API key, plus SimBrief or a live connection) are met. Whether PDC uses SI
+            // follows the PDC VIA setting, not the raw network mode.
+            if (PdcRoutesToSayIntentions)
             {
                 bool ready = SayIntentionsDatalinkPrerequisitesMet;
                 datalinkStatusText = ready ? "PDC AVAIL" : "PDC --";
                 pdcDiscoveryHoverText = ready
-                    ? "SayIntentions ATSU " + DatalinkRouting.SayIntentionsAtsu
-                    : "Set the SayIntentions API key and SimBrief ID first";
+                    ? "SI ATSU (" + DatalinkRouting.SayIntentionsAtsu + ")"
+                    : "Set the SI API key and SimBrief ID first";
                 pdcDiscoveryLogonCode = ready ? DatalinkRouting.SayIntentionsAtsu : string.Empty;
-                pdcDiscoveryController = ready ? "SAYINTENTIONS" : string.Empty;
-                pdcDiscoverySource = "SAYINTENTIONS";
+                pdcDiscoveryController = ready ? "SI" : string.Empty;
+                pdcDiscoverySource = "SI";
                 pdcDiscoveryIsFallbackCandidate = false;
                 pdcDiscoveryAllowReqClr = ready;
                 UpdateCpdlcDiscoveryFromVatsim();
@@ -11569,9 +11570,9 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                 return !string.IsNullOrWhiteSpace(pdcDiscoveryLogonCode);
             }
 
-            // SI mode: the ATSU is always on and no VATSIM connection or Hoppie station
-            // list is involved - only the SI prerequisites and being on the ground.
-            if (IsSayIntentionsDatalinkActive)
+            // PDC via SI: the ATSU is always on and no VATSIM connection or Hoppie
+            // station list is involved - only the SI prerequisites and being on the ground.
+            if (PdcRoutesToSayIntentions)
             {
                 return SayIntentionsDatalinkPrerequisitesMet && !IsAirborneForStatusBadges();
             }
@@ -11602,7 +11603,7 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                 return !string.IsNullOrWhiteSpace(pdcDiscoveryLogonCode);
             }
 
-            if (IsSayIntentionsDatalinkActive)
+            if (PdcRoutesToSayIntentions)
             {
                 return SayIntentionsDatalinkPrerequisitesMet && !IsAirborneForStatusBadges();
             }
@@ -11921,7 +11922,8 @@ private System.Windows.Forms.Label airbusAocSendLabel;
             string arrival;
             string aircraft;
 
-            if (IsSayIntentionsDatalinkActive)
+            bool viaSi = PdcRoutesToSayIntentions;
+            if (viaSi)
             {
                 // SI identifies the flight by its SimBrief plan; pull identity from the
                 // OFP (VATSIM data still wins when connected) and address the fixed ATSU.
@@ -11968,7 +11970,10 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                 string.IsNullOrWhiteSpace(atisLetter) ? "A" : atisLetter);
 
             HideQuickActionButtons();
-            await SendCPDLCMessage(recipient, "TELEX", message.Trim());
+            // Explicit route: PDC VIA can disagree with the active network (e.g. on
+            // VATSIM but requesting from SI), so content-based routing is not enough.
+            await SendCPDLCMessage(recipient, "TELEX", message.Trim(), true,
+                viaSi ? AcarsRoute.SayIntentions : AcarsRoute.Hoppie);
         }
 
         private async Task QuickCpdlcLogoffAsync()
@@ -17480,6 +17485,20 @@ airbusAocSendLabel = null;
 
         private const string AtcNetworkSettingName = "AtcNetwork";
         private const string WxSourceOverrideSettingName = "WxSourceOverride";
+        private const string PdcViaSettingName = "PdcVia";
+
+        // Where the PDC request goes. AUTO follows the ATC network; SI / VATSIM force
+        // one side, for pilots flying SayIntentions sessions that hand off to (or from)
+        // VATSIM controllers and who want the clearance from a specific place.
+        internal static string SavedPdcVia
+        {
+            get
+            {
+                string value = ReadFixedStringSetting(PdcViaSettingName, "AUTO").Trim().ToUpperInvariant();
+                return value == "SI" || value == "VATSIM" ? value : "AUTO";
+            }
+            set => SaveFixedStringSetting(PdcViaSettingName, (value ?? "AUTO").Trim().ToUpperInvariant());
+        }
 
         // The ATC network the datalink targets. VATSIM (Hoppie) is the default; SI uses
         // the SayIntentions datalink/weather. Stored as a short token.
@@ -22060,13 +22079,13 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
 
             string networkLogon = viaSayIntentions ? SavedSayIntentionsApiKey : logonCode;
             string connectUrl = viaSayIntentions ? DatalinkRouting.SayIntentionsConnectUrl : HoppieConnectUrl;
-            string networkName = viaSayIntentions ? "SAYINTENTIONS" : "HOPPIE";
+            string networkName = viaSayIntentions ? "SI" : "HOPPIE";
 
             if (viaSayIntentions && string.IsNullOrWhiteSpace(networkLogon))
             {
                 if (_write && messageType != "poll")
                 {
-                    WriteMessage("SET SAYINTENTIONS API KEY IN CONNECTION CREDENTIALS", "SYSTEM", "SYSTEM");
+                    WriteMessage("SET SI API KEY IN CONNECTION CREDENTIALS", "SYSTEM", "SYSTEM");
                 }
                 UpdateSendingProgress(() => SendingProgress.Visible = false);
                 return;

@@ -341,11 +341,11 @@ namespace EasyCPDLC.VNS430
             Line(display, 0, 18, 54, 18, Cyan);
 
             Text(display, 1, 21, "ATC", Cyan);
-            Text(display, 1, 29, Fit(snapshot.CurrentAtcUnit, 8, "----"), Green);
+            Text(display, 1, 29, Fit(DatalinkRouting.DisplayStation(snapshot.CurrentAtcUnit), 8, "----"), Green);
             Line(display, 0, 39, 54, 39, Cyan);
 
             Text(display, 1, 42, "LOG", Cyan);
-            Text(display, 1, 50, Fit(snapshot.PendingLogon, 8, "----"), snapshot.Connected ? Green : Yellow);
+            Text(display, 1, 50, Fit(DatalinkRouting.DisplayStation(snapshot.PendingLogon), 8, "----"), snapshot.Connected ? Green : Yellow);
             Line(display, 0, 61, 54, 61, Cyan);
 
             Box(display, new Rectangle(1, 91, 53, 19), Cyan, Black);
@@ -367,11 +367,11 @@ namespace EasyCPDLC.VNS430
             DrawField(
                 display,
                 new Rectangle(59, 34, 177, 14),
-                state.Snapshot.Connected ? "VATSIM CONNECTED" : "VATSIM STANDBY",
+                state.Snapshot.Connected ? "NETWORK CONNECTED" : "NETWORK STANDBY",
                 state.CursorActive && state.SelectedIndex == 2);
 
             Text(display, 60, 51, "CPDLC OPERATION", Cyan);
-            string station = Fit(state.Snapshot.CurrentAtcUnit, 8, "NO LOGON");
+            string station = Fit(DatalinkRouting.DisplayStation(state.Snapshot.CurrentAtcUnit), 8, "NO LOGON");
             DrawField(
                 display,
                 new Rectangle(59, 59, 177, 14),
@@ -423,8 +423,9 @@ namespace EasyCPDLC.VNS430
                 string.IsNullOrWhiteSpace(snapshot.PdcStatus) ? "NONE" : snapshot.PdcStatus, false);
 
             Text(display, 63, 42, "FACILITY", Cyan);
-            string facility = string.IsNullOrWhiteSpace(snapshot.PdcLogonCode) ? "----" : snapshot.PdcLogonCode;
-            if (!string.IsNullOrWhiteSpace(snapshot.PdcController))
+            string facility = string.IsNullOrWhiteSpace(snapshot.PdcLogonCode) ? "----" : DatalinkRouting.DisplayStation(snapshot.PdcLogonCode);
+            if (!string.IsNullOrWhiteSpace(snapshot.PdcController) &&
+                !string.Equals(snapshot.PdcController, facility, StringComparison.OrdinalIgnoreCase))
             {
                 facility += "  " + snapshot.PdcController;
             }
@@ -468,7 +469,7 @@ namespace EasyCPDLC.VNS430
                 Vns430MessageSnapshot message = messages[index];
                 string marker = message.Outbound ? ">" : message.Unread ? "*" : "<";
                 string left = marker + " " + Fit(message.Type, 7, "MSG");
-                string right = Fit(message.Station, 6, "----");
+                string right = Fit(DatalinkRouting.DisplayStation(message.Station), 6, "----");
                 Text(display, 63, y + 3, left, selected ? Black : Green);
                 TextRight(display, 231, y + 3, right, selected ? Black : Cyan);
             }
@@ -486,7 +487,7 @@ namespace EasyCPDLC.VNS430
                 return;
             }
 
-            Text(display, 63, 13, (message.Outbound ? "SENT " : "RECEIVED ") + Fit(message.Station, 7, "----"), Cyan);
+            Text(display, 63, 13, (message.Outbound ? "SENT " : "RECEIVED ") + Fit(DatalinkRouting.DisplayStation(message.Station), 7, "----"), Cyan);
             Line(display, 61, 22, 234, 22, Cyan);
             List<string> lines = Vns430Form.WrapText(Vns430Form.CollapseWhitespace(message.Text), state.ZoomLevel == 2 ? 24 : 28);
             int visibleLines = message.Responses.Count > 0 ? 8 : 10;
@@ -535,7 +536,7 @@ namespace EasyCPDLC.VNS430
                     Vns430CpdlcCandidate candidate = candidates[index];
                     int y = 68 + (index * 12);
                     Color colour = candidate.TunedMatch ? Green : White;
-                    Text(display, 66, y, Fit(candidate.Code, 5, "----"), colour);
+                    Text(display, 66, y, Fit(DatalinkRouting.DisplayStation(candidate.Code), 5, "----"), colour);
                     TextRight(display, 230, y, Fit(candidate.Controller, 11, string.Empty), colour);
                 }
             }

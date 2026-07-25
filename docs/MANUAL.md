@@ -116,6 +116,10 @@ the weather:
 - **Do not run another SI ACARS client at the same time** — SayIntentions' own
   "ACARS Bridge" app, or an aircraft connected to SI ACARS directly, competes for
   the same messages exactly like a second Hoppie client would.
+- **PDC VIA** (SETUP, or the GNS430 menu) picks where the clearance request goes:
+  `AUTO` follows ATC NETWORK, `SI` or `VATSIM` forces one side. SayIntentions hands
+  flights off to VATSIM controllers on their end, so a pilot can be on both at once
+  and take the PDC from either.
 
 ### Pick your instrument
 

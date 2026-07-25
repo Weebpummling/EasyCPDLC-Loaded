@@ -41,7 +41,9 @@ namespace EasyCPDLC
         /// </remarks>
         internal void SyncSayIntentionsPolling()
         {
-            bool shouldRun = IsSayIntentionsDatalinkActive &&
+            // Also runs when only the PDC is routed to SI (PDC VIA = SI on the VATSIM
+            // network) - the clearance reply still arrives over the SI network.
+            bool shouldRun = (IsSayIntentionsDatalinkActive || PdcRoutesToSayIntentions) &&
                 !string.IsNullOrWhiteSpace(SavedSayIntentionsApiKey) &&
                 !DebugUiPreviewMode;
 
@@ -104,6 +106,16 @@ namespace EasyCPDLC
         internal bool IsSayIntentionsDatalinkActive =>
             ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions;
 
+        // Where the PDC goes: the PDC VIA setting wins, AUTO follows the ATC network.
+        // SI hands flights off to VATSIM controllers on their end, so a pilot can be on
+        // both at once and legitimately want the clearance from either side.
+        internal bool PdcRoutesToSayIntentions => SavedPdcVia switch
+        {
+            "SI" => true,
+            "VATSIM" => false,
+            _ => IsSayIntentionsDatalinkActive
+        };
+
         // Whether SI-mode datalink actions can be offered at all. Kept synchronous and
         // cheap so availability gates can call it; the actual OFP fetch happens at
         // action time in EnsureSayIntentionsFlightAsync.
@@ -132,7 +144,7 @@ namespace EasyCPDLC
 
             if (string.IsNullOrWhiteSpace(SimbriefID))
             {
-                WriteMessage("SET SIMBRIEF ID FOR SAYINTENTIONS DATALINK", "SYSTEM", "SYSTEM");
+                WriteMessage("SET SIMBRIEF ID FOR SI DATALINK", "SYSTEM", "SYSTEM");
                 return false;
             }
 
@@ -168,7 +180,7 @@ namespace EasyCPDLC
             catch (Exception ex)
             {
                 Logger.Warn(ex, "SayIntentions flight identity fetch failed");
-                WriteMessage("COULD NOT LOAD SIMBRIEF PLAN FOR SAYINTENTIONS", "SYSTEM", "SYSTEM");
+                WriteMessage("COULD NOT LOAD SIMBRIEF PLAN FOR SI", "SYSTEM", "SYSTEM");
                 return false;
             }
         }

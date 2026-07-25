@@ -100,6 +100,23 @@ namespace EasyCPDLC
             return Vns430AtcNetworkLabel();
         }
 
+        internal string Vns430PdcViaLabel() => SavedPdcVia;
+
+        // AUTO -> SI -> VATSIM -> AUTO, mirroring the CDU SETUP cycle.
+        internal string Vns430CyclePdcVia()
+        {
+            SavedPdcVia = SavedPdcVia switch
+            {
+                "AUTO" => "SI",
+                "SI" => "VATSIM",
+                _ => "AUTO"
+            };
+            Properties.Settings.Default.Save();
+            SyncSayIntentionsPolling();
+            UpdateOnlineStatusLabel();
+            return SavedPdcVia;
+        }
+
         // AUTO (follow network) label, or the explicit override source.
         internal string Vns430WxSourceLabel()
         {
@@ -301,10 +318,12 @@ namespace EasyCPDLC
             if (IsSayIntentionsDatalinkActive &&
                 !candidates.Any(candidate => string.Equals(candidate.Code, DatalinkRouting.SayIntentionsAtsu, StringComparison.OrdinalIgnoreCase)))
             {
+                // Code stays PKGM (the wire address); displays alias it to SI, so with
+                // Controller = "ATC" the logon row reads "<SI ATC".
                 candidates.Insert(0, new Vns430CpdlcCandidate
                 {
                     Code = DatalinkRouting.SayIntentionsAtsu,
-                    Controller = "SAYINTENTIONS ATC",
+                    Controller = "ATC",
                     Frequency = string.Empty,
                     Reason = "SI ATSU",
                     TunedMatch = false
@@ -373,7 +392,7 @@ namespace EasyCPDLC
             {
                 if (!SayIntentionsDatalinkPrerequisitesMet)
                 {
-                    WriteMessage("CPDLC LOGON NOT READY: SET SAYINTENTIONS KEY AND SIMBRIEF ID", "SYSTEM", "SYSTEM");
+                    WriteMessage("CPDLC LOGON NOT READY: SET SI KEY AND SIMBRIEF ID", "SYSTEM", "SYSTEM");
                     return;
                 }
                 if (!await EnsureSayIntentionsFlightAsync())

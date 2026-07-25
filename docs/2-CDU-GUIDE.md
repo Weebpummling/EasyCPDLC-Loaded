@@ -89,8 +89,9 @@ amber when a credential you need is missing.
 |---|---|
 | **INSTRUMENT** | `CDU` ↔ `GNS430` — switches which unit is on screen |
 | **ATC NETWORK** | `VATSIM` or `SI` (SayIntentions) |
-| **WX SOURCE** | `AUTO` (follows the network) / `VATSIM` / `REAL WORLD` / `SAYINTENTIONS` |
+| **WX SOURCE** | `AUTO` (follows the network) / `VATSIM` / `REAL WORLD` / `SI` |
 | **HW KEYS** | `ON` lets a physical CDU drive the panel |
+| **PDC VIA** | Where `REQ CLR` goes: `AUTO` (follows ATC NETWORK) / `SI` / `VATSIM` — SI hands off to VATSIM controllers, so pilots on both can take the clearance from either |
 
 ### Entering a value
 

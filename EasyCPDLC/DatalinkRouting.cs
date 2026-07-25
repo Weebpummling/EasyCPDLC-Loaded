@@ -38,6 +38,16 @@ namespace EasyCPDLC
         // The one station SayIntentions' ATC answers on, for logon, CPDLC and PDC alike.
         internal const string SayIntentionsAtsu = "PKGM";
 
+        /// <summary>
+        /// User-facing name for a station. The SI ATSU's wire code (PKGM) means nothing
+        /// to a pilot, so every display shows it as "SI"; the wire keeps using PKGM.
+        /// </summary>
+        internal static string DisplayStation(string station)
+        {
+            string clean = (station ?? string.Empty).Trim();
+            return clean.Equals(SayIntentionsAtsu, StringComparison.OrdinalIgnoreCase) ? "SI" : clean;
+        }
+
         internal static bool RoutesToSayIntentions(AcarsRoute route, string messageType, string recipient, bool sayIntentionsActive)
         {
             if (route == AcarsRoute.Hoppie)

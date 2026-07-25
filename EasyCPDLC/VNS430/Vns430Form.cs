@@ -876,7 +876,7 @@ namespace EasyCPDLC.VNS430
         private void ActivateMenuItem(int index)
         {
             // Any menu action other than re-selecting CLEAR ALL cancels its armed confirm.
-            if (index != 5)
+            if (index != 6)
             {
                 clearAllArmed = false;
             }
@@ -903,6 +903,9 @@ namespace EasyCPDLC.VNS430
                     SetTransient("WX SOURCE " + backend.Vns430CycleWxSource());
                     break;
                 case 5:
+                    SetTransient("PDC VIA " + backend.Vns430CyclePdcVia());
+                    break;
+                case 6:
                     // Destructive, so require a second press to confirm (the label shows
                     // "CONFIRM CLEAR ALL?" while armed).
                     if (clearAllArmed)
@@ -917,14 +920,14 @@ namespace EasyCPDLC.VNS430
                         SetTransient("PRESS AGAIN TO CLEAR");
                     }
                     break;
-                case 6:
+                case 7:
                     backend.Vns430OpenSettings();
                     SetTransient("SETTINGS OPENED");
                     break;
-                case 7:
+                case 8:
                     ToggleCompanionModule();
                     break;
-                case 8:
+                case 9:
                     pageBeforeOverlay = Vns430Page.Menu;
                     SetPage(Vns430Page.Help, false);
                     break;
@@ -1118,6 +1121,7 @@ namespace EasyCPDLC.VNS430
                 "AOC / TELEX MENU",
                 "ATC NETWORK: " + backend.Vns430AtcNetworkLabel(),
                 "WX SOURCE: " + backend.Vns430WxSourceLabel(),
+                "PDC VIA: " + backend.Vns430PdcViaLabel(),
                 clearAllArmed ? "CONFIRM CLEAR ALL?" : "CLEAR ALL MESSAGES",
                 "EASYCPDLC SETTINGS",
                 "MSFS MODULE: " + companionInput.Status,

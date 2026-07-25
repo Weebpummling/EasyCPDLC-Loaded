@@ -364,7 +364,14 @@ namespace EasyCPDLC
         // Shared title row: page name centred, callsign at far left, link state at far right.
         private static void RenderCduHeader(CduGrid grid, string title, Vns430BackendSnapshot snapshot)
         {
-            grid.WriteCentered(CduLayout.TitleRow, title, CduColor.White);
+            // The callsign owns cols 0..6 and the link state cols 20..23, so the title
+            // centres inside the free band (cols 8..19). Centering it across the whole
+            // row let a 7-character callsign overwrite the first letter of long titles.
+            const int bandStart = 8;
+            const int bandWidth = 12;
+            string fitted = Truncate(title ?? string.Empty, bandWidth);
+            grid.Write(CduLayout.TitleRow, bandStart + (bandWidth - fitted.Length) / 2, fitted, CduColor.White);
+
             if (!string.IsNullOrWhiteSpace(snapshot.Callsign))
             {
                 grid.Write(CduLayout.TitleRow, 0, Truncate(snapshot.Callsign, 7), CduColor.Green, small: true);
@@ -425,12 +432,14 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
 
             // Right column: live status read-out (the old top-row info, now in the display).
-            RenderCduRightStatus(grid, 1, "VATSIM", snapshot.Connected ? "CONNECTED" : "OFFLINE",
+            // "NETWORK", not "VATSIM": on SI the datalink is live without VATSIM, and SI
+            // itself hands flights off to VATSIM controllers - pilots may be on both.
+            RenderCduRightStatus(grid, 1, "NETWORK", snapshot.Connected ? "CONNECTED" : "OFFLINE",
                 snapshot.Connected ? CduColor.Green : CduColor.Amber);
-            RenderCduRightStatus(grid, 2, "ATS UNIT", string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? "----" : snapshot.CurrentAtcUnit,
+            RenderCduRightStatus(grid, 2, "ATS UNIT", string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? "----" : DatalinkRouting.DisplayStation(snapshot.CurrentAtcUnit),
                 string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? CduColor.Grey : (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber));
             RenderCduRightStatus(grid, 3, "ROUTE", BuildRouteText(snapshot), CduColor.White);
-            RenderCduRightStatus(grid, 4, "LOGON", string.IsNullOrWhiteSpace(snapshot.PendingLogon) ? "----" : snapshot.PendingLogon, CduColor.Cyan);
+            RenderCduRightStatus(grid, 4, "LOGON", string.IsNullOrWhiteSpace(snapshot.PendingLogon) ? "----" : DatalinkRouting.DisplayStation(snapshot.PendingLogon), CduColor.Cyan);
         }
 
         private static void RenderCduRightStatus(CduGrid grid, int lsk, string label, string value, CduColor valueColour)
@@ -472,7 +481,7 @@ namespace EasyCPDLC
                 Vns430MessageSnapshot message = shown[i];
                 cduVisibleInbox.Add(message.Source);
                 CduColor colour = cduMsgSent ? CduColor.Cyan : (message.Unread ? CduColor.Amber : CduColor.White);
-                string station = string.IsNullOrWhiteSpace(message.Station) ? message.Type : message.Station;
+                string station = string.IsNullOrWhiteSpace(message.Station) ? message.Type : DatalinkRouting.DisplayStation(message.Station);
 
                 // Use the full row width so long senders (e.g. a full facility callsign)
                 // are not clipped to the half column. The last row leaves space for the
@@ -506,7 +515,7 @@ namespace EasyCPDLC
             }
 
             // Custom title (no callsign) so a long station name does not collide.
-            string station = string.IsNullOrWhiteSpace(message.Station) ? message.Type : message.Station;
+            string station = string.IsNullOrWhiteSpace(message.Station) ? message.Type : DatalinkRouting.DisplayStation(message.Station);
             grid.WriteCentered(CduLayout.TitleRow, Truncate(station, 18), CduColor.White);
             grid.WriteRight(CduLayout.TitleRow, message.Outbound ? "SENT" : "RCVD", CduColor.Cyan, small: true);
 
@@ -605,7 +614,7 @@ namespace EasyCPDLC
             RenderCduHeader(grid, "CPDLC LOGON", snapshot);
 
             // Right column: the station we are logged on to, and PDC availability.
-            string unit = string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? "----" : snapshot.CurrentAtcUnit;
+            string unit = string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? "----" : DatalinkRouting.DisplayStation(snapshot.CurrentAtcUnit);
             grid.WriteRight(CduLayout.LabelRow(1), "LOGGED ON", CduColor.Cyan, small: true);
             grid.WriteRight(CduLayout.DataRow(1), unit,
                 string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? CduColor.Grey : (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber));
@@ -613,7 +622,7 @@ namespace EasyCPDLC
             string pdc = string.IsNullOrWhiteSpace(snapshot.PdcStatus) ? "----" : snapshot.PdcStatus;
             if (!string.IsNullOrWhiteSpace(snapshot.PdcLogonCode))
             {
-                pdc += " " + snapshot.PdcLogonCode;
+                pdc += " " + DatalinkRouting.DisplayStation(snapshot.PdcLogonCode);
             }
             grid.WriteRight(CduLayout.LabelRow(2), "PDC", CduColor.Cyan, small: true);
             grid.WriteRight(CduLayout.DataRow(2), Truncate(pdc, CduGrid.HalfCols),
@@ -632,7 +641,7 @@ namespace EasyCPDLC
                 cduLogonCandidates.Add(candidates[i].Code);
                 grid.WriteLeft(CduLayout.LabelRow(i + 1), Truncate(candidates[i].Reason, CduGrid.HalfCols), CduColor.Cyan, small: true);
                 grid.WriteLeft(CduLayout.DataRow(i + 1),
-                    "<" + Truncate(candidates[i].Code + " " + candidates[i].Controller, CduGrid.HalfCols - 1),
+                    "<" + Truncate(DatalinkRouting.DisplayStation(candidates[i].Code) + " " + candidates[i].Controller, CduGrid.HalfCols - 1),
                     candidates[i].TunedMatch ? CduColor.Green : CduColor.White, inverse: CduArmed("LOGON:" + i));
             }
             if (candidates.Count == 0)
@@ -1054,6 +1063,10 @@ namespace EasyCPDLC
             // (e.g. WinWing) can drive the LSKs and keypad through MobiFlight.
             RenderCduSetupField(grid, 4, true, "HW KEYS", IsDcduCompanionModeEnabled() ? "ON" : "OFF");
 
+            // Where the PDC request goes. AUTO follows ATC NETWORK; pilots flying SI
+            // sessions handed off to VATSIM controllers can force either side.
+            RenderCduSetupField(grid, 5, true, "PDC VIA", SavedPdcVia);
+
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
 
@@ -1081,7 +1094,7 @@ namespace EasyCPDLC
             RenderCduAccountField(grid, 2, "HOPPIE CODE", SavedHoppieCode, secret: true);
             RenderCduAccountField(grid, 3, "SIMBRIEF", SimbriefID, secret: false);
             RenderCduAccountField(grid, 4, "ELOAD KEY", SavedELoadControlApiKey, secret: true);
-            RenderCduAccountField(grid, 5, "SAYINTENTIONS KEY", SavedSayIntentionsApiKey, secret: true);
+            RenderCduAccountField(grid, 5, "SI KEY", SavedSayIntentionsApiKey, secret: true);
 
             grid.WriteLeft(CduLayout.DataRow(6), "<SETUP", CduColor.White);
             RenderCduScratchpad(grid);
@@ -1139,7 +1152,7 @@ namespace EasyCPDLC
             AddEntry("HOPPIE CODE", SavedHoppieCode);
             AddEntry("SIMBRIEF", SimbriefID);
             AddEntry("ELOAD KEY", SavedELoadControlApiKey);
-            AddEntry("SAYINTENTIONS KEY", SavedSayIntentionsApiKey);
+            AddEntry("SI KEY", SavedSayIntentionsApiKey);
             AddEntry("ATC NETWORK", AtcNetworkText());
             AddEntry("WX SOURCE", WxSourceText() + " (" + Vns430WeatherClient.SourceLabel(EffectiveWxSource()) + ")");
             AddEntry("PRINTER", SelectedPrinterName);
@@ -1254,7 +1267,23 @@ namespace EasyCPDLC
                 case 2: CduCycleAtcNetwork(); break;
                 case 3: CduCycleWxSource(); break;
                 case 4: CduToggleHardwareKeys(); break;
+                case 5: CduCyclePdcVia(); break;
             }
+        }
+
+        // AUTO (follow ATC NETWORK) -> SI -> VATSIM -> AUTO.
+        private void CduCyclePdcVia()
+        {
+            SavedPdcVia = SavedPdcVia switch
+            {
+                "AUTO" => "SI",
+                "SI" => "VATSIM",
+                _ => "AUTO"
+            };
+            Properties.Settings.Default.Save();
+            SyncSayIntentionsPolling();
+            UpdateOnlineStatusLabel();
+            cduStatusLine = "PDC VIA " + SavedPdcVia;
         }
 
         // Turn the MSFS module's CDU/DCDU hardware keys on or off. Without this the
@@ -1448,7 +1477,7 @@ namespace EasyCPDLC
                 case 2: CduApplyTextSetting(v => SavedHoppieCode = v.ToUpperInvariant(), "HOPPIE"); break;
                 case 3: CduApplyTextSetting(v => SimbriefID = v, "SIMBRIEF"); break;
                 case 4: CduApplyTextSetting(v => SavedELoadControlApiKey = v, "ELOAD KEY"); break;
-                case 5: CduApplyTextSetting(v => SavedSayIntentionsApiKey = v, "SAYINTENTIONS KEY"); break;
+                case 5: CduApplyTextSetting(v => SavedSayIntentionsApiKey = v, "SI KEY"); break;
                 case 6: cduPage = CduPageId.Setup; break;
             }
         }

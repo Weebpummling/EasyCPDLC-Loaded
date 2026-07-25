@@ -64,10 +64,12 @@ namespace EasyCPDLC
             return Vns430WeatherSource.Vatsim;
         }
 
+        // Display label only. The stored override token stays "SAYINTENTIONS"
+        // (ParseSource matches the "SAY" prefix), so existing settings keep parsing.
         internal static string SourceLabel(Vns430WeatherSource source) => source switch
         {
             Vns430WeatherSource.RealWorld => "REAL WORLD",
-            Vns430WeatherSource.SayIntentions => "SAYINTENTIONS",
+            Vns430WeatherSource.SayIntentions => "SI",
             _ => "VATSIM"
         };
 
@@ -177,7 +179,7 @@ namespace EasyCPDLC
         {
             if (string.IsNullOrWhiteSpace(apiKey))
             {
-                throw new Vns430WeatherException("SET SAYINTENTIONS KEY FIRST");
+                throw new Vns430WeatherException("SET SI KEY FIRST");
             }
 
             string url = "https://apipri.sayintentions.ai/sapi/getWX?api_key=" +
