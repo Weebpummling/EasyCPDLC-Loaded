@@ -26465,6 +26465,11 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
                         continue;
                     }
 
+                    // SI's logon confirmation does not reliably arrive as a well-formed
+                    // CPDLC packet; recognise the session from any PKGM traffic here,
+                    // before format-specific parsing can drop it.
+                    MaybeAcceptSayIntentionsLogon(sender, payload);
+
                     if (payload.StartsWith("/DATA2/", StringComparison.OrdinalIgnoreCase))
                     {
                         Logger.Debug("CPDLC Message identified, attempting to parse from " + sender);

@@ -59,19 +59,22 @@ namespace EasyCPDLC
                 return true;
             }
 
+            // Anything addressed to the SI ATSU can only be meant for SayIntentions,
+            // whatever the active network - PKGM is their station, not a Hoppie one.
+            // This is what makes PDC VIA = SI work while flying on VATSIM.
+            string to = (recipient ?? string.Empty).Trim().ToUpperInvariant();
+            if (to == SayIntentionsAtsu)
+            {
+                return true;
+            }
+
             if (!sayIntentionsActive)
             {
                 return false;
             }
 
             string type = (messageType ?? string.Empty).Trim().ToUpperInvariant();
-            if (type == "CPDLC")
-            {
-                return true;
-            }
-
-            string to = (recipient ?? string.Empty).Trim().ToUpperInvariant();
-            return to == SayIntentionsAtsu;
+            return type == "CPDLC";
         }
     }
 }

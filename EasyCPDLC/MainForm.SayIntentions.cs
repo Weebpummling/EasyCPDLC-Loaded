@@ -185,6 +185,36 @@ namespace EasyCPDLC
             }
         }
 
+        /// <summary>
+        /// Recognises a SayIntentions CPDLC session from inbound traffic.
+        /// </summary>
+        /// <remarks>
+        /// SI's ATSU does not always answer REQUEST LOGON with a well-formed
+        /// /data2/ LOGON ACCEPTED packet the CPDLC parser recognises - the confirmation
+        /// can arrive late (observed: only after a PDC request) or as plain telex text.
+        /// So: any message from PKGM that says LOGON ACCEPTED logs us on, and while a
+        /// logon to PKGM is pending, ANY reply from PKGM counts - their ATSU answering
+        /// at all means the session exists on their side.
+        /// </remarks>
+        internal void MaybeAcceptSayIntentionsLogon(string sender, string payload)
+        {
+            if (!string.Equals((sender ?? string.Empty).Trim(), DatalinkRouting.SayIntentionsAtsu, StringComparison.OrdinalIgnoreCase) ||
+                !string.IsNullOrWhiteSpace(CurrentATCUnit))
+            {
+                return;
+            }
+
+            bool explicitAccept = (payload ?? string.Empty).IndexOf("LOGON ACCEPTED", StringComparison.OrdinalIgnoreCase) >= 0;
+            bool implicitAccept = string.Equals((pendingLogon ?? string.Empty).Trim(), DatalinkRouting.SayIntentionsAtsu, StringComparison.OrdinalIgnoreCase);
+            if (explicitAccept || implicitAccept)
+            {
+                CurrentATCUnit = DatalinkRouting.SayIntentionsAtsu;
+                pendingLogon = null;
+                ClearNextAtcUnitDisplay();
+                Logger.Debug("SI CPDLC session recognised (" + (explicitAccept ? "explicit" : "implicit") + ")");
+            }
+        }
+
         // The ACARS 'from' field and the poll both use the callsign field, so SI mode
         // adopts the OFP callsign - but never overrides a live VATSIM identity, and
         // only while SI is the active network.

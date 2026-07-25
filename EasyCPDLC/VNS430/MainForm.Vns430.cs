@@ -308,6 +308,7 @@ namespace EasyCPDLC
             // Project the backend's live CPDLC/PDC discovery (refreshed by the 15 s
             // VATSIM + Hoppie loop) so the panel and CDU can show who is online and
             // offer a logon without re-implementing any of the discovery logic.
+            bool siNetworkActive = IsSayIntentionsDatalinkActive;
             List<Vns430CpdlcCandidate> candidates = cpdlcDiscoveryCandidates
                 .Where(candidate => !string.IsNullOrWhiteSpace(candidate.Code))
                 .Select(candidate => new Vns430CpdlcCandidate
@@ -315,14 +316,19 @@ namespace EasyCPDLC
                     Code = candidate.Code,
                     Controller = candidate.Controller,
                     Frequency = candidate.FrequencyText,
-                    Reason = string.IsNullOrWhiteSpace(candidate.MatchReason) ? candidate.Reason : candidate.MatchReason,
+                    // In SI mode the discovered stations are the OTHER network's, so
+                    // caption them VATSIM - the pilot may be on both (SI hands off to
+                    // VATSIM controllers) and needs to see which side each row is.
+                    Reason = siNetworkActive
+                        ? "VATSIM"
+                        : (string.IsNullOrWhiteSpace(candidate.MatchReason) ? candidate.Reason : candidate.MatchReason),
                     TunedMatch = candidate.IsTunedFrequencyMatch
                 })
                 .ToList();
 
-            // SI mode: the one logon target is the SI ATSU. Offer it first so the CDU
-            // LOGON page and GNS430 work without any VATSIM controller discovery.
-            if (IsSayIntentionsDatalinkActive &&
+            // SI mode: the SI ATSU is the primary logon target - first row, ahead of
+            // any VATSIM stations discovered for the flight.
+            if (siNetworkActive &&
                 !candidates.Any(candidate => string.Equals(candidate.Code, DatalinkRouting.SayIntentionsAtsu, StringComparison.OrdinalIgnoreCase)))
             {
                 // Code stays PKGM (the wire address); displays alias it to SI, so with
@@ -350,9 +356,12 @@ namespace EasyCPDLC
                 Callsign = (callsign ?? string.Empty).Trim().ToUpperInvariant(),
                 CurrentAtcUnit = currentUnit,
                 PendingLogon = (pendingLogon ?? string.Empty).Trim().ToUpperInvariant(),
-                Departure = siMode ? SayIntentionsDeparture() : AirbusAocDeparture(),
-                Arrival = siMode ? SayIntentionsArrival() : AirbusAocArrival(),
-                Aircraft = siMode ? SayIntentionsAircraft() : AirbusAocAircraft(),
+                // Flight data uses the SimBrief-backed helpers whenever any SI datalink
+                // path is in play (SI network, or just the PDC routed there); the
+                // helpers still prefer live VATSIM data when connected.
+                Departure = siMode || PdcRoutesToSayIntentions ? SayIntentionsDeparture() : AirbusAocDeparture(),
+                Arrival = siMode || PdcRoutesToSayIntentions ? SayIntentionsArrival() : AirbusAocArrival(),
+                Aircraft = siMode || PdcRoutesToSayIntentions ? SayIntentionsAircraft() : AirbusAocAircraft(),
                 // Either phase source can flip the prefill: the VATSIM engine when
                 // connected, the SimConnect telemetry tracker otherwise (or both).
                 PreferArrivalStation = flightPhaseEnrouteSeen || simPhase.ReachedCruise,
@@ -469,9 +478,12 @@ namespace EasyCPDLC
                 (workflow.Kind == Vns430WorkflowKind.AocMetar || workflow.Kind == Vns430WorkflowKind.AocAtis) &&
                 wxSource != Vns430WeatherSource.Vatsim;
 
-            // SI mode: the datalink runs over the SayIntentions ACARS network, so a
-            // VATSIM connection is not required - the SI prerequisites are.
-            if (IsSayIntentionsDatalinkActive && !directWeather)
+            // SI datalink: either the whole network is SI, or just this PDC is routed
+            // there (PDC VIA = SI on VATSIM). Either way no VATSIM connection is
+            // required - the SI prerequisites are.
+            bool viaSiDatalink = IsSayIntentionsDatalinkActive ||
+                (workflow.Kind == Vns430WorkflowKind.AocPreDeparture && PdcRoutesToSayIntentions);
+            if (viaSiDatalink && !directWeather)
             {
                 if (!SayIntentionsDatalinkPrerequisitesMet)
                 {

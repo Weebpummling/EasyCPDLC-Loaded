@@ -5,15 +5,24 @@ namespace EasyCPDLC.Tests
 {
     public class DatalinkRoutingTests
     {
-        // On VATSIM nothing ever routes to SayIntentions, whatever the packet looks like.
+        // On VATSIM everything routes to Hoppie - except traffic addressed to the SI
+        // ATSU, which can only be meant for SayIntentions (PDC VIA = SI on VATSIM).
         [Theory]
         [InlineData("CPDLC", "EDDF")]
-        [InlineData("TELEX", "PKGM")]
         [InlineData("poll", "NONE")]
         [InlineData("ping", "SERVER")]
-        public void VatsimMode_AlwaysRoutesToHoppie(string type, string recipient)
+        public void VatsimMode_RoutesToHoppie(string type, string recipient)
         {
             Assert.False(DatalinkRouting.RoutesToSayIntentions(AcarsRoute.Auto, type, recipient, sayIntentionsActive: false));
+        }
+
+        [Theory]
+        [InlineData("TELEX", "PKGM")]
+        [InlineData("CPDLC", "PKGM")]
+        [InlineData("TELEX", "pkgm")]
+        public void AtsuAddressedTraffic_AlwaysRoutesToSayIntentions_EvenOnVatsim(string type, string recipient)
+        {
+            Assert.True(DatalinkRouting.RoutesToSayIntentions(AcarsRoute.Auto, type, recipient, sayIntentionsActive: false));
         }
 
         // On SI, ATC-session traffic follows the ATC network: every CPDLC packet, and

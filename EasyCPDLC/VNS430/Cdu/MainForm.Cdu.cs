@@ -664,20 +664,11 @@ namespace EasyCPDLC
             {
                 if (index == 3)
                 {
-                    // REQ CLR: arm the PDC clearance; EXEC transmits it.
-                    if (CanQuickRequestClearance())
-                    {
-                        CduArm("REQCLR", "REQ CLR", () =>
-                        {
-                            _ = QuickRequestPredepClearanceAsync();
-                            cduStatusLine = "REQ CLR SENT";
-                        });
-                    }
-                    else
-                    {
-                        cduStatusLine = "REQ CLR NOT AVAIL";
-                        cduStatusError = true;
-                    }
+                    // REQ CLR opens the PREDEP CLEARANCE request page (same page as the
+                    // AOC menu) with the recipient, stand and ATIS prefilled, so the
+                    // pilot reviews and completes the request rather than firing a
+                    // one-shot message blind. SEND on that page is the EXEC-armed step.
+                    OpenCduPredepClearancePage();
                 }
                 return;
             }
@@ -700,6 +691,38 @@ namespace EasyCPDLC
                 case 6:
                     cduPage = CduPageId.Dlk;
                     break;
+            }
+        }
+
+        // The PREDEP CLEARANCE workflow page, prefilled for the active PDC route:
+        // recipient PKGM when PDC goes to SI, the discovered facility on VATSIM. The
+        // stand defaults to ---- (matching the quick request) and the ATIS letter to
+        // the best-known departure ATIS; both stay editable on the page.
+        private void OpenCduPredepClearancePage()
+        {
+            Vns430BackendSnapshot snapshot = GetVns430Snapshot();
+            cduWorkflow = Vns430Workflow.Create(Vns430WorkflowKind.AocPreDeparture, snapshot);
+
+            string recipient = PdcRoutesToSayIntentions
+                ? DatalinkRouting.SayIntentionsAtsu
+                : (pdcDiscoveryLogonCode ?? string.Empty).Trim().ToUpperInvariant();
+            SetCduWorkflowField("RECIPIENT", recipient);
+            SetCduWorkflowField("GATE", "----");
+
+            string atisLetter = GetBestDepartureAtisLetter(snapshot.Departure);
+            SetCduWorkflowField("ATIS", string.IsNullOrWhiteSpace(atisLetter) ? "A" : atisLetter);
+
+            cduScratchpad = string.Empty;
+            cduStatusLine = string.Empty;
+            cduPage = CduPageId.Request;
+        }
+
+        private void SetCduWorkflowField(string key, string value)
+        {
+            Vns430EditField field = cduWorkflow?.Fields.FirstOrDefault(f => f.Key == key);
+            if (field != null && !string.IsNullOrWhiteSpace(value))
+            {
+                field.Value = value;
             }
         }
 
