@@ -15,6 +15,10 @@ namespace EasyCPDLC.VNS430.Cdu
         // did not. Derived by fitting the data-row centres to the L-key centres.
         public static readonly RectangleF TextArea = new(0.1587f, 0.0808f, 0.6843f, 0.3530f);
 
+        // The EXEC annunciator bar above the EXEC key. Lit (green) only while a
+        // network-transmitting action is armed; dark otherwise.
+        public static readonly RectangleF ExecLight = new(0.762f, 0.520f, 0.092f, 0.016f);
+
         public static readonly (string Name, RectangleF Rect)[] Keys =
         {
             ("L1", new RectangleF(0.01561f, 0.1178f, 0.082f, 0.052f)),

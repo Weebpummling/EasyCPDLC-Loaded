@@ -48,6 +48,27 @@ namespace EasyCPDLC
         // Logon page: LSK index -> candidate logon code.
         private readonly List<string> cduLogonCandidates = new();
 
+        // EXEC arming: a network-transmitting action (send request, logon, REQ CLR,
+        // reply, generate loadsheet) is selected first, which highlights it and lights
+        // the EXEC annunciator; pressing EXEC then runs it. Local actions stay immediate.
+        private Action cduArmedAction;
+        private string cduArmedKey = string.Empty;
+
+        private void CduArm(string key, string prompt, Action action)
+        {
+            cduArmedKey = key;
+            cduArmedAction = action;
+            cduStatusLine = prompt + " - EXEC";
+        }
+
+        private void ClearCduArm()
+        {
+            cduArmedAction = null;
+            cduArmedKey = string.Empty;
+        }
+
+        private bool CduArmed(string key) => cduArmedAction != null && cduArmedKey == key;
+
         internal bool IsCduModeActive() => DcduStyleManager.IsCdu;
 
         // Entry point from ApplyDisplayStyle when the CDU style is selected.
@@ -124,6 +145,10 @@ namespace EasyCPDLC
         // Invoked from HandleDcduCompanionCommand's CDU arm.
         private void HandleCduLineSelect(bool rightSide, int index)
         {
+            // Any line-select changes the selection, so a previously armed transmit is
+            // cancelled; the handler below re-arms if this press is itself a transmit.
+            ClearCduArm();
+
             switch (cduPage)
             {
                 case CduPageId.Menu:
@@ -210,6 +235,7 @@ namespace EasyCPDLC
                     break;
             }
 
+            cduDisplayPanel.ExecArmed = cduArmedAction != null;
             cduDisplayPanel.RefreshDisplay();
         }
 
@@ -324,7 +350,7 @@ namespace EasyCPDLC
             IReadOnlyList<string> responses = message.Responses ?? Array.Empty<string>();
             for (int i = 0; i < responses.Count && i < 3; i++)
             {
-                grid.WriteLeft(CduLayout.DataRow(4 + i), "<" + responses[i], ReplyColour(responses[i]));
+                grid.WriteLeft(CduLayout.DataRow(4 + i), "<" + responses[i], ReplyColour(responses[i]), inverse: CduArmed("REPLY:" + i));
             }
 
             // Bottom-right LSKs (4,5,6): print actions + return.
@@ -397,7 +423,7 @@ namespace EasyCPDLC
 
             if (snapshot.PdcAllowReqClr)
             {
-                grid.WriteRight(CduLayout.DataRow(3), "REQ CLR>", CduColor.Green);
+                grid.WriteRight(CduLayout.DataRow(3), "REQ CLR>", CduColor.Green, inverse: CduArmed("REQCLR"));
             }
 
             // Left column: online CPDLC logon candidates on LSK 1..4.
@@ -409,7 +435,7 @@ namespace EasyCPDLC
                 grid.WriteLeft(CduLayout.LabelRow(i + 1), Truncate(candidates[i].Reason, CduGrid.HalfCols), CduColor.Cyan, small: true);
                 grid.WriteLeft(CduLayout.DataRow(i + 1),
                     "<" + Truncate(candidates[i].Code + " " + candidates[i].Controller, CduGrid.HalfCols - 1),
-                    candidates[i].TunedMatch ? CduColor.Green : CduColor.White);
+                    candidates[i].TunedMatch ? CduColor.Green : CduColor.White, inverse: CduArmed("LOGON:" + i));
             }
             if (candidates.Count == 0)
             {
@@ -418,7 +444,7 @@ namespace EasyCPDLC
 
             // Manual code entry via the scratchpad, then return.
             grid.WriteLeft(CduLayout.LabelRow(5), "MANUAL LOGON", CduColor.Cyan, small: true);
-            grid.WriteLeft(CduLayout.DataRow(5), "<LOGON", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(5), "<LOGON", CduColor.White, inverse: CduArmed("LOGON:M"));
             grid.WriteLeft(CduLayout.DataRow(6), "<RETURN", CduColor.White);
 
             RenderCduScratchpad(grid);
@@ -431,11 +457,14 @@ namespace EasyCPDLC
             {
                 if (index == 3)
                 {
-                    // REQ CLR: one-tap PDC clearance using the detected DCL logon code.
+                    // REQ CLR: arm the PDC clearance; EXEC transmits it.
                     if (CanQuickRequestClearance())
                     {
-                        _ = QuickRequestPredepClearanceAsync();
-                        cduStatusLine = "REQ CLR SENT";
+                        CduArm("REQCLR", "REQ CLR", () =>
+                        {
+                            _ = QuickRequestPredepClearanceAsync();
+                            cduStatusLine = "REQ CLR SENT";
+                        });
                     }
                     else
                     {
@@ -454,11 +483,11 @@ namespace EasyCPDLC
                     int position = index - 1;
                     if (position < cduLogonCandidates.Count)
                     {
-                        CduLogonTo(cduLogonCandidates[position]);
+                        CduLogonTo(cduLogonCandidates[position], "LOGON:" + position);
                     }
                     break;
                 case 5:
-                    CduLogonTo(cduScratchpad);
+                    CduLogonTo(cduScratchpad, "LOGON:M");
                     break;
                 case 6:
                     cduPage = CduPageId.Dlk;
@@ -466,7 +495,7 @@ namespace EasyCPDLC
             }
         }
 
-        private void CduLogonTo(string code)
+        private void CduLogonTo(string code, string armKey)
         {
             string clean = (code ?? string.Empty).Trim().ToUpperInvariant();
             if (clean.Length < 3)
@@ -476,8 +505,11 @@ namespace EasyCPDLC
             }
 
             cduScratchpad = string.Empty;
-            cduStatusLine = "LOGON SENT " + clean;
-            _ = Vns430RequestLogonAsync(clean);
+            CduArm(armKey, "LOGON " + clean, () =>
+            {
+                cduStatusLine = "LOGON SENT " + clean;
+                _ = Vns430RequestLogonAsync(clean);
+            });
         }
 
         private void HandleCduMessagesLsk(bool rightSide, int index)
@@ -516,7 +548,9 @@ namespace EasyCPDLC
                 int position = index - 4;
                 if (position >= 0 && position < responses.Count && position < 3)
                 {
-                    Vns430Reply(message, responses[position]);
+                    Vns430MessageSnapshot armMessage = message;
+                    string reply = responses[position];
+                    CduArm("REPLY:" + position, reply, () => Vns430Reply(armMessage, reply));
                 }
                 return;
             }
@@ -648,7 +682,7 @@ namespace EasyCPDLC
 
             grid.WriteLeft(CduLayout.DataRow(6), "<RETURN", CduColor.White);
             grid.WriteRight(CduLayout.DataRow(6), cduRequestSending ? "SENDING" : "SEND>",
-                cduRequestSending ? CduColor.Grey : CduColor.Green);
+                cduRequestSending ? CduColor.Grey : CduColor.Green, inverse: CduArmed("SEND"));
         }
 
         private void HandleCduRequestLsk(bool rightSide, int index)
@@ -663,7 +697,8 @@ namespace EasyCPDLC
             {
                 if (rightSide)
                 {
-                    CduSendCurrentWorkflow();
+                    // Arm the transmit; EXEC sends it.
+                    CduArm("SEND", "SEND REQUEST", CduSendCurrentWorkflow);
                 }
                 else
                 {
@@ -930,7 +965,7 @@ namespace EasyCPDLC
             }
             grid.WriteLeft(CduLayout.DataRow(6), "<RETURN", CduColor.White);
             grid.WriteRight(CduLayout.DataRow(6), cduLoadBusy ? "WORKING" : "GENERATE>",
-                cduLoadBusy ? CduColor.Grey : CduColor.Green);
+                cduLoadBusy ? CduColor.Grey : CduColor.Green, inverse: CduArmed("GENERATE"));
         }
 
         private void HandleCduLoadLsk(bool rightSide, int index)
@@ -954,7 +989,8 @@ namespace EasyCPDLC
 
             if (index == 6 && cduLoadSession != null)
             {
-                CduGenerateLoadsheet();
+                // Generating a loadsheet calls the external eLoadControl API, so arm it.
+                CduArm("GENERATE", "GENERATE LOADSHEET", CduGenerateLoadsheet);
             }
         }
 
@@ -1025,7 +1061,17 @@ namespace EasyCPDLC
             switch (command)
             {
                 case Vns430Command.CduClear:
-                    CduScratchpadBackspace();
+                    // CLR clears one scratchpad character, or cancels an armed action.
+                    if (cduArmedAction != null && cduScratchpad.Length == 0)
+                    {
+                        ClearCduArm();
+                        cduStatusLine = string.Empty;
+                        RefreshCduDisplay();
+                    }
+                    else
+                    {
+                        CduScratchpadBackspace();
+                    }
                     break;
                 case Vns430Command.CduDelete:
                     CduScratchpadClearAll();
@@ -1034,17 +1080,19 @@ namespace EasyCPDLC
                     CduScratchpadType('-');
                     break;
                 case Vns430Command.CduMenu:
+                    ClearCduArm();
                     cduPage = CduPageId.Menu;
                     RefreshCduDisplay();
                     break;
                 case Vns430Command.CduExec:
-                    if (cduPage == CduPageId.Request)
+                    // EXEC runs whatever transmit action is armed; nothing happens otherwise.
+                    if (cduArmedAction != null)
                     {
-                        CduSendCurrentWorkflow();
-                    }
-                    else if (cduPage == CduPageId.Load)
-                    {
-                        CduGenerateLoadsheet();
+                        Action pending = cduArmedAction;
+                        ClearCduArm();
+                        cduStatusLine = string.Empty;
+                        pending();
+                        RefreshCduDisplay();
                     }
                     break;
             }

@@ -45,6 +45,9 @@ namespace EasyCPDLC.VNS430.Cdu
 
         public CduGrid Grid { get; }
 
+        // Lights the EXEC annunciator when a transmit action is armed.
+        public bool ExecArmed { get; set; }
+
         public ICduDisplaySink Sink { get; set; } = NullCduDisplaySink.Instance;
 
         public event EventHandler<CduLskEventArgs> LskPressed;
@@ -115,6 +118,16 @@ namespace EasyCPDLC.VNS430.Cdu
             }
 
             DrawScreen(g, ToPixels(CduPanelLayout.Screen));
+
+            // EXEC annunciator. The artwork draws it lit (its true real-life look), which
+            // is what we show while a transmit action is armed. Otherwise paint the bar in
+            // the unlit bezel colour so it reads as off, switching between the two states.
+            if (!ExecArmed)
+            {
+                RectangleF execLight = ToPixels(CduPanelLayout.ExecLight);
+                using SolidBrush off = new(Color.FromArgb(38, 40, 38));
+                g.FillRectangle(off, execLight);
+            }
 
             if (pressedRect.HasValue)
             {
