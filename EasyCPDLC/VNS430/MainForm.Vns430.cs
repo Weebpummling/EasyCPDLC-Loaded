@@ -224,7 +224,12 @@ namespace EasyCPDLC
                     .Select(message => new Vns430MessageSnapshot
                     {
                         Source = message,
-                        Type = (message.type ?? string.Empty).Trim().ToUpperInvariant(),
+                        // Tag loadsheets by content so an inbound VA/eLoadControl loadsheet
+                        // (which arrives as a plain TELEX over Hoppie) shows as LOADSHEET in
+                        // the CDU and GNS430 lists rather than TELEX.
+                        Type = DatalinkPrinter.IsELoadControlLoadsheet(message)
+                            ? "LOADSHEET"
+                            : (message.type ?? string.Empty).Trim().ToUpperInvariant(),
                         Station = (message.recipient ?? string.Empty).Trim().ToUpperInvariant(),
                         Text = (message.message ?? string.Empty).Trim(),
                         Outbound = message.outbound,

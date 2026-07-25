@@ -18194,8 +18194,9 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
         }
 
         // The LSK-only CDU renders the 737NG CDU panel artwork; the base size matches the
-        // artwork's aspect ratio (1210 x 1888) so the panel is not distorted.
-        internal static readonly Size CduBaseSize = new(460, 718);
+        // artwork's aspect ratio (1210 x 1888) so the panel is not distorted. Sized for a
+        // comfortably readable default on load (640 x 999 keeps the 0.641 aspect).
+        internal static readonly Size CduBaseSize = new(640, 999);
 
         internal static Size MainWindowBaseSize(bool isBoeing, bool showArtwork)
         {
