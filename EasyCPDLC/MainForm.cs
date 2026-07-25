@@ -18400,7 +18400,10 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
 
         private void ConfigureInboundMessageSound()
         {
-            ConfigureSoundPlayer(messagePlayer, DcduStyleManager.IsBoeing ? "Notification3.wav" : "Notification2.wav");
+            // The CDU is a Boeing 737 unit, so it uses the Boeing ACARS chime like the
+            // Boeing DCDU; only the Airbus skin uses the Airbus tone.
+            bool boeingTone = DcduStyleManager.IsBoeing || DcduStyleManager.IsCdu;
+            ConfigureSoundPlayer(messagePlayer, boeingTone ? "Notification3.wav" : "Notification2.wav");
         }
 
         private void PlayInboundMessageSound()
