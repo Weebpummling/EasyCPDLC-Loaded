@@ -58,6 +58,17 @@ namespace EasyCPDLC.VNS430
         internal IReadOnlyList<string> Responses { get; init; } = new string[0];
     }
 
+    // A CPDLC logon candidate discovered from VATSIM/Hoppie online data, projected
+    // for the VNS430/CDU front ends from the backend's CpdlcDiscoveryResult.
+    internal sealed class Vns430CpdlcCandidate
+    {
+        internal string Code { get; init; } = string.Empty;
+        internal string Controller { get; init; } = string.Empty;
+        internal string Frequency { get; init; } = string.Empty;
+        internal string Reason { get; init; } = string.Empty;
+        internal bool TunedMatch { get; init; }
+    }
+
     internal sealed class Vns430BackendSnapshot
     {
         internal bool Connected { get; init; }
@@ -68,5 +79,14 @@ namespace EasyCPDLC.VNS430
         internal string Arrival { get; init; } = string.Empty;
         internal string Aircraft { get; init; } = string.Empty;
         internal IReadOnlyList<Vns430MessageSnapshot> Messages { get; init; } = new Vns430MessageSnapshot[0];
+
+        // Controller-online / datalink discovery, kept fresh by the backend's 15 s
+        // VATSIM + Hoppie refresh loop.
+        internal bool AtcUnitOnline { get; init; }
+        internal IReadOnlyList<Vns430CpdlcCandidate> CpdlcCandidates { get; init; } = new Vns430CpdlcCandidate[0];
+        internal string PdcStatus { get; init; } = string.Empty;
+        internal string PdcLogonCode { get; init; } = string.Empty;
+        internal string PdcController { get; init; } = string.Empty;
+        internal bool PdcAllowReqClr { get; init; }
     }
 }

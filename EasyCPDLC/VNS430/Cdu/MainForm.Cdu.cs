@@ -19,6 +19,7 @@ namespace EasyCPDLC
         {
             Menu,
             Dlk,
+            Logon,
             Messages,
             MessageDetail,
             Atc,
@@ -43,6 +44,9 @@ namespace EasyCPDLC
         // eLoadControl loadsheet state.
         private Vns430LoadControlSession cduLoadSession;
         private bool cduLoadBusy;
+
+        // Logon page: LSK index -> candidate logon code.
+        private readonly List<string> cduLogonCandidates = new();
 
         internal bool IsCduModeActive() => DcduStyleManager.IsCdu;
 
@@ -126,6 +130,9 @@ namespace EasyCPDLC
                 case CduPageId.Dlk:
                     HandleCduDlkLsk(rightSide, index);
                     break;
+                case CduPageId.Logon:
+                    HandleCduLogonLsk(rightSide, index);
+                    break;
                 case CduPageId.Messages:
                     HandleCduMessagesLsk(rightSide, index);
                     break;
@@ -172,6 +179,9 @@ namespace EasyCPDLC
                     break;
                 case CduPageId.Dlk:
                     RenderCduDlk(grid, snapshot);
+                    break;
+                case CduPageId.Logon:
+                    RenderCduLogon(grid, snapshot);
                     break;
                 case CduPageId.Messages:
                     RenderCduMessages(grid, snapshot);
@@ -239,12 +249,14 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(2), "<RELOAD FP", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(3), "<PRINT LAST", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(4), "<REPRINT", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(5), "<LOGON", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
 
             // Right column: live status read-out (the old top-row info, now in the display).
             RenderCduRightStatus(grid, 1, "VATSIM", snapshot.Connected ? "CONNECTED" : "OFFLINE",
                 snapshot.Connected ? CduColor.Green : CduColor.Amber);
-            RenderCduRightStatus(grid, 2, "ATS UNIT", string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? "----" : snapshot.CurrentAtcUnit, CduColor.Green);
+            RenderCduRightStatus(grid, 2, "ATS UNIT", string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? "----" : snapshot.CurrentAtcUnit,
+                string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? CduColor.Grey : (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber));
             RenderCduRightStatus(grid, 3, "ROUTE", BuildRouteText(snapshot), CduColor.White);
             RenderCduRightStatus(grid, 4, "LOGON", string.IsNullOrWhiteSpace(snapshot.PendingLogon) ? "----" : snapshot.PendingLogon, CduColor.Cyan);
         }
@@ -351,8 +363,108 @@ namespace EasyCPDLC
                 case 2: ReloadFlightPlanButton_Click(mainReloadFlightPlanButton, EventArgs.Empty); break;
                 case 3: PrintButton_Click(refreshButtonVisual, EventArgs.Empty); break;
                 case 4: ReprintButton_Click(boeingReprintButton, EventArgs.Empty); break;
+                case 5:
+                    // Freshen discovery from the latest VATSIM/Hoppie data on entry.
+                    UpdateCpdlcDiscoveryFromVatsim();
+                    cduScratchpad = string.Empty;
+                    cduStatusLine = string.Empty;
+                    cduPage = CduPageId.Logon;
+                    break;
                 case 6: cduPage = CduPageId.Menu; break;
             }
+        }
+
+        private void RenderCduLogon(CduGrid grid, Vns430BackendSnapshot snapshot)
+        {
+            RenderCduHeader(grid, "CPDLC LOGON", snapshot);
+
+            // Right column: the station we are logged on to, and PDC availability.
+            string unit = string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? "----" : snapshot.CurrentAtcUnit;
+            grid.WriteRight(CduLayout.LabelRow(1), "LOGGED ON", CduColor.Cyan, small: true);
+            grid.WriteRight(CduLayout.DataRow(1), unit,
+                string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? CduColor.Grey : (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber));
+
+            string pdc = string.IsNullOrWhiteSpace(snapshot.PdcStatus) ? "----" : snapshot.PdcStatus;
+            if (!string.IsNullOrWhiteSpace(snapshot.PdcLogonCode))
+            {
+                pdc += " " + snapshot.PdcLogonCode;
+            }
+            grid.WriteRight(CduLayout.LabelRow(2), "PDC", CduColor.Cyan, small: true);
+            grid.WriteRight(CduLayout.DataRow(2), Truncate(pdc, CduGrid.HalfCols),
+                snapshot.PdcAllowReqClr ? CduColor.Green : CduColor.White);
+
+            // Left column: online CPDLC logon candidates on LSK 1..4.
+            cduLogonCandidates.Clear();
+            List<Vns430CpdlcCandidate> candidates = snapshot.CpdlcCandidates.Take(4).ToList();
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                cduLogonCandidates.Add(candidates[i].Code);
+                grid.WriteLeft(CduLayout.LabelRow(i + 1), Truncate(candidates[i].Reason, CduGrid.HalfCols), CduColor.Cyan, small: true);
+                grid.WriteLeft(CduLayout.DataRow(i + 1),
+                    "<" + Truncate(candidates[i].Code + " " + candidates[i].Controller, CduGrid.HalfCols - 1),
+                    candidates[i].TunedMatch ? CduColor.Green : CduColor.White);
+            }
+            if (candidates.Count == 0)
+            {
+                grid.WriteLeft(CduLayout.DataRow(2), " NO CPDLC ATC FOUND", CduColor.Grey);
+            }
+
+            // Manual code entry via the scratchpad, then return.
+            grid.WriteLeft(CduLayout.LabelRow(5), "MANUAL LOGON", CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(5), "<LOGON", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(6), "<RETURN", CduColor.White);
+
+            if (!string.IsNullOrWhiteSpace(cduStatusLine))
+            {
+                grid.WriteCentered(CduLayout.ScratchpadRow, Truncate(cduStatusLine, CduGrid.Cols), CduColor.Amber, small: true);
+            }
+            else
+            {
+                grid.WriteCentered(CduLayout.ScratchpadRow, "[" + Truncate(cduScratchpad, CduGrid.Cols - 2) + "]", CduColor.White);
+            }
+        }
+
+        private void HandleCduLogonLsk(bool rightSide, int index)
+        {
+            cduStatusLine = string.Empty;
+            if (rightSide)
+            {
+                return; // right column is read-only status (REQ CLR is a separate follow-up)
+            }
+
+            switch (index)
+            {
+                case 1:
+                case 2:
+                case 3:
+                case 4:
+                    int position = index - 1;
+                    if (position < cduLogonCandidates.Count)
+                    {
+                        CduLogonTo(cduLogonCandidates[position]);
+                    }
+                    break;
+                case 5:
+                    CduLogonTo(cduScratchpad);
+                    break;
+                case 6:
+                    cduPage = CduPageId.Dlk;
+                    break;
+            }
+        }
+
+        private void CduLogonTo(string code)
+        {
+            string clean = (code ?? string.Empty).Trim().ToUpperInvariant();
+            if (clean.Length < 3)
+            {
+                cduStatusLine = "ENTER 3-4 CHAR CODE";
+                return;
+            }
+
+            cduScratchpad = string.Empty;
+            cduStatusLine = "LOGON SENT " + clean;
+            _ = Vns430RequestLogonAsync(clean);
         }
 
         private void HandleCduMessagesLsk(bool rightSide, int index)
@@ -603,7 +715,7 @@ namespace EasyCPDLC
             RefreshCduDisplay();
         }
 
-        private bool CduScratchpadActive() => cduPage is CduPageId.Request or CduPageId.Setup;
+        private bool CduScratchpadActive() => cduPage is CduPageId.Request or CduPageId.Setup or CduPageId.Logon;
 
         private void CduScratchpadType(char c)
         {

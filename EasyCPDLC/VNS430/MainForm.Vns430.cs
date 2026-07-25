@@ -190,16 +190,42 @@ namespace EasyCPDLC
                     })
                     .ToList();
 
+            string currentUnit = (CurrentATCUnit ?? string.Empty).Trim().ToUpperInvariant();
+
+            // Project the backend's live CPDLC/PDC discovery (refreshed by the 15 s
+            // VATSIM + Hoppie loop) so the panel and CDU can show who is online and
+            // offer a logon without re-implementing any of the discovery logic.
+            List<Vns430CpdlcCandidate> candidates = cpdlcDiscoveryCandidates
+                .Where(candidate => !string.IsNullOrWhiteSpace(candidate.Code))
+                .Select(candidate => new Vns430CpdlcCandidate
+                {
+                    Code = candidate.Code,
+                    Controller = candidate.Controller,
+                    Frequency = candidate.FrequencyText,
+                    Reason = string.IsNullOrWhiteSpace(candidate.MatchReason) ? candidate.Reason : candidate.MatchReason,
+                    TunedMatch = candidate.IsTunedFrequencyMatch
+                })
+                .ToList();
+
+            string pdcStatus = (datalinkStatusText ?? string.Empty)
+                .Replace("PDC", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
+
             return new Vns430BackendSnapshot
             {
                 Connected = Connected,
                 Callsign = (callsign ?? string.Empty).Trim().ToUpperInvariant(),
-                CurrentAtcUnit = (CurrentATCUnit ?? string.Empty).Trim().ToUpperInvariant(),
+                CurrentAtcUnit = currentUnit,
                 PendingLogon = (pendingLogon ?? string.Empty).Trim().ToUpperInvariant(),
                 Departure = AirbusAocDeparture(),
                 Arrival = AirbusAocArrival(),
                 Aircraft = AirbusAocAircraft(),
-                Messages = messages
+                Messages = messages,
+                AtcUnitOnline = Connected && currentUnit.Length > 0 && IsHoppieLogonOnline(currentUnit),
+                CpdlcCandidates = candidates,
+                PdcStatus = pdcStatus,
+                PdcLogonCode = pdcDiscoveryLogonCode ?? string.Empty,
+                PdcController = pdcDiscoveryController ?? string.Empty,
+                PdcAllowReqClr = pdcDiscoveryAllowReqClr
             };
         }
 
