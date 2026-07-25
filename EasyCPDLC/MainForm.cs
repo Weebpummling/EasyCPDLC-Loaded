@@ -19620,7 +19620,12 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
             CheckNewVersion();
             //CheckAdministrator();
             InitialisePopupMenu();
-            ShowSetupForm();
+            // Credentials are managed centrally now (tray "Connection credentials..." and
+            // the CDU), so the app no longer prompts with the CID/Hoppie login dialog at
+            // startup. Seed the runtime values from the saved settings instead; if they are
+            // blank the connection stays gated until the pilot sets them.
+            cid = SavedCID;
+            logonCode = SavedHoppieCode;
             Setup();
 
             RegisterEasyCpdlcUriProtocol();
