@@ -161,6 +161,7 @@ namespace EasyCPDLC.VNS430
             Mix(ref hash, load.AircraftIndex);
             Mix(ref hash, load.CabinIndex);
             Mix(ref hash, load.FormatIndex);
+            Mix(ref hash, load.LoadingTimeIndex);
             Mix(ref hash, load.Reference == null
                 ? 0
                 : RuntimeHelpers.GetHashCode(load.Reference));
@@ -667,9 +668,11 @@ namespace EasyCPDLC.VNS430
             Vns430LoadControlSession load = state.LoadSession;
             string[] labels = new[] { "AIRCRAFT", "CABIN", "FORMAT" }
                 .Concat(load.PassengerSplit.Select(item => "PAX " + item.Code + "/" + item.Capacity))
+                .Concat(new[] { "LOAD TIME" })
                 .ToArray();
             string[] values = new[] { load.Aircraft.Icao, load.Cabin, load.Format.Name }
                 .Concat(load.PassengerSplit.Select(item => item.Passengers.ToString()))
+                .Concat(new[] { load.LoadingTimeLabel })
                 .ToArray();
             int first = Math.Max(0, state.SelectedIndex - 4);
             for (int index = first; index < Math.Min(labels.Length, first + 6); index++)

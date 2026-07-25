@@ -189,7 +189,11 @@ namespace EasyCPDLC.VNS430
                 Vns430WorkflowKind.AtcWhenCanWe => new() { Kind = kind, Title = "WHEN CAN WE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Options("TYPE", "REQUEST", "HIGHER", "LOWER", "BACK ROUTE", "CLIMB", "DESCENT", "MACH", "SPEED", "DIRECT"), Text("VALUE", "VALUE", 8), Text("REMARKS", "REMARKS", 48) } },
                 Vns430WorkflowKind.AtcFreeText => new() { Kind = kind, Title = "ATC FREE TEXT", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("TEXT", "MESSAGE", 80, true) } },
                 Vns430WorkflowKind.AtcPositionReport => new() { Kind = kind, Title = "POSITION REPORT", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("FIX", "PPOS FIX", 7, true), Text("TIME", "TIME Z", 4, true, DateTime.UtcNow.ToString("HHmm")), Text("FL", "FL", 3, true), Text("NEXT", "NEXT FIX", 7, true), Text("ETA", "NEXT ETA", 4), Text("THEN", "THEN FIX", 7) } },
-                Vns430WorkflowKind.AocTelex => new() { Kind = kind, Title = "AOC TELEX", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true), Text("TEXT", "MESSAGE", 80, true) } },
+                // VIA picks the ACARS network the telex leaves on. The default follows
+                // the active ATC network; VA traffic normally lives on Hoppie, so the
+                // choice is one cycle away either direction (the first option is the
+                // default).
+                Vns430WorkflowKind.AocTelex => new() { Kind = kind, Title = "AOC TELEX", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true), Options("VIA", "SEND VIA", snapshot.SayIntentionsNetwork ? new[] { "SI", "HOPPIE" } : new[] { "HOPPIE", "SI" }), Text("TEXT", "MESSAGE", 80, true) } },
                 Vns430WorkflowKind.AocMetar => new() { Kind = kind, Title = "METAR REQUEST", Fields = { Text("STATION", "STATION", 4, true, station) } },
                 // The ATIS TYPE default follows the same phase logic as the station
                 // prefill (the first option is the default).
@@ -216,10 +220,17 @@ namespace EasyCPDLC.VNS430
         internal int FormatIndex { get; set; }
         internal List<PassengerClassAllocation> PassengerSplit { get; private set; } = new();
 
+        // Simulated ground-crew loading time: how long after GENERATE the finished
+        // loadsheet is delivered to the inbox.
+        internal static readonly int[] LoadingTimeMinutes = { 0, 5, 15, 30 };
+        internal int LoadingTimeIndex { get; set; }
+        internal int LoadingMinutes => LoadingTimeMinutes[Math.Clamp(LoadingTimeIndex, 0, LoadingTimeMinutes.Length - 1)];
+        internal string LoadingTimeLabel => LoadingMinutes <= 0 ? "INSTANT" : LoadingMinutes + " MIN";
+
         internal ELoadAircraft Aircraft => Reference.Aircraft[Math.Clamp(AircraftIndex, 0, Reference.Aircraft.Count - 1)];
         internal string Cabin => Aircraft.CabinConfigurations[Math.Clamp(CabinIndex, 0, Aircraft.CabinConfigurations.Count - 1)];
         internal ELoadFormat Format => Reference.Formats[Math.Clamp(FormatIndex, 0, Reference.Formats.Count - 1)];
-        internal int FieldCount => 3 + PassengerSplit.Count;
+        internal int FieldCount => 4 + PassengerSplit.Count;
 
         internal void RebuildPassengerSplit()
         {

@@ -365,6 +365,7 @@ namespace EasyCPDLC
                 // Either phase source can flip the prefill: the VATSIM engine when
                 // connected, the SimConnect telemetry tracker otherwise (or both).
                 PreferArrivalStation = flightPhaseEnrouteSeen || simPhase.ReachedCruise,
+                SayIntentionsNetwork = siMode,
                 Messages = messages,
                 AtcUnitOnline = currentUnit.Length > 0 &&
                     (siMode
@@ -535,6 +536,14 @@ namespace EasyCPDLC
                         break;
 
                     case Vns430WorkflowKind.AocTelex:
+                        // The VIA field picks the ACARS network explicitly; content
+                        // routing cannot know which side a free-text telex belongs to.
+                        AcarsRoute telexRoute = workflow.Value("VIA") == "SI"
+                            ? AcarsRoute.SayIntentions
+                            : AcarsRoute.Hoppie;
+                        await SendCPDLCMessage(recipient, "TELEX", message, true, telexRoute);
+                        break;
+
                     case Vns430WorkflowKind.AocPreDeparture:
                         await SendCPDLCMessage(recipient, "TELEX", message);
                         break;
@@ -708,6 +717,28 @@ namespace EasyCPDLC
                 DateTime requestedUtc = DateTime.UtcNow;
                 ELoadLoadsheetResult result = await new ELoadControlClient()
                     .GenerateLoadsheetAsync(SavedELoadControlApiKey, request, CancellationToken.None);
+                Vns430LoadEditionByFlight[session.Flight.FlightKey] = Math.Max(edition, result.EditionNumber);
+
+                // Simulated loading time: the sheet is generated now but delivered when
+                // the ground crew "finishes". INSTANT keeps the one-second minimum.
+                int loadingMinutes = session.LoadingMinutes;
+                if (loadingMinutes > 0)
+                {
+                    SimbriefLoadsheetData flight = session.Flight;
+                    _ = Task.Run(async () =>
+                    {
+                        await Task.Delay(TimeSpan.FromMinutes(loadingMinutes));
+                        try
+                        {
+                            BeginInvoke(new Action(() => ReceiveELoadControlLoadsheet(result, flight, false)));
+                        }
+                        catch (Exception)
+                        {
+                            // The form is gone; nothing to deliver to.
+                        }
+                    });
+                    return new Vns430OperationResult { Success = true, Status = "LOADSHEET IN " + loadingMinutes + " MIN" };
+                }
 
                 // Same minimum reply latency as the datalink: a loadsheet generated in
                 // a few hundred milliseconds reads as fake when it appears instantly.
@@ -717,7 +748,6 @@ namespace EasyCPDLC
                     await Task.Delay(MinimumReplyLatency - elapsed);
                 }
 
-                Vns430LoadEditionByFlight[session.Flight.FlightKey] = Math.Max(edition, result.EditionNumber);
                 ReceiveELoadControlLoadsheet(result, session.Flight, false);
                 return new Vns430OperationResult { Success = true, Status = "LOADSHEET RECEIVED" };
             }

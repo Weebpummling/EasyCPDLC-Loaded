@@ -1230,6 +1230,13 @@ namespace EasyCPDLC.VNS430
             {
                 loadSession.FormatIndex = Wrap(loadSession.FormatIndex + direction, loadSession.Reference.Formats.Count);
             }
+            else if (selectedIndex == 3 + loadSession.PassengerSplit.Count)
+            {
+                // LOAD TIME sits below the PAX rows: simulated ground-crew loading time.
+                loadSession.LoadingTimeIndex = Wrap(
+                    loadSession.LoadingTimeIndex + direction,
+                    Vns430LoadControlSession.LoadingTimeMinutes.Length);
+            }
             else
             {
                 int passengerIndex = selectedIndex - 3;

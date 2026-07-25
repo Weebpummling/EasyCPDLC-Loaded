@@ -83,6 +83,10 @@ namespace EasyCPDLC.VNS430
         // True once the flight has reached cruise (the enroute phase marker): weather
         // prefills switch from the departure airport to the destination.
         internal bool PreferArrivalStation { get; init; }
+
+        // Whether the SI network is active, so workflows can default network choices
+        // (e.g. the TELEX VIA field) to the side the pilot is flying on.
+        internal bool SayIntentionsNetwork { get; init; }
         internal IReadOnlyList<Vns430MessageSnapshot> Messages { get; init; } = new Vns430MessageSnapshot[0];
 
         // Controller-online / datalink discovery, kept fresh by the backend's 15 s

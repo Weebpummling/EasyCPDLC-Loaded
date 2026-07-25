@@ -1629,6 +1629,9 @@ namespace EasyCPDLC
             grid.WriteRight(CduLayout.LabelRow(3), "PAX", CduColor.Cyan, small: true);
             grid.WriteRight(CduLayout.DataRow(3), session.Flight.PassengerCount.ToString(), CduColor.White);
 
+            // Simulated ground-crew loading time; the sheet is delivered after this.
+            RenderCduSetupField(grid, 4, true, "LOAD TIME", session.LoadingTimeLabel);
+
             if (!string.IsNullOrWhiteSpace(cduStatusLine))
             {
                 grid.WriteCentered(CduLayout.ScratchpadRow, Truncate(cduStatusLine, CduGrid.Cols), CduColor.Amber, small: true);
@@ -1657,11 +1660,22 @@ namespace EasyCPDLC
                 return;
             }
 
+            if (index == 4 && cduLoadSession != null)
+            {
+                CycleLoadingTime(cduLoadSession);
+                return;
+            }
+
             if (index == 6 && cduLoadSession != null)
             {
                 // Generating a loadsheet calls the external eLoadControl API, so arm it.
                 CduArm("GENERATE", "GENERATE LOADSHEET", CduGenerateLoadsheet);
             }
+        }
+
+        private static void CycleLoadingTime(Vns430LoadControlSession s)
+        {
+            s.LoadingTimeIndex = (s.LoadingTimeIndex + 1) % Vns430LoadControlSession.LoadingTimeMinutes.Length;
         }
 
         private static void CycleAircraft(Vns430LoadControlSession s)
