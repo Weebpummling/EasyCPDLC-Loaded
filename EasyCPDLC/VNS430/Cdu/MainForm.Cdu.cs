@@ -468,15 +468,14 @@ namespace EasyCPDLC
             // actually opens a datalink session. CONNECT/DISCONNECT used to sit here,
             // but it only ever toggled the VATSIM client connection, which is neither
             // required on SI nor the thing a pilot comes to this page to do.
-            // Datalink actions at the top, printing at the bottom, with a gap between
-            // so the two print entries do not read as one pair of adjacent buttons.
+            // Printing lives on the pages where a message is actually on screen, so
+            // there is nothing here to print FROM. This page is logon and flight plan.
             grid.WriteLeft(CduLayout.DataRow(1), "<LOGON", CduColor.White);
-            // "RELOAD VATSIM FP" does not fit the twelve columns a left entry has, so
-            // the network qualifies it from the caption row instead of being clipped.
             grid.WriteLeft(CduLayout.LabelRow(2), "VATSIM PLAN", CduColor.Cyan, small: true);
-            grid.WriteLeft(CduLayout.DataRow(2), "<RELOAD FP", CduColor.White, inverse: CduArmed("RELOADFP"));
-            grid.WriteLeft(CduLayout.DataRow(4), "<PRINT LAST", CduColor.White);
-            grid.WriteLeft(CduLayout.DataRow(5), "<REPRINT", CduColor.White);
+            // 13 columns, one more than a half row, so written from column 0 directly.
+            // Safe because the ROUTE value opposite is capped at 11 below, which leaves
+            // column 12 clear between them.
+            grid.Write(CduLayout.DataRow(2), 0, "<LOAD/REFRESH", CduColor.White, inverse: CduArmed("RELOADFP"));
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
 
             // Right column: live status read-out (the old top-row info, now in the display).
@@ -492,7 +491,10 @@ namespace EasyCPDLC
                 : "----";
             RenderCduRightStatus(grid, 1, "ATS UNIT", unitText,
                 loggedOn ? (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber) : CduColor.Grey);
-            RenderCduRightStatus(grid, 2, "ROUTE", BuildRouteText(snapshot), CduColor.White);
+            // Capped at 11 rather than the usual 12 so it cannot reach column 12 and
+            // collide with the wider LOAD/REFRESH entry opposite it.
+            grid.WriteRight(CduLayout.LabelRow(2), "ROUTE", CduColor.Cyan, small: true);
+            grid.WriteRight(CduLayout.DataRow(2), Truncate(BuildRouteText(snapshot), CduGrid.HalfCols - 1), CduColor.White);
             RenderCduRightStatus(grid, 3, "LOGON", string.IsNullOrWhiteSpace(snapshot.PendingLogon) ? "----" : DatalinkRouting.DisplayStation(snapshot.PendingLogon), CduColor.Cyan);
         }
 
@@ -709,8 +711,6 @@ namespace EasyCPDLC
                         cduStatusLine = "FP RELOADED";
                     });
                     break;
-                case 4: PrintButton_Click(refreshButtonVisual, EventArgs.Empty); break;
-                case 5: ReprintButton_Click(boeingReprintButton, EventArgs.Empty); break;
                 case 6: cduPage = CduPageId.Menu; break;
             }
         }
