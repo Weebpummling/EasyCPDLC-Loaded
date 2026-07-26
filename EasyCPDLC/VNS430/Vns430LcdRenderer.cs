@@ -538,7 +538,10 @@ namespace EasyCPDLC.VNS430
                     int y = 68 + (index * 12);
                     Color colour = candidate.TunedMatch ? Green : White;
                     Text(display, 66, y, Fit(DatalinkRouting.DisplayStation(candidate.Code), 5, "----"), colour);
-                    TextRight(display, 230, y, Fit(candidate.Controller, 11, string.Empty), colour);
+                    // The network this logon would leave on, so the row cannot be
+                    // mistaken for the other side's.
+                    Text(display, 104, y, Fit(candidate.Reason, 11, string.Empty), Cyan);
+                    TextRight(display, 230, y, Fit(candidate.Controller, 10, string.Empty), colour);
                 }
             }
             else

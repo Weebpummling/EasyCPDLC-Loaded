@@ -321,12 +321,6 @@ namespace EasyCPDLC
                     Code = candidate.Code,
                     Controller = candidate.Controller,
                     Frequency = candidate.FrequencyText,
-                    // In SI mode the discovered stations are the OTHER network's, so
-                    // caption them VATSIM - the pilot may be on both (SI hands off to
-                    // VATSIM controllers) and needs to see which side each row is.
-                    Reason = siNetworkActive
-                        ? "VATSIM"
-                        : (string.IsNullOrWhiteSpace(candidate.MatchReason) ? candidate.Reason : candidate.MatchReason),
                     TunedMatch = candidate.IsTunedFrequencyMatch
                 })
                 .ToList();
@@ -347,6 +341,56 @@ namespace EasyCPDLC
                     TunedMatch = false
                 });
             }
+
+            // Fill any remaining slots with well-known region ATSUs for this routing.
+            // Discovery only finds controllers already matched to the flight, which
+            // leaves nothing to log on to at flight start - the KUSA case. Live
+            // candidates keep their priority; these are suggestions behind them.
+            if (candidates.Count < 4)
+            {
+                bool simbriefBacked = siNetworkActive || PdcRoutesToSayIntentions;
+                string dep = simbriefBacked ? SayIntentionsDeparture() : AirbusAocDeparture();
+                string arr = simbriefBacked ? SayIntentionsArrival() : AirbusAocArrival();
+
+                foreach (CpdlcAtsuDirectory.Atsu unit in CpdlcAtsuDirectory.SuggestFor(dep, arr))
+                {
+                    if (candidates.Count >= 4)
+                    {
+                        break;
+                    }
+                    if (candidates.Any(c => string.Equals(c.Code, unit.Code, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        continue;
+                    }
+
+                    candidates.Add(new Vns430CpdlcCandidate
+                    {
+                        Code = unit.Code,
+                        Controller = unit.Name,
+                        Frequency = string.Empty,
+                        TunedMatch = false
+                    });
+                }
+            }
+
+            // Caption every row with the network the logon will ACTUALLY leave on,
+            // decided by the same routing rule the sender uses - not by where the code
+            // came from. This matters because in SI mode every CPDLC packet goes to
+            // SayIntentions, so a VATSIM station code would be sent to SI; the pilot
+            // has to be able to see that before pressing EXEC.
+            candidates = candidates
+                .Select(candidate => new Vns430CpdlcCandidate
+                {
+                    Code = candidate.Code,
+                    Controller = candidate.Controller,
+                    Frequency = candidate.Frequency,
+                    TunedMatch = candidate.TunedMatch,
+                    Reason = DatalinkRouting.RoutesToSayIntentions(
+                        AcarsRoute.Auto, "CPDLC", candidate.Code, siNetworkActive)
+                        ? "VIA SI"
+                        : "VIA HOPPIE"
+                })
+                .ToList();
 
             string pdcStatus = (datalinkStatusText ?? string.Empty)
                 .Replace("PDC", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
