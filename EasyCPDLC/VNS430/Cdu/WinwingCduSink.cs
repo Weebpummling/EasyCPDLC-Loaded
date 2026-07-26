@@ -48,7 +48,13 @@ namespace EasyCPDLC.VNS430.Cdu
         private static readonly TimeSpan FastRetryDelay = TimeSpan.FromMilliseconds(250);
         private const int FastRetryLimit = 3;
         private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(2);
-        private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(2);
+
+        // Generous on purpose. MobiFlight has to claim the CDU over HID before it
+        // completes the websocket upgrade, which can take several seconds on a cold
+        // device. A tight timeout here aborts mid-handshake and retries forever, which
+        // looks exactly like "the link never connects" while piling up half-open
+        // sockets - the connection is only bounded so a dead server cannot wedge us.
+        private static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(20);
         private int consecutiveFailures;
 
         // Selecting a font makes MobiFlight write glyph bitmaps into the device's flash.
@@ -146,9 +152,15 @@ namespace EasyCPDLC.VNS430.Cdu
                         Interlocked.CompareExchange(ref pending, frame, null);
                     }
 
+                    // Fast retry is for a hiccup on a link that was already up. A
+                    // connect that never completed must back off instead, or we hammer
+                    // a server that is not ready and leave a pile of half-open sockets.
+                    bool hadLink = connected;
                     DropSocket();
                     consecutiveFailures += 1;
-                    TimeSpan delay = consecutiveFailures <= FastRetryLimit ? FastRetryDelay : RetryDelay;
+                    TimeSpan delay = hadLink && consecutiveFailures <= FastRetryLimit
+                        ? FastRetryDelay
+                        : RetryDelay;
                     try
                     {
                         await Task.Delay(delay, token).ConfigureAwait(false);
