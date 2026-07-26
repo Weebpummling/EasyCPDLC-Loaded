@@ -333,7 +333,11 @@ namespace EasyCPDLC
             // consistent way out of an armed action on every page.
             if (cduArmedAction != null)
             {
-                grid.WriteLeft(CduLayout.DataRow(CduLayout.LskCount), "<ERASE", CduColor.Amber);
+                // Padded across the half row: this overwrites whatever the page put
+                // there, and "<ERASE" alone is shorter than "<RETURN", so the tail of
+                // the old label was left behind reading "<ERASEN".
+                grid.WriteLeft(CduLayout.DataRow(CduLayout.LskCount),
+                    "<ERASE?".PadRight(CduGrid.HalfCols), CduColor.Amber);
             }
 
             cduDisplayPanel.ExecArmed = cduArmedAction != null;
@@ -448,7 +452,9 @@ namespace EasyCPDLC
         private bool CduSetupNeedsAttention()
         {
             bool simbriefMissing = string.IsNullOrWhiteSpace(SimbriefID);
-            bool networkMissing = ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions
+            // Follows the LOGON VIA selection rather than the retired ATC NETWORK
+            // switch, so the credential flagged is the one the pilot's logons need.
+            bool networkMissing = PdcRoutesToSayIntentions
                 ? string.IsNullOrWhiteSpace(SavedSayIntentionsApiKey)
                 : string.IsNullOrWhiteSpace(SavedHoppieCode);
             return simbriefMissing || networkMissing;
@@ -462,10 +468,15 @@ namespace EasyCPDLC
             // actually opens a datalink session. CONNECT/DISCONNECT used to sit here,
             // but it only ever toggled the VATSIM client connection, which is neither
             // required on SI nor the thing a pilot comes to this page to do.
+            // Datalink actions at the top, printing at the bottom, with a gap between
+            // so the two print entries do not read as one pair of adjacent buttons.
             grid.WriteLeft(CduLayout.DataRow(1), "<LOGON", CduColor.White);
+            // "RELOAD VATSIM FP" does not fit the twelve columns a left entry has, so
+            // the network qualifies it from the caption row instead of being clipped.
+            grid.WriteLeft(CduLayout.LabelRow(2), "VATSIM PLAN", CduColor.Cyan, small: true);
             grid.WriteLeft(CduLayout.DataRow(2), "<RELOAD FP", CduColor.White, inverse: CduArmed("RELOADFP"));
-            grid.WriteLeft(CduLayout.DataRow(3), "<PRINT LAST", CduColor.White);
-            grid.WriteLeft(CduLayout.DataRow(4), "<REPRINT", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(4), "<PRINT LAST", CduColor.White);
+            grid.WriteLeft(CduLayout.DataRow(5), "<REPRINT", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
 
             // Right column: live status read-out (the old top-row info, now in the display).
@@ -698,8 +709,8 @@ namespace EasyCPDLC
                         cduStatusLine = "FP RELOADED";
                     });
                     break;
-                case 3: PrintButton_Click(refreshButtonVisual, EventArgs.Empty); break;
-                case 4: ReprintButton_Click(boeingReprintButton, EventArgs.Empty); break;
+                case 4: PrintButton_Click(refreshButtonVisual, EventArgs.Empty); break;
+                case 5: ReprintButton_Click(boeingReprintButton, EventArgs.Empty); break;
                 case 6: cduPage = CduPageId.Menu; break;
             }
         }
@@ -1242,26 +1253,20 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(3), "<TECHNICAL", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(4), "<WINWING", CduColor.White);
 
-            // Right column: instrument selector (CDU <-> GNS430) plus the network/weather
-            // cycles. The Airbus/Boeing skins are hidden, so the instrument choices are the
-            // CDU and the GNS430 panel.
+            // Right column: instrument selector (CDU <-> GNS430) and weather source.
+            //
+            // ATC NETWORK and LOGON VIA used to live here too. Both are gone: the
+            // network is now chosen per logon on the LOGON page, next to the thing it
+            // affects, so a second global switch could only contradict it.
             RenderCduSetupField(grid, 1, true, "INSTRUMENT", InstrumentText());
-            RenderCduSetupField(grid, 2, true, "ATC NETWORK", AtcNetworkText());
-            RenderCduSetupField(grid, 3, true, "WX SOURCE", WxSourceText());
+            RenderCduSetupField(grid, 2, true, "WX SOURCE", WxSourceText());
 
             // Hardware keys: gates the MSFS module's CDU/DCDU L-vars so a physical CDU
             // (e.g. WinWing) can drive the LSKs and keypad through MobiFlight.
-            RenderCduSetupField(grid, 4, true, "HW KEYS", IsDcduCompanionModeEnabled() ? "ON" : "OFF");
-
-            // Where the PDC request goes. AUTO follows ATC NETWORK; pilots flying SI
-            // sessions handed off to VATSIM controllers can force either side.
-            RenderCduSetupField(grid, 5, true, "LOGON VIA", SavedPdcVia);
+            RenderCduSetupField(grid, 3, true, "HW KEYS", IsDcduCompanionModeEnabled() ? "ON" : "OFF");
 
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
-
-        private static string AtcNetworkText() =>
-            ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions ? "SI" : "VATSIM";
 
         // WX source display: AUTO when following the network, otherwise the chosen source.
         private static string WxSourceText()
@@ -1322,20 +1327,31 @@ namespace EasyCPDLC
 
         private void RenderCduSetupTechnical(CduGrid grid, Vns430BackendSnapshot snapshot)
         {
-            List<(string Text, CduColor Colour, bool Small)> rows = new();
+            // Each entry is kept together as a group. Paginating by raw row count split
+            // a long value from its own label - the SayIntentions key in particular,
+            // which wraps over several rows and straddled the page break.
+            List<List<(string Text, CduColor Colour, bool Small)>> entries = new();
 
             void AddEntry(string label, string value)
             {
-                rows.Add((label, CduColor.Cyan, true));
+                List<(string Text, CduColor Colour, bool Small)> entry = new()
+                {
+                    (label, CduColor.Cyan, true)
+                };
+
                 if (string.IsNullOrWhiteSpace(value))
                 {
-                    rows.Add(("----", CduColor.Grey, false));
-                    return;
+                    entry.Add(("----", CduColor.Grey, false));
                 }
-                foreach (string line in WrapCduText(value, CduGrid.Cols))
+                else
                 {
-                    rows.Add((line, CduColor.Green, false));
+                    foreach (string line in WrapCduText(value, CduGrid.Cols))
+                    {
+                        entry.Add((line, CduColor.Green, false));
+                    }
                 }
+
+                entries.Add(entry);
             }
 
             AddEntry("VATSIM CID", SavedCID > 0 ? SavedCID.ToString() : null);
@@ -1343,26 +1359,41 @@ namespace EasyCPDLC
             AddEntry("SIMBRIEF", SimbriefID);
             AddEntry("ELOAD KEY", SavedELoadControlApiKey);
             AddEntry("SI KEY", SavedSayIntentionsApiKey);
-            AddEntry("ATC NETWORK", AtcNetworkText());
+            AddEntry("LOGON VIA", SavedPdcVia);
             AddEntry("WX SOURCE", WxSourceText() + " (" + Vns430WeatherClient.SourceLabel(EffectiveWxSource()) + ")");
             AddEntry("PRINTER", SelectedPrinterName);
 
-            int pageCount = Math.Max(1, (rows.Count + CduTechContentRows - 1) / CduTechContentRows);
+            // Pack entries into pages without ever splitting one.
+            List<List<(string Text, CduColor Colour, bool Small)>> pages = new();
+            List<(string Text, CduColor Colour, bool Small)> page = new();
+            foreach (var entry in entries)
+            {
+                if (page.Count > 0 && page.Count + entry.Count > CduTechContentRows)
+                {
+                    pages.Add(page);
+                    page = new List<(string Text, CduColor Colour, bool Small)>();
+                }
+                page.AddRange(entry);
+            }
+            if (page.Count > 0)
+            {
+                pages.Add(page);
+            }
+
+            int pageCount = Math.Max(1, pages.Count);
             cduTechPage = Math.Clamp(cduTechPage, 0, pageCount - 1);
 
             string title = pageCount > 1 ? "TECHNICAL " + (cduTechPage + 1) + "/" + pageCount : "TECHNICAL";
             grid.WriteCentered(CduLayout.TitleRow, title, CduColor.White);
 
-            int start = cduTechPage * CduTechContentRows;
-            for (int i = 0; i < CduTechContentRows; i++)
+            if (pages.Count > 0)
             {
-                int idx = start + i;
-                if (idx >= rows.Count)
+                List<(string Text, CduColor Colour, bool Small)> shown = pages[cduTechPage];
+                for (int i = 0; i < shown.Count && i < CduTechContentRows; i++)
                 {
-                    break;
+                    (string text, CduColor colour, bool small) = shown[i];
+                    grid.Write(i + 1, 0, Truncate(text, CduGrid.Cols), colour, small: small);
                 }
-                (string text, CduColor colour, bool small) = rows[idx];
-                grid.Write(i + 1, 0, Truncate(text, CduGrid.Cols), colour, small: small);
             }
 
             grid.WriteLeft(CduLayout.DataRow(6), "<SETUP", CduColor.White);
@@ -1454,27 +1485,11 @@ namespace EasyCPDLC
             switch (index)
             {
                 case 1: CduCycleInstrument(); break;
-                case 2: CduCycleAtcNetwork(); break;
-                case 3: CduCycleWxSource(); break;
-                case 4: CduToggleHardwareKeys(); break;
-                case 5: CduCyclePdcVia(); break;
+                case 2: CduCycleWxSource(); break;
+                case 3: CduToggleHardwareKeys(); break;
             }
         }
 
-        // AUTO (follow ATC NETWORK) -> SI -> VATSIM -> AUTO.
-        private void CduCyclePdcVia()
-        {
-            SavedPdcVia = SavedPdcVia switch
-            {
-                "AUTO" => "SI",
-                "SI" => "VATSIM",
-                _ => "AUTO"
-            };
-            Properties.Settings.Default.Save();
-            SyncSayIntentionsPolling();
-            UpdateOnlineStatusLabel();
-            cduStatusLine = "LOGON VIA " + SavedPdcVia;
-        }
 
         // Turn the MSFS module's CDU/DCDU hardware keys on or off. Without this the
         // EASYCPDLC_CDU_* / EASYCPDLC_DCDU_* L-vars are ignored, so a physical CDU cannot
@@ -1625,17 +1640,6 @@ namespace EasyCPDLC
                 cduStatusLine = "INSTRUMENT GNS430";
                 SelectGns430Instrument();
             }
-        }
-
-        private void CduCycleAtcNetwork()
-        {
-            ActiveAtcNetwork = ActiveAtcNetwork == Vns430AtcNetwork.Vatsim
-                ? Vns430AtcNetwork.SayIntentions
-                : Vns430AtcNetwork.Vatsim;
-            Properties.Settings.Default.Save();
-            SyncSayIntentionsPolling();
-            UpdateOnlineStatusLabel();
-            cduStatusLine = "ATC NETWORK " + AtcNetworkText();
         }
 
         // AUTO (follow network) -> VATSIM -> REAL WORLD -> SAYINTENTIONS -> AUTO.

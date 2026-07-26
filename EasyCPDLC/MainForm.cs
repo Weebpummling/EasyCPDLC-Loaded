@@ -17561,6 +17561,20 @@ airbusAocSendLabel = null;
             {
                 return Vns430WeatherClient.ParseSource(over);
             }
+
+            // AUTO follows the datalink network the pilot selected (LOGON VIA). That
+            // selection replaced the old ATC NETWORK switch, which is no longer
+            // settable - without this, AUTO would silently mean VATSIM for everyone.
+            string via = SavedPdcVia;
+            if (string.Equals(via, "SI", StringComparison.OrdinalIgnoreCase))
+            {
+                return Vns430WeatherSource.SayIntentions;
+            }
+            if (string.Equals(via, "VATSIM", StringComparison.OrdinalIgnoreCase))
+            {
+                return Vns430WeatherSource.Vatsim;
+            }
+
             return ActiveAtcNetwork == Vns430AtcNetwork.SayIntentions
                 ? Vns430WeatherSource.SayIntentions
                 : Vns430WeatherSource.Vatsim;
