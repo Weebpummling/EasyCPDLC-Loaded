@@ -101,7 +101,33 @@ namespace EasyCPDLC.VNS430.Cdu
             ? (float)panelArt.Width / panelArt.Height
             : 1f;
 
-        public void RefreshDisplay() => Invalidate();
+        /// <summary>
+        /// Repaints the on-screen panel and pushes the current grid to the hardware sink.
+        /// </summary>
+        /// <remarks>
+        /// The sink push used to live in OnPaint, which tied the hardware mirror to the
+        /// window actually being painted. Windows delivers no WM_PAINT to a minimised
+        /// window, and a fullscreen simulator covering the panel can stop it too - so
+        /// the WinWing display simply froze while the keys, arriving over SimConnect,
+        /// carried on working. Frame generation now runs on the host's refresh cycle
+        /// (the 750 ms tick plus every key press), independent of visibility.
+        /// </remarks>
+        public void RefreshDisplay()
+        {
+            Invalidate();
+            PushToSink();
+        }
+
+        public void PushToSink()
+        {
+            // Serialising the grid to the WinWing payload allocates ~336 arrays; skip it
+            // entirely while no real sink is attached.
+            ICduDisplaySink sink = Sink;
+            if (sink != null && !ReferenceEquals(sink, NullCduDisplaySink.Instance))
+            {
+                sink.Push(Grid.ToWinwingData());
+            }
+        }
 
         private static Image LoadPanelArt()
         {
@@ -179,13 +205,6 @@ namespace EasyCPDLC.VNS430.Cdu
             }
 
             DrawCornerHandles(g);
-
-            // Serialising the grid to the WinWing payload allocates ~336 arrays; skip it
-            // entirely while no real sink is attached.
-            if (Sink != null && !ReferenceEquals(Sink, NullCduDisplaySink.Instance))
-            {
-                Sink.Push(Grid.ToWinwingData());
-            }
         }
 
         // Paint caches. The panel repaints on a 750 ms timer plus every key press, and the
