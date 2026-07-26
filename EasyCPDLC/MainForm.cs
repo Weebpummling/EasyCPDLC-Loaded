@@ -12038,7 +12038,7 @@ private System.Windows.Forms.Label airbusAocSendLabel;
             return QuickCpdlcLogonAsync(cpdlcDiscoveryLogonCode);
         }
 
-        private async Task SendCpdlcLogonRequestAsync(string logonCode, bool requireHoppieOnline)
+        private async Task SendCpdlcLogonRequestAsync(string logonCode, bool requireHoppieOnline, AcarsRoute route = AcarsRoute.Auto)
         {
             string recipient = (logonCode ?? string.Empty).Trim().ToUpperInvariant();
 
@@ -12049,9 +12049,12 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                 return;
             }
 
-            // The Hoppie online-station list only describes Hoppie; the SI ATSU is
-            // always on and never appears in it.
-            if (requireHoppieOnline && !IsSayIntentionsDatalinkActive && !IsHoppieLogonOnline(recipient))
+            // The Hoppie online-station list only describes Hoppie; an SI-routed logon
+            // is never in it, and neither is the always-on SI ATSU.
+            if (requireHoppieOnline &&
+                route != AcarsRoute.SayIntentions &&
+                !IsSayIntentionsDatalinkActive &&
+                !IsHoppieLogonOnline(recipient))
             {
                 WriteMessage("CPDLC LOGON NOT AVAILABLE: " + recipient + " NOT ONLINE", "SYSTEM", "SYSTEM");
                 HideQuickActionButtons();
@@ -12063,7 +12066,7 @@ private System.Windows.Forms.Label airbusAocSendLabel;
             pendingLogon = recipient;
 
             HideQuickActionButtons();
-            await SendCPDLCMessage(recipient, "CPDLC", packet.Trim());
+            await SendCPDLCMessage(recipient, "CPDLC", packet.Trim(), true, route);
         }
 
         private async Task QuickCpdlcLogonAsync(string logonCode)

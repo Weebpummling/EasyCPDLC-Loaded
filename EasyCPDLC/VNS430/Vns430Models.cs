@@ -63,6 +63,13 @@ namespace EasyCPDLC.VNS430
     // for the VNS430/CDU front ends from the backend's CpdlcDiscoveryResult.
     internal sealed class Vns430CpdlcCandidate
     {
+        /// <summary>
+        /// Which ACARS network this logon is sent on. Carried explicitly because the
+        /// same ATSU code can be offered on both sides - SayIntentions accepts the
+        /// regional codes too - so the row, not the active network mode, decides.
+        /// </summary>
+        internal AcarsRoute Route { get; init; } = AcarsRoute.Auto;
+
         internal string Code { get; init; } = string.Empty;
         internal string Controller { get; init; } = string.Empty;
         internal string Frequency { get; init; } = string.Empty;
@@ -72,7 +79,15 @@ namespace EasyCPDLC.VNS430
 
     internal sealed class Vns430BackendSnapshot
     {
+        /// <summary>Whether the datalink is usable at all (SI needs no session).</summary>
         internal bool Connected { get; init; }
+
+        /// <summary>
+        /// The real VATSIM connection. Distinct from <see cref="Connected"/>, which is
+        /// true on SI without any VATSIM session - so a CONNECT/DISCONNECT control must
+        /// use this or it will offer to disconnect something that was never connected.
+        /// </summary>
+        internal bool VatsimConnected { get; init; }
         internal string Callsign { get; init; } = string.Empty;
         internal string CurrentAtcUnit { get; init; } = string.Empty;
         internal string PendingLogon { get; init; } = string.Empty;

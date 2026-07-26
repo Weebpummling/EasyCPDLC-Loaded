@@ -58,8 +58,9 @@ namespace EasyCPDLC
         private Vns430LoadControlSession cduLoadSession;
         private bool cduLoadBusy;
 
-        // Logon page: LSK index -> candidate logon code.
-        private readonly List<string> cduLogonCandidates = new();
+        // Logon page: LSK index -> the candidate, which carries its own network route
+        // so the row the pilot picked decides where the logon is sent.
+        private readonly List<Vns430CpdlcCandidate> cduLogonCandidates = new();
 
         // EXEC arming: a network-transmitting action (send request, logon, REQ CLR,
         // reply, generate loadsheet) is selected first, which highlights it and lights
@@ -438,9 +439,11 @@ namespace EasyCPDLC
         {
             RenderCduHeader(grid, "DLK STATUS", snapshot);
 
-            // Left column: actions on the LSKs.
-            grid.WriteLeft(CduLayout.DataRow(1), snapshot.Connected ? "<DISCONNECT" : "<CONNECT",
-                snapshot.Connected ? CduColor.Amber : CduColor.Green);
+            // Left column: actions on the LSKs. CONNECT/DISCONNECT is the VATSIM
+            // session specifically - on SI the datalink is live with no session, so
+            // using snapshot.Connected here offered to disconnect nothing.
+            grid.WriteLeft(CduLayout.DataRow(1), snapshot.VatsimConnected ? "<DISCONNECT" : "<CONNECT",
+                snapshot.VatsimConnected ? CduColor.Amber : CduColor.Green);
             grid.WriteLeft(CduLayout.DataRow(2), "<RELOAD FP", CduColor.White, inverse: CduArmed("RELOADFP"));
             grid.WriteLeft(CduLayout.DataRow(3), "<PRINT LAST", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(4), "<REPRINT", CduColor.White);
@@ -450,7 +453,11 @@ namespace EasyCPDLC
             // Right column: live status read-out (the old top-row info, now in the display).
             // "NETWORK", not "VATSIM": on SI the datalink is live without VATSIM, and SI
             // itself hands flights off to VATSIM controllers - pilots may be on both.
-            RenderCduRightStatus(grid, 1, "NETWORK", snapshot.Connected ? "CONNECTED" : "OFFLINE",
+            // Name which side is up so CONNECTED is never ambiguous.
+            string networkState = snapshot.VatsimConnected ? "VATSIM"
+                : snapshot.Connected ? "SI"
+                : "OFFLINE";
+            RenderCduRightStatus(grid, 1, "NETWORK", networkState,
                 snapshot.Connected ? CduColor.Green : CduColor.Amber);
             RenderCduRightStatus(grid, 2, "ATS UNIT", string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? "----" : DatalinkRouting.DisplayStation(snapshot.CurrentAtcUnit),
                 string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? CduColor.Grey : (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber));
@@ -707,7 +714,7 @@ namespace EasyCPDLC
             List<Vns430CpdlcCandidate> candidates = snapshot.CpdlcCandidates.Take(4).ToList();
             for (int i = 0; i < candidates.Count; i++)
             {
-                cduLogonCandidates.Add(candidates[i].Code);
+                cduLogonCandidates.Add(candidates[i]);
                 grid.WriteLeft(CduLayout.LabelRow(i + 1), Truncate(candidates[i].Reason, CduGrid.HalfCols), CduColor.Cyan, small: true);
                 grid.WriteLeft(CduLayout.DataRow(i + 1),
                     "<" + Truncate(DatalinkRouting.DisplayStation(candidates[i].Code) + " " + candidates[i].Controller, CduGrid.HalfCols - 1),
@@ -751,7 +758,8 @@ namespace EasyCPDLC
                     int position = index - 1;
                     if (position < cduLogonCandidates.Count)
                     {
-                        CduLogonTo(cduLogonCandidates[position], "LOGON:" + position);
+                        Vns430CpdlcCandidate picked = cduLogonCandidates[position];
+                        CduLogonTo(picked.Code, "LOGON:" + position, picked.Route);
                     }
                     break;
                 case 5:
@@ -795,7 +803,7 @@ namespace EasyCPDLC
             }
         }
 
-        private void CduLogonTo(string code, string armKey)
+        private void CduLogonTo(string code, string armKey, AcarsRoute route = AcarsRoute.Auto)
         {
             string clean = (code ?? string.Empty).Trim().ToUpperInvariant();
             if (clean.Length < 3)
@@ -805,11 +813,18 @@ namespace EasyCPDLC
                 return;
             }
 
+            // The prompt names the network so the armed action cannot be ambiguous.
+            string network = route == AcarsRoute.SayIntentions ? "SI"
+                : route == AcarsRoute.Hoppie ? "VATSIM"
+                : string.Empty;
+            string label = "LOGON " + DatalinkRouting.DisplayStation(clean) +
+                (network.Length > 0 ? " VIA " + network : string.Empty);
+
             cduScratchpad = string.Empty;
-            CduArm(armKey, "LOGON " + clean, () =>
+            CduArm(armKey, label, () =>
             {
-                cduStatusLine = "LOGON SENT " + clean;
-                _ = Vns430RequestLogonAsync(clean);
+                cduStatusLine = label.Replace("LOGON ", "LOGON SENT ");
+                _ = Vns430RequestLogonAsync(clean, route);
             });
         }
 

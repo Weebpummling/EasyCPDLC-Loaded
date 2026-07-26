@@ -569,7 +569,7 @@ namespace EasyCPDLC.VNS430
                     break;
                 case Vns430Command.Cdi:
                     backend.Vns430ToggleVatsimConnection();
-                    SetTransient(snapshot.Connected ? "DISCONNECTING" : "CONNECTING");
+                    SetTransient(snapshot.VatsimConnected ? "DISCONNECTING" : "CONNECTING");
                     break;
                 case Vns430Command.RangeIn:
                     zoomLevel = Math.Min(2, zoomLevel + 1);
@@ -760,7 +760,7 @@ namespace EasyCPDLC.VNS430
                             break;
                         case 2:
                             backend.Vns430ToggleVatsimConnection();
-                            SetTransient(snapshot.Connected ? "DISCONNECTING" : "CONNECTING");
+                            SetTransient(snapshot.VatsimConnected ? "DISCONNECTING" : "CONNECTING");
                             break;
                         case 3:
                             SetPage(Vns430Page.AtcMenu, true, Vns430PageGroup.Wpt);
@@ -892,7 +892,7 @@ namespace EasyCPDLC.VNS430
             {
                 case 0:
                     backend.Vns430ToggleVatsimConnection();
-                    SetTransient(snapshot.Connected ? "DISCONNECTING" : "CONNECTING");
+                    SetTransient(snapshot.VatsimConnected ? "DISCONNECTING" : "CONNECTING");
                     SetPage(Vns430Page.Status, false, Vns430PageGroup.Nav);
                     break;
                 case 1:
@@ -1135,7 +1135,7 @@ namespace EasyCPDLC.VNS430
         {
             return new List<string>
             {
-                snapshot.Connected ? "DISCONNECT VATSIM" : "CONNECT VATSIM",
+                snapshot.VatsimConnected ? "DISCONNECT VATSIM" : "CONNECT VATSIM",
                 "ATC REQUEST MENU",
                 "AOC / TELEX MENU",
                 "ATC NETWORK: " + backend.Vns430AtcNetworkLabel(),
