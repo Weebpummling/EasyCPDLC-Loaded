@@ -87,6 +87,11 @@ namespace EasyCPDLC.VNS430
         // Whether the SI network is active, so workflows can default network choices
         // (e.g. the TELEX VIA field) to the side the pilot is flying on.
         internal bool SayIntentionsNetwork { get; init; }
+
+        // Aircraft identity from the loaded SimBrief plan (callsign, else registration),
+        // empty when no plan is loaded. The CDU header shows this rather than the live
+        // callsign, which outlives the flight it came from.
+        internal string SimbriefIdent { get; init; } = string.Empty;
         internal IReadOnlyList<Vns430MessageSnapshot> Messages { get; init; } = new Vns430MessageSnapshot[0];
 
         // Controller-online / datalink discovery, kept fresh by the backend's 15 s

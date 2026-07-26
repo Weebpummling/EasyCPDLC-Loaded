@@ -376,9 +376,12 @@ namespace EasyCPDLC
             string fitted = Truncate(title ?? string.Empty, bandWidth);
             grid.Write(CduLayout.TitleRow, bandStart + (bandWidth - fitted.Length) / 2, fitted, CduColor.White);
 
-            if (!string.IsNullOrWhiteSpace(snapshot.Callsign))
+            // Identity comes from the loaded SimBrief plan only - callsign, or the
+            // registration when the plan has none - and stays blank until one is
+            // loaded, so a callsign never lingers from a previous flight.
+            if (!string.IsNullOrWhiteSpace(snapshot.SimbriefIdent))
             {
-                grid.Write(CduLayout.TitleRow, 0, Truncate(snapshot.Callsign, 7), CduColor.Green, small: true);
+                grid.Write(CduLayout.TitleRow, 0, Truncate(snapshot.SimbriefIdent, 7), CduColor.Green, small: true);
             }
             grid.WriteRight(CduLayout.TitleRow, snapshot.Connected ? "CONN" : "OFFL",
                 snapshot.Connected ? CduColor.Green : CduColor.Amber, small: true);

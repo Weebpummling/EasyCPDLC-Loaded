@@ -182,6 +182,9 @@ namespace EasyCPDLC
                 siFlightAircraft = aircraft;
                 siFlightFetchedUtc = DateTime.UtcNow;
 
+                // Same OFP, so keep the CDU header's identity in step with it.
+                CaptureSimbriefIdent(root);
+
                 AdoptSayIntentionsCallsign();
                 return true;
             }

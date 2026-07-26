@@ -21,11 +21,37 @@ namespace EasyCPDLC
     public partial class MainForm
     {
         private string simbriefPlanRoute = string.Empty;
+        private string simbriefCallsign = string.Empty;
+        private string simbriefRegistration = string.Empty;
 
         /// <summary>Route of the currently loaded SimBrief plan, or empty.</summary>
         internal string SimbriefPlanRoute => simbriefPlanRoute;
 
         internal bool SimbriefPlanLoaded => !string.IsNullOrWhiteSpace(simbriefPlanRoute);
+
+        /// <summary>
+        /// What the CDU shows as the aircraft identity: the SimBrief plan's callsign,
+        /// its registration when the plan has no callsign, and nothing at all when no
+        /// plan is loaded.
+        /// </summary>
+        /// <remarks>
+        /// Deliberately not the app's live callsign field. That is set from a VATSIM
+        /// connection or an adopted OFP and survives the flight it came from, so the
+        /// header kept displaying a stale callsign from a previous session.
+        /// </remarks>
+        internal string SimbriefIdent =>
+            !string.IsNullOrWhiteSpace(simbriefCallsign) ? simbriefCallsign : simbriefRegistration;
+
+        // Records the identity from a parsed SimBrief OFP. Shared by every path that
+        // reads one, so the header cannot disagree with the loaded plan.
+        private void CaptureSimbriefIdent(JObject root)
+        {
+            simbriefCallsign = ((string)(root.SelectToken("atc.callsign")
+                ?? root.SelectToken("general.callsign")
+                ?? root.SelectToken("general.flight_number")) ?? string.Empty).Trim().ToUpperInvariant();
+            simbriefRegistration = ((string)(root.SelectToken("aircraft.reg")
+                ?? root.SelectToken("aircraft.registration")) ?? string.Empty).Trim().ToUpperInvariant();
+        }
 
         internal async Task LoadSimbriefFlightPlanAsync()
         {
@@ -69,6 +95,7 @@ namespace EasyCPDLC
                 siFlightFetchedUtc = DateTime.MinValue;
                 cduLoadSession = null;
 
+                CaptureSimbriefIdent(root);
                 simbriefPlanRoute = origin + "-" + destination;
                 WriteMessage("SIMBRIEF FP LOADED: " + simbriefPlanRoute, "SYSTEM", "SYSTEM");
             }

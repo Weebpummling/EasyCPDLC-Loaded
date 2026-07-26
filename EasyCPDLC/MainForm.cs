@@ -18294,7 +18294,13 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 {
                     using HttpClient wc = CreateShortTimeoutHttpClient();
                     string simbriefJson = await wc.GetStringAsync(SimbriefLoadsheetClient.BuildFetchUrl(SimbriefID));
-                    string simbriefNavlog = JObject.Parse(simbriefJson)["navlog"]?.ToString();
+                    JObject simbriefRoot = JObject.Parse(simbriefJson);
+
+                    // RELOAD FP reads the same OFP, so refresh the CDU header identity
+                    // here too - otherwise it would only update via LOAD SIMBRIEF FP.
+                    CaptureSimbriefIdent(simbriefRoot);
+
+                    string simbriefNavlog = simbriefRoot["navlog"]?.ToString();
 
                     if (!string.IsNullOrWhiteSpace(simbriefNavlog))
                     {
