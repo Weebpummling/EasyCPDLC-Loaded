@@ -800,9 +800,11 @@ namespace EasyCPDLC.VNS430
                         return;
                     }
 
-                    await backend.Vns430RequestLogonAsync(station);
+                    // Follows the LOGON VIA selection, like the CDU's manual entry: a
+                    // typed code carries no network of its own.
+                    await backend.Vns430RequestLogonAsync(station, backend.Vns430LogonRoute());
                     cursorActive = false;
-                    SetTransient("LOGON SENT " + station);
+                    SetTransient("LOGON SENT " + station + " VIA " + backend.Vns430PdcViaLabel());
                     break;
 
                 case Vns430Page.AtcMenu:
@@ -910,7 +912,7 @@ namespace EasyCPDLC.VNS430
                     SetTransient("WX SOURCE " + backend.Vns430CycleWxSource());
                     break;
                 case 5:
-                    SetTransient("PDC VIA " + backend.Vns430CyclePdcVia());
+                    SetTransient("LOGON VIA " + backend.Vns430CyclePdcVia());
                     break;
                 case 6:
                     SetTransient("LOADING SIMBRIEF FP");
@@ -1140,7 +1142,7 @@ namespace EasyCPDLC.VNS430
                 "AOC / TELEX MENU",
                 "ATC NETWORK: " + backend.Vns430AtcNetworkLabel(),
                 "WX SOURCE: " + backend.Vns430WxSourceLabel(),
-                "PDC VIA: " + backend.Vns430PdcViaLabel(),
+                "LOGON VIA: " + backend.Vns430PdcViaLabel(),
                 backend.Vns430SimbriefPlanLabel(),
                 clearAllArmed ? "CONFIRM CLEAR ALL?" : "CLEAR ALL MESSAGES",
                 "EASYCPDLC SETTINGS",

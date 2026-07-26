@@ -23,6 +23,40 @@ namespace EasyCPDLC
         private string simbriefPlanRoute = string.Empty;
         private string simbriefCallsign = string.Empty;
         private string simbriefRegistration = string.Empty;
+        private string simbriefDeparture = string.Empty;
+        private string simbriefArrival = string.Empty;
+
+        /// <summary>Departure from the loaded SimBrief plan, or empty.</summary>
+        internal string SimbriefDeparture => simbriefDeparture;
+        internal string SimbriefArrival => simbriefArrival;
+
+        /// <summary>
+        /// The information letter from the most recent ATIS actually received, or empty.
+        /// </summary>
+        /// <remarks>
+        /// Used to prefill the PDC request. Deliberately blank until a real ATIS has
+        /// arrived: the old behaviour defaulted to "A", which is a plausible-looking
+        /// value that is usually wrong, and a wrong ATIS letter on a clearance request
+        /// is worse than an obviously empty field.
+        /// </remarks>
+        internal string LastReceivedAtisLetter { get; private set; } = string.Empty;
+
+        private static readonly System.Text.RegularExpressions.Regex AtisLetterPattern = new(
+            @"\b(?:INFORMATION|INFO|ATIS)\s+([A-Z])\b(?!\w)",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase |
+            System.Text.RegularExpressions.RegexOptions.Compiled);
+
+        /// <summary>Records the information letter from an inbound ATIS message.</summary>
+        internal void RecordAtisInformationLetter(string atisText)
+        {
+            System.Text.RegularExpressions.Match match =
+                AtisLetterPattern.Match(atisText ?? string.Empty);
+            if (match.Success)
+            {
+                LastReceivedAtisLetter = match.Groups[1].Value.ToUpperInvariant();
+                Logger.Debug("Recorded ATIS information " + LastReceivedAtisLetter);
+            }
+        }
 
         /// <summary>Route of the currently loaded SimBrief plan, or empty.</summary>
         internal string SimbriefPlanRoute => simbriefPlanRoute;
@@ -51,6 +85,8 @@ namespace EasyCPDLC
                 ?? root.SelectToken("general.flight_number")) ?? string.Empty).Trim().ToUpperInvariant();
             simbriefRegistration = ((string)(root.SelectToken("aircraft.reg")
                 ?? root.SelectToken("aircraft.registration")) ?? string.Empty).Trim().ToUpperInvariant();
+            simbriefDeparture = ((string)root.SelectToken("origin.icao_code") ?? string.Empty).Trim().ToUpperInvariant();
+            simbriefArrival = ((string)root.SelectToken("destination.icao_code") ?? string.Empty).Trim().ToUpperInvariant();
         }
 
         internal async Task LoadSimbriefFlightPlanAsync()

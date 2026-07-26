@@ -91,7 +91,7 @@ amber when a credential you need is missing.
 | **ATC NETWORK** | `VATSIM` or `SI` (SayIntentions) |
 | **WX SOURCE** | `AUTO` (follows the network) / `VATSIM` / `REAL WORLD` / `SI` |
 | **HW KEYS** | `ON` lets a physical CDU drive the panel |
-| **PDC VIA** | Where `REQ CLR` goes: `AUTO` (follows ATC NETWORK) / `SI` / `VATSIM` — SI hands off to VATSIM controllers, so pilots on both can take the clearance from either |
+| **LOGON VIA** | Which network CPDLC logons and `REQ CLR` use: `AUTO` (follows ATC NETWORK) / `SI` / `VATSIM`. Also selectable on the LOGON page itself. SI hands off to VATSIM controllers, so pilots on both can work either side |
 
 ### Entering a value
 

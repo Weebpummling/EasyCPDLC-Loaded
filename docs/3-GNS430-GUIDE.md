@@ -195,7 +195,7 @@ stations. On **SI** the facility is always SayIntentions' ATSU (shown as `SI`), 
 the page shows `AVAIL` as soon as your SI API key and SimBrief plan are set — the
 request is built from the SimBrief OFP, so no VATSIM connection is needed.
 
-The **PDC VIA** item on the menu picks which side answers: `AUTO` follows ATC
+The **LOGON VIA** item on the menu picks which side answers: `AUTO` follows ATC
 NETWORK, `SI` or `VATSIM` forces one. SayIntentions hands flights off to VATSIM
 controllers on their end, so pilots flying both at once can take the clearance
 from either.

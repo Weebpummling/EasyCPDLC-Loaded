@@ -1,4 +1,4 @@
-﻿using EasyCPDLC.VNS430;
+using EasyCPDLC.VNS430;
 using EasyCPDLC.VNS430.Cdu;
 using System;
 using System.Collections.Generic;
@@ -698,18 +698,9 @@ namespace EasyCPDLC
             // Which network the clearance request goes to, selectable here so it is
             // decided next to the button that acts on it rather than buried in SETUP.
             // Shows the effective side, so AUTO resolves to the network it would use.
-            grid.WriteRight(CduLayout.LabelRow(2), "PDC VIA", CduColor.Cyan, small: true);
+            grid.WriteRight(CduLayout.LabelRow(2), "LOGON VIA", CduColor.Cyan, small: true);
             grid.WriteRight(CduLayout.DataRow(2),
                 (PdcRoutesToSayIntentions ? "SI" : "VATSIM") + ">", CduColor.White);
-
-            // Availability sits directly above the action it gates.
-            string pdc = string.IsNullOrWhiteSpace(snapshot.PdcStatus) ? "----" : snapshot.PdcStatus;
-            if (!string.IsNullOrWhiteSpace(snapshot.PdcLogonCode))
-            {
-                pdc += " " + DatalinkRouting.DisplayStation(snapshot.PdcLogonCode);
-            }
-            grid.WriteRight(CduLayout.LabelRow(3), Truncate(pdc, CduGrid.HalfCols),
-                snapshot.PdcAllowReqClr ? CduColor.Green : CduColor.Cyan, small: true);
 
             // Always shown, greyed when the selected network has no PDC to offer - on
             // VATSIM that means no online controller advertises one. Hiding it made the
@@ -764,7 +755,7 @@ namespace EasyCPDLC
                     Properties.Settings.Default.Save();
                     SyncSayIntentionsPolling();
                     UpdateOnlineStatusLabel();
-                    cduStatusLine = "PDC VIA " + SavedPdcVia;
+                    cduStatusLine = "LOGON VIA " + SavedPdcVia;
                 }
                 else if (index == 3)
                 {
@@ -807,7 +798,12 @@ namespace EasyCPDLC
                     }
                     break;
                 case 5:
-                    CduLogonTo(cduScratchpad, "LOGON:M");
+                    // A typed code carries no network of its own, so it follows the
+                    // LOGON VIA selection - otherwise a manual logon fell back to
+                    // content routing and could land on the network the pilot had just
+                    // selected away from.
+                    CduLogonTo(cduScratchpad, "LOGON:M",
+                        PdcRoutesToSayIntentions ? AcarsRoute.SayIntentions : AcarsRoute.Hoppie);
                     break;
                 case 6:
                     cduPage = CduPageId.Dlk;
@@ -830,8 +826,10 @@ namespace EasyCPDLC
             SetCduWorkflowField("RECIPIENT", recipient);
             SetCduWorkflowField("GATE", "----");
 
-            string atisLetter = GetBestDepartureAtisLetter(snapshot.Departure);
-            SetCduWorkflowField("ATIS", string.IsNullOrWhiteSpace(atisLetter) ? "A" : atisLetter);
+            // ATIS is left blank until a real one has been received. Defaulting to "A"
+            // put a plausible but usually wrong letter on a clearance request, which is
+            // worse than an obviously empty field the pilot must fill.
+            SetCduWorkflowField("ATIS", LastReceivedAtisLetter);
 
             cduScratchpad = string.Empty;
             cduStatusLine = string.Empty;
@@ -1229,7 +1227,7 @@ namespace EasyCPDLC
 
             // Where the PDC request goes. AUTO follows ATC NETWORK; pilots flying SI
             // sessions handed off to VATSIM controllers can force either side.
-            RenderCduSetupField(grid, 5, true, "PDC VIA", SavedPdcVia);
+            RenderCduSetupField(grid, 5, true, "LOGON VIA", SavedPdcVia);
 
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
@@ -1447,7 +1445,7 @@ namespace EasyCPDLC
             Properties.Settings.Default.Save();
             SyncSayIntentionsPolling();
             UpdateOnlineStatusLabel();
-            cduStatusLine = "PDC VIA " + SavedPdcVia;
+            cduStatusLine = "LOGON VIA " + SavedPdcVia;
         }
 
         // Turn the MSFS module's CDU/DCDU hardware keys on or off. Without this the

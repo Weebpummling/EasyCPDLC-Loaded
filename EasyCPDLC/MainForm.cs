@@ -6982,6 +6982,14 @@ private System.Windows.Forms.Label airbusAocSendLabel;
             if (string.IsNullOrWhiteSpace(station))
             {
                 datalinkStatusText = "PDC --";
+                // Clear the discovery result too. Leaving it meant that switching PDC
+                // VIA from SI (which sets AllowReqClr) back to VATSIM with no station
+                // kept the stale permission, so REQ CLR stayed live on a network that
+                // was offering nothing.
+                pdcDiscoveryLogonCode = string.Empty;
+                pdcDiscoveryController = string.Empty;
+                pdcDiscoveryAllowReqClr = false;
+                pdcDiscoveryIsFallbackCandidate = false;
                 atisStatusText = BuildDotBadgeText("ATIS");
                 atisAvailabilityState = "UNKNOWN";
                 UpdateClearanceStatusLabel();
@@ -11949,7 +11957,10 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                 aircraft = userVATSIMData?.flight_plan?.aircraft_short?.Trim().ToUpperInvariant() ?? string.Empty;
             }
 
-            string atisLetter = GetBestDepartureAtisLetter(departure);
+            // The letter off the last ATIS actually received. Blank when none has been:
+            // the old fallback to "A" reads as real but is usually wrong, and a wrong
+            // ATIS letter on a clearance request is worse than none.
+            string atisLetter = LastReceivedAtisLetter;
 
             if (string.IsNullOrWhiteSpace(clearanceCallsign) ||
                 string.IsNullOrWhiteSpace(departure) ||
@@ -11968,7 +11979,7 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                 arrival,
                 departure,
                 "----",
-                string.IsNullOrWhiteSpace(atisLetter) ? "A" : atisLetter);
+                string.IsNullOrWhiteSpace(atisLetter) ? "----" : atisLetter);
 
             HideQuickActionButtons();
             // Explicit route: PDC VIA can disagree with the active network (e.g. on
@@ -27275,6 +27286,15 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             if (_outbound && string.Equals(_type, "METAR", StringComparison.OrdinalIgnoreCase))
             {
                 RememberMetarRequestTarget(_recipient);
+            }
+
+            // Remember the information letter off any ATIS that arrives, whatever route
+            // it came by (VATSIM datalink, real-world D-ATIS or SayIntentions), so the
+            // PDC request can prefill it. Recorded before the suppression checks below,
+            // which drop unchanged repeats that still carry a valid letter.
+            if (!_outbound && string.Equals(_type, "ATIS", StringComparison.OrdinalIgnoreCase))
+            {
+                RecordAtisInformationLetter(_response);
             }
 
             if (TryCaptureSilentAtisHoverResponse(_response, _type, _recipient, _outbound))

@@ -318,11 +318,13 @@ namespace EasyCPDLC
             }
         }
 
-        // SI-mode flight data with VATSIM fallback, for building the PDC request.
+        // Flight data for the PDC request. The SimBrief plan is the authority for the
+        // airports - it is what the pilot filed and what the clearance is built from -
+        // with the SI identity fetch and then live VATSIM data as fallbacks.
         internal string SayIntentionsDeparture() =>
-            FirstNonBlank(userVATSIMData?.flight_plan?.departure, siFlightDeparture);
+            FirstNonBlank(SimbriefDeparture, FirstNonBlank(siFlightDeparture, userVATSIMData?.flight_plan?.departure));
         internal string SayIntentionsArrival() =>
-            FirstNonBlank(userVATSIMData?.flight_plan?.arrival, siFlightArrival);
+            FirstNonBlank(SimbriefArrival, FirstNonBlank(siFlightArrival, userVATSIMData?.flight_plan?.arrival));
         internal string SayIntentionsAircraft() =>
             FirstNonBlank(userVATSIMData?.flight_plan?.aircraft_short, siFlightAircraft);
 

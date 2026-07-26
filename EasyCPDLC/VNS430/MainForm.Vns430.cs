@@ -109,6 +109,10 @@ namespace EasyCPDLC
 
         internal string Vns430PdcViaLabel() => SavedPdcVia;
 
+        /// <summary>The network the LOGON VIA selection resolves to.</summary>
+        internal AcarsRoute Vns430LogonRoute() =>
+            PdcRoutesToSayIntentions ? AcarsRoute.SayIntentions : AcarsRoute.Hoppie;
+
         internal string Vns430SimbriefPlanLabel() =>
             SimbriefPlanLoaded ? "RELOAD SIMBRIEF FP: " + SimbriefPlanRoute : "LOAD SIMBRIEF FP";
 
