@@ -51,6 +51,10 @@ namespace EasyCPDLC
         private bool cduRequestSending;
 
         // eLoadControl loadsheet state.
+        // Unit the message viewer is showing weights in, or null to use the sheet's own.
+        // Session-only and cleared on leaving a message: it is a view, not a setting.
+        private string cduUnitOverride;
+
         private Vns430LoadControlSession cduLoadSession;
         private bool cduLoadBusy;
 
@@ -531,7 +535,7 @@ namespace EasyCPDLC
             // Body text wrapped across the upper rows (1..6), clear of the bottom LSKs.
             // Long messages (e.g. an eLoadControl loadsheet) scroll with PREV/NEXT PAGE.
             const int bodyRows = 6;
-            List<string> lines = WrapCduText(message.Text, CduGrid.Cols);
+            List<string> lines = WrapCduText(CduDisplayText(message), CduGrid.Cols);
             int maxScroll = Math.Max(0, lines.Count - bodyRows);
             cduDetailScroll = Math.Clamp(cduDetailScroll, 0, maxScroll);
             for (int i = 0; i < bodyRows; i++)
@@ -561,10 +565,32 @@ namespace EasyCPDLC
                 grid.WriteLeft(CduLayout.DataRow(4 + i), "<" + responses[i], ReplyColour(responses[i]), inverse: CduArmed("REPLY:" + i));
             }
 
+            // Right LSK 3: unit toggle, shown only when the message actually carries
+            // convertible weights (a loadsheet that declares its units).
+            string sourceUnit = LoadsheetUnitConverter.DetectUnit(message.Text);
+            if (!string.IsNullOrWhiteSpace(sourceUnit))
+            {
+                string shown = cduUnitOverride ?? sourceUnit;
+                grid.WriteRight(CduLayout.LabelRow(3), "UNITS", CduColor.Cyan, small: true);
+                grid.WriteRight(CduLayout.DataRow(3), "IN " + LoadsheetUnitConverter.Other(shown) + ">",
+                    CduColor.White);
+            }
+
             // Bottom-right LSKs (4,5,6): print actions + return.
             grid.WriteRight(CduLayout.DataRow(4), "PRINT>", CduColor.White);
             grid.WriteRight(CduLayout.DataRow(5), "REPRINT>", CduColor.White);
             grid.WriteRight(CduLayout.DataRow(6), "RETURN>", CduColor.White);
+        }
+
+        // The viewer's text: converted to the pilot's chosen unit when one is selected.
+        // The stored message is never modified, so PRINT still emits the original sheet
+        // unless the pilot has explicitly switched units.
+        private string CduDisplayText(Vns430MessageSnapshot message)
+        {
+            string text = message?.Text ?? string.Empty;
+            return string.IsNullOrWhiteSpace(cduUnitOverride)
+                ? text
+                : LoadsheetUnitConverter.Convert(text, cduUnitOverride);
         }
 
         // ---- LSK handlers --------------------------------------------------
@@ -838,9 +864,21 @@ namespace EasyCPDLC
 
             switch (index)
             {
+                case 3:
+                    string sourceUnit = LoadsheetUnitConverter.DetectUnit(message.Text);
+                    if (!string.IsNullOrWhiteSpace(sourceUnit))
+                    {
+                        cduUnitOverride = LoadsheetUnitConverter.Other(cduUnitOverride ?? sourceUnit);
+                        cduDetailScroll = 0;   // the converted sheet re-wraps
+                        cduStatusLine = "UNITS " + cduUnitOverride;
+                    }
+                    break;
                 case 4: PrintDatalinkMessage(message.Source); break;
                 case 5: ReprintButton_Click(boeingReprintButton, EventArgs.Empty); break;
-                case 6: cduPage = CduPageId.MessageList; break;
+                case 6:
+                    cduUnitOverride = null;   // each message opens in its own units
+                    cduPage = CduPageId.MessageList;
+                    break;
             }
         }
 

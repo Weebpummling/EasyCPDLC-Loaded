@@ -51,6 +51,40 @@ namespace EasyCPDLC
         public int EditionNumber { get; init; }
     }
 
+    /// <summary>
+    /// Guarantees a generated loadsheet states its weight units.
+    /// </summary>
+    /// <remarks>
+    /// SimbriefLoadsheetData.Parse converts every weight to kilograms (SimBrief plans
+    /// filed in pounds are multiplied by 0.45359237), and BuildGenerateRequest then
+    /// sends bare numbers with no unit field - so the returned sheet is always in kg
+    /// regardless of the pilot's SimBrief setting. A pilot planning in pounds would
+    /// otherwise read kilogram figures with nothing on the sheet saying so.
+    /// </remarks>
+    internal static class ELoadLoadsheetUnits
+    {
+        internal const string UnitsLine = "ALL WEIGHTS IN KG";
+
+        private static readonly Regex UnitsMentioned = new(
+            @"\b(KGS?|KILOS?|KILOGRAMS?|LBS?|POUNDS?)\b",
+            RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+        internal static bool StatesUnits(string body) =>
+            !string.IsNullOrWhiteSpace(body) && UnitsMentioned.IsMatch(body);
+
+        /// <summary>Appends the units line only when the sheet does not state units.</summary>
+        internal static string EnsureUnitsLine(string body)
+        {
+            string text = (body ?? string.Empty).TrimEnd();
+            if (text.Length == 0 || StatesUnits(text))
+            {
+                return text;
+            }
+
+            return text + "\n\n" + UnitsLine;
+        }
+    }
+
     internal sealed class PassengerClassAllocation
     {
         public string Code { get; init; } = string.Empty;

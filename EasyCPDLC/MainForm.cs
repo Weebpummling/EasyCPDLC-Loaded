@@ -17367,6 +17367,10 @@ airbusAocSendLabel = null;
                 ? ((flight?.Airline ?? string.Empty) + (flight?.FlightNumber ?? string.Empty)).Trim()
                 : callsign.Trim();
 
+            // We always send kilograms to eLoadControl, so a sheet that never names its
+            // units would silently read as pounds to a pilot planning in pounds.
+            body = ELoadLoadsheetUnits.EnsureUnitsLine(body);
+
             CPDLCMessage message = WriteMessage(
                 DatalinkPrinter.NormalizeLineEndings(body).Trim(),
                 "LOADSHEET",
@@ -18323,6 +18327,15 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 (int)Math.Round(baseTargetSize.Height * 0.60f, MidpointRounding.AwayFromZero));
             Size maximumSize = new(baseTargetSize.Width * 2, baseTargetSize.Height * 2);
 
+            // The CDU reopens at the size the pilot last left it, clamped to the same
+            // limits a live resize obeys.
+            if (DcduStyleManager.IsCdu && TryGetSavedCduSize(out Size savedSize))
+            {
+                targetSize = new Size(
+                    Math.Clamp(savedSize.Width, minimumSize.Width, maximumSize.Width),
+                    Math.Clamp(savedSize.Height, minimumSize.Height, maximumSize.Height));
+            }
+
             applyingMainWindowLayout = true;
             try
             {
@@ -18350,7 +18363,75 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 applyingMainWindowLayout = false;
             }
 
+            if (DcduStyleManager.IsCdu)
+            {
+                RestoreCduWindowLocation();
+            }
+
             DcduWindowHelper.ApplyDeviceWindow(this, dcduFrame, S(22));
+        }
+
+        // ---- CDU window bounds --------------------------------------------
+        //
+        // Stored separately from WindowScalePercent: that setting describes a scale of
+        // the Airbus/Boeing artwork, which the free-sizing CDU grid does not use.
+
+        private const string CduWindowBoundsSettingName = "CduWindowBounds";
+
+        private void SaveCduWindowBounds()
+        {
+            SaveFixedStringSetting(
+                CduWindowBoundsSettingName,
+                string.Join(",", ClientSize.Width, ClientSize.Height, Left, Top));
+            Properties.Settings.Default.Save();
+        }
+
+        private static bool TryParseCduBounds(out Size size, out Point location)
+        {
+            size = Size.Empty;
+            location = Point.Empty;
+
+            string[] parts = ReadFixedStringSetting(CduWindowBoundsSettingName, string.Empty)
+                .Split(',', StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 4)
+            {
+                return false;
+            }
+
+            if (!int.TryParse(parts[0], out int width) || !int.TryParse(parts[1], out int height) ||
+                !int.TryParse(parts[2], out int left) || !int.TryParse(parts[3], out int top) ||
+                width <= 0 || height <= 0)
+            {
+                return false;
+            }
+
+            size = new Size(width, height);
+            location = new Point(left, top);
+            return true;
+        }
+
+        private static bool TryGetSavedCduSize(out Size size) =>
+            TryParseCduBounds(out size, out _);
+
+        private void RestoreCduWindowLocation()
+        {
+            if (!TryParseCduBounds(out _, out Point location))
+            {
+                return;
+            }
+
+            // A monitor may have been unplugged since; only restore a position that is
+            // still on a visible screen, otherwise leave Windows to place the window.
+            Rectangle bounds = new(location, Size);
+            foreach (Screen screen in Screen.AllScreens)
+            {
+                if (screen.WorkingArea.IntersectsWith(bounds))
+                {
+                    StartPosition = FormStartPosition.Manual;
+                    Location = location;
+                    return;
+                }
+            }
         }
 
         // The LSK-only CDU renders the 737NG CDU panel artwork; the base size matches the
@@ -18384,11 +18465,18 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
 
         private void MainForm_ResizeEnd(object sender, EventArgs e)
         {
+            if (applyingMainWindowLayout || WindowState != FormWindowState.Normal)
+            {
+                return;
+            }
+
             // ResizeEnd fires after a move as well as a resize. The CDU is a free-sizing
             // grid that does not use the Airbus/Boeing artwork scale, so recomputing a
-            // scale percent from its client size here would shrink it on every drag.
-            if (applyingMainWindowLayout || WindowState != FormWindowState.Normal || DcduStyleManager.IsCdu)
+            // scale percent from its client size would shrink it on every drag. Remember
+            // its actual bounds instead, so it reopens where the pilot left it.
+            if (DcduStyleManager.IsCdu)
             {
+                SaveCduWindowBounds();
                 return;
             }
 
@@ -27593,6 +27681,20 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
 
         private async void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            try
+            {
+                // Capture the final size/position: a resize just before quitting would
+                // otherwise be lost if ResizeEnd was the last thing to run.
+                if (DcduStyleManager.IsCdu && WindowState == FormWindowState.Normal)
+                {
+                    SaveCduWindowBounds();
+                }
+            }
+            catch
+            {
+                // Shutdown only.
+            }
+
             try
             {
                 protocolPipeCancellationTokenSource?.Cancel();
