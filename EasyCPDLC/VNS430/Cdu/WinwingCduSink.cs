@@ -166,13 +166,20 @@ namespace EasyCPDLC.VNS430.Cdu
         private async Task ConnectAsync(CancellationToken token)
         {
             DropSocket();
+
+            // Publish the socket BEFORE connecting. Assigning it only after the await
+            // meant a connect that was cancelled (seat change, shutdown) or timed out
+            // left a live socket that DropSocket could never reach - it leaked as an
+            // established connection to MobiFlight, and the stale clients competed with
+            // the real one for the device, so the display stopped updating while the
+            // keys (a different transport) kept working.
             ClientWebSocket next = new();
+            socket = next;
             using (CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(token))
             {
                 timeout.CancelAfter(ConnectTimeout);
                 await next.ConnectAsync(endpoint, timeout.Token).ConfigureAwait(false);
             }
-            socket = next;
 
             // Select the font once per run only (see fontUploaded above), and give the
             // flash write time to finish before the first frame. Interrupting it is what
@@ -229,7 +236,13 @@ namespace EasyCPDLC.VNS430.Cdu
         {
             try
             {
+                // Abort first: cancelling alone leaves an in-flight connect or send to
+                // unwind on its own, and the pump is not waited on for long. Aborting
+                // the published socket guarantees the connection is torn down now
+                // rather than lingering as a stale client on MobiFlight.
                 cancellation.Cancel();
+                DropSocket();
+
                 // Do not block the UI thread on a socket that may be mid-retry.
                 pump?.Wait(TimeSpan.FromMilliseconds(250));
             }
