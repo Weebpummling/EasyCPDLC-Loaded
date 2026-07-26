@@ -196,6 +196,18 @@ namespace EasyCPDLC
         // Invoked from HandleDcduCompanionCommand's CDU arm.
         private void HandleCduLineSelect(bool rightSide, int index)
         {
+            // While armed, the bottom-left LSK is ERASE and does nothing but cancel.
+            // It must not fall through to the page handler, or it would also trigger
+            // whatever that slot normally does (RETURN, MENU) and leave the page.
+            if (cduArmedAction != null && !rightSide && index == CduLayout.LskCount)
+            {
+                ClearCduArm();
+                cduStatusError = false;
+                cduStatusLine = "ERASED";
+                RefreshCduDisplay();
+                return;
+            }
+
             // Any line-select changes the selection, so a previously armed transmit is
             // cancelled; the handler below re-arms if this press is itself a transmit.
             ClearCduArm();
@@ -314,6 +326,14 @@ namespace EasyCPDLC
                 case CduPageId.Load:
                     RenderCduLoad(grid, snapshot);
                     break;
+            }
+
+            // While something is armed, the bottom-left LSK is always ERASE - it
+            // replaces whatever that slot would otherwise be, so there is one
+            // consistent way out of an armed action on every page.
+            if (cduArmedAction != null)
+            {
+                grid.WriteLeft(CduLayout.DataRow(CduLayout.LskCount), "<ERASE", CduColor.Amber);
             }
 
             cduDisplayPanel.ExecArmed = cduArmedAction != null;
