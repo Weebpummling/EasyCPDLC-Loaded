@@ -26816,16 +26816,26 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
             {
                 messageString = messageContent[1];
             }
-            if (messageString.StartsWith("HANDOVER"))
+            if (CpdlcHandoverParser.IsHandover(messageString))
             {
-                string nextATCUnit = messageString.Split(' ').Last().Trim('@').Trim();
-                SetNextAtcUnitDisplay(nextATCUnit);
-                CurrentATCUnit = null;
-                pendingLogon = nextATCUnit;
-                StartCpdlcHandoverFrequencyWatch(nextATCUnit);
-                await SendCPDLCMessage(nextATCUnit, "CPDLC", String.Format("/data2/{0}//Y/REQUEST LOGON", messageOutCounter), false);
-                messageOutCounter += 1;
-                _showUser = false;
+                // Only act on a handover we could actually read a station out of.
+                // Guessing produced logons addressed to times, words and empty strings.
+                if (CpdlcHandoverParser.TryParseNextUnit(messageString, out string nextATCUnit))
+                {
+                    SetNextAtcUnitDisplay(nextATCUnit);
+                    CurrentATCUnit = null;
+                    pendingLogon = nextATCUnit;
+                    StartCpdlcHandoverFrequencyWatch(nextATCUnit);
+                    await SendCPDLCMessage(nextATCUnit, "CPDLC", String.Format("/data2/{0}//Y/REQUEST LOGON", messageOutCounter), false);
+                    messageOutCounter += 1;
+                    _showUser = false;
+                }
+                else
+                {
+                    // No usable code: show the pilot the raw handover so they can log
+                    // on by hand, rather than silently logging on to nothing.
+                    Logger.Debug("Handover without a usable station code: " + SafeLogValue(messageString, 96));
+                }
             }
             else if (messageString.StartsWith("LOGON ACCEPTED"))
             {
