@@ -19,7 +19,8 @@ read [Quick start](#quick-start).
 8. [Optional: mirror to a WinWing CDU](#optional-mirror-to-a-winwing-cdu)
 9. [Optional: vPilot bridge](#optional-vpilot-bridge)
 10. [Optional: printing](#optional-printing)
-11. [Troubleshooting](#troubleshooting)
+11. [Test mode](#test-mode)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -272,6 +273,20 @@ then a real test print.
 > stated dimensions first — not just the "80 mm" paper width. Receipt printers vary a
 > lot in body size and where the cut slot sits, and a facade cut for another chassis
 > will not line up.
+
+---
+
+## Test mode
+
+Tray → **CDU tools** → **Test mode (no network traffic)**.
+
+Fakes a connected session with sample messages already in the inbox, so you can set up
+hardware, printing and the WinWing mirror with no VATSIM, no Hoppie and no SI. **Nothing
+is transmitted while it is on** — every outbound packet is suppressed.
+
+The tick in the menu is the switch position. Turning it off clears the faked session and
+leaves you cleanly disconnected; it cannot be turned on during a live session, so
+disconnect first. It is never remembered across launches.
 
 ---
 

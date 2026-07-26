@@ -3334,11 +3334,19 @@ private TelexForm tForm;
         private string cpdlcDiscoveryHoverText = "CPDLC standby";
         private bool cpdlcHelperEnabled = true;
         private static readonly bool CpdlcHelperPopupDebugPreview = false;
+        // Test mode ("DEBUG UI preview"): fakes a connected session so every button,
+        // page and print path can be exercised with no network, and suppresses every
+        // outbound packet. It still defaults on in DEBUG builds and off in Release, but
+        // it is no longer a compile-time constant - the tray can flip it either way, so
+        // a debug build can be taken live and a release build can be rehearsed offline.
+        // Session-only by design: it must never be silently on at launch, or a pilot
+        // would be looking at invented ATC traffic.
 #if DEBUG
-        private static readonly bool DebugUiPreviewMode = true;
+        private static bool debugUiPreviewMode = true;
 #else
-        private static readonly bool DebugUiPreviewMode = false;
+        private static bool debugUiPreviewMode = false;
 #endif
+        private static bool DebugUiPreviewMode => debugUiPreviewMode;
 
         public bool DebugUiPreviewButtonsUnlocked => DebugUiPreviewMode;
         private bool debugUiPreviewInitialised = false;
@@ -3493,6 +3501,7 @@ private TelexForm tForm;
         private ToolStripMenuItem trayInstrumentCduItem;
         private ToolStripMenuItem trayInstrumentGnsItem;
         private ToolStripMenuItem trayModuleStatusItem;
+        private ToolStripMenuItem trayTestModeItem;
         private bool applyingMainWindowLayout;
         private readonly DcduHotspotButton mainMinimizeButton = new();
         private readonly DcduHotspotButton mainReloadFlightPlanButton = new();
@@ -3770,6 +3779,116 @@ private System.Windows.Forms.Label airbusAocSendLabel;
 
         }
 
+
+        /// <summary>
+        /// Tray switch for test mode. Turning it on fakes a session; turning it off
+        /// unwinds that fake back to a clean disconnected state, so the app is never
+        /// left claiming a connection it does not have. Enabling is refused while a real
+        /// session is up - test mode would paper over live ATC with invented traffic.
+        /// </summary>
+        private void SetTestModeEnabled(bool enabled)
+        {
+            if (debugUiPreviewMode == enabled)
+            {
+                return;
+            }
+
+            if (enabled && Connected)
+            {
+                trayIcon?.ShowBalloonTip(3500, "EasyCPDLC test mode",
+                    "Disconnect first. Test mode cannot be enabled during a live session.",
+                    ToolTipIcon.Warning);
+                return;
+            }
+
+            debugUiPreviewMode = enabled;
+            if (enabled)
+            {
+                InitialiseDebugUiPreviewMode();
+            }
+            else
+            {
+                ExitDebugUiPreviewMode();
+            }
+
+            SyncTrayTestModeState();
+            RefreshCduDisplay();
+        }
+
+        /// <summary>
+        /// Undoes everything <see cref="InitialiseDebugUiPreviewMode"/> invented. Only
+        /// the faked state is cleared - the loaded SimBrief plan, flight-phase tracking
+        /// and printer settings are real work and survive the switch.
+        /// </summary>
+        private void ExitDebugUiPreviewMode()
+        {
+            try
+            {
+                debugUiPreviewInitialised = false;
+                preserveLoadedFlightPlanOnLiveUpdate = false;
+
+                // Back to the real credentials; the preview substituted placeholders for
+                // whatever was blank.
+                cid = SavedCID;
+                logonCode = SavedHoppieCode;
+                callsign = string.Empty;
+                activeVatsimCallsign = string.Empty;
+                userVATSIMData = new Pilot();
+
+                hoppieOnlineStations.Clear();
+                hoppieOnlineStationsLoaded = false;
+                CurrentATCUnit = null;
+                pendingLogon = null;
+
+                pdcDiscoveryLogonCode = string.Empty;
+                pdcDiscoveryController = string.Empty;
+                pdcDiscoverySource = string.Empty;
+                pdcDiscoveryAllowReqClr = false;
+                pdcDiscoveryIsFallbackCandidate = false;
+                pdcDiscoveryHoverText = "PDC standby";
+                datalinkStatusText = "PDC --";
+
+                cpdlcDiscoveryText = "standby";
+                cpdlcDiscoveryLogonCode = string.Empty;
+                cpdlcDiscoveryController = string.Empty;
+                cpdlcDiscoveryHoverText = "CPDLC standby";
+
+                SetClearanceStatus("CLR --");
+                atisStatusText = BuildDotBadgeText("ATIS");
+                atisAvailabilityState = "UNKNOWN";
+
+                atcButton.Enabled = false;
+                telexButton.Enabled = false;
+                Connected = false;
+
+                if (statusValueLabel != null)
+                {
+                    statusValueLabel.Text = "OFFLINE";
+                    statusValueLabel.ForeColor = DcduTheme.Amber;
+                }
+
+                UpdateConnectionGatedControls();
+                UpdateCurrentAtcUnitDisplay();
+                UpdateCallsignDisplay();
+                UpdateOnlineStatusLabel();
+                UpdateClearanceStatusLabel();
+                UpdateSmartStatusLabelColors();
+
+                WriteMessage("TEST MODE OFF: THE FAKED SESSION IS CLEARED. CONNECT NORMALLY TO GO LIVE.", "SYSTEM", "SYSTEM");
+            }
+            catch (Exception ex)
+            {
+                Logger.Warn(ex, "Could not fully exit test mode");
+            }
+        }
+
+        private void SyncTrayTestModeState()
+        {
+            if (trayTestModeItem != null)
+            {
+                trayTestModeItem.Checked = DebugUiPreviewMode;
+            }
+        }
 
         private void InitialiseDebugUiPreviewMode()
         {
@@ -19455,6 +19574,18 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 cduLampTest.Click += (_, __) => { ToggleCduAnnunciatorTest(); cduLampTest.Checked = IsCduAnnunciatorTest(); };
                 cduToolsMenu.DropDownItems.Add(cduLampTest);
                 cduToolsMenu.DropDownItems.Add("Test vPilot Contact Me", null, (_, __) => SendTestVpilotContactMe());
+
+                // Test mode fakes a session so the whole app can be exercised offline and
+                // suppresses every outbound packet. Checked state is the switch position,
+                // so it is obvious at a glance whether the traffic on screen is invented.
+                trayTestModeItem = new ToolStripMenuItem("Test mode (no network traffic)")
+                {
+                    CheckOnClick = false,
+                    Checked = DebugUiPreviewMode
+                };
+                trayTestModeItem.Click += (_, __) => SetTestModeEnabled(!DebugUiPreviewMode);
+                cduToolsMenu.DropDownItems.Add(new ToolStripSeparator());
+                cduToolsMenu.DropDownItems.Add(trayTestModeItem);
                 trayMenu.Items.Add(cduToolsMenu);
 
                 trayMenu.Items.Add(new ToolStripSeparator());
@@ -19463,10 +19594,12 @@ string oldCallsign = (callsign ?? string.Empty).Trim().ToUpperInvariant();
                 {
                     SyncTrayInstrumentMenuState();
                     SyncTrayModuleStatus();
+                    SyncTrayTestModeState();
                 };
                 SyncTrayDisplayMenuState();
                 SyncTrayInstrumentMenuState();
                 SyncTrayModuleStatus();
+                SyncTrayTestModeState();
 
                 trayIcon?.Dispose();
                 trayIcon = new NotifyIcon
