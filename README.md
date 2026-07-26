@@ -1,6 +1,6 @@
 # EasyCPDLC-Loaded
 
-![Version](https://img.shields.io/badge/version-1.0.2-brightgreen)
+![Version](https://img.shields.io/badge/version-1.1.0-brightgreen)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
 ![Networks](https://img.shields.io/badge/networks-VATSIM%20%C2%B7%20SayIntentions-blue)
@@ -169,7 +169,7 @@ dotnet test .\EasyCPDLC.Tests\EasyCPDLC.Tests.csproj -c Release
 Package a release (produces the ZIP with both bridges and the manual):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version 1.0.2
+powershell -ExecutionPolicy Bypass -File .\scripts\Build-Release.ps1 -Version 1.1.0
 ```
 
 ---
