@@ -152,27 +152,11 @@ namespace EasyCPDLC
             return SavedPdcVia;
         }
 
-        // AUTO (follow network) label, or the explicit override source.
-        internal string Vns430WxSourceLabel()
-        {
-            string over = SavedWxSourceOverride;
-            return string.IsNullOrWhiteSpace(over)
-                ? "AUTO"
-                : Vns430WeatherClient.SourceLabel(Vns430WeatherClient.ParseSource(over));
-        }
-
-        internal string Vns430CycleWxSource()
-        {
-            SavedWxSourceOverride = SavedWxSourceOverride switch
-            {
-                "" or null => "VATSIM",
-                "VATSIM" => "REAL WORLD",
-                "REAL WORLD" => "SAYINTENTIONS",
-                _ => string.Empty
-            };
-            Properties.Settings.Default.Save();
-            return Vns430WxSourceLabel();
-        }
+        // The weather source the METAR/ATIS VIA field opens on. There is no longer a
+        // global WX SOURCE switch: the last per-request choice is remembered here, and
+        // an unset override still means "follow the network".
+        internal static string Vns430WeatherSourceLabel() =>
+            Vns430WeatherClient.SourceLabel(EffectiveWxSource());
 
         internal bool IsVns430ScreenOnlyMode()
         {
@@ -410,6 +394,7 @@ namespace EasyCPDLC
                 // connected, the SimConnect telemetry tracker otherwise (or both).
                 PreferArrivalStation = flightPhaseEnrouteSeen || simPhase.ReachedCruise,
                 SayIntentionsNetwork = siMode,
+                WeatherSource = Vns430WeatherSourceLabel(),
                 AtcUnitViaSayIntentions = currentUnit.Length > 0 && DatalinkRouting.RoutesToSayIntentions(
                     AcarsRoute.Auto, "CPDLC", currentUnit, siMode),
                 SimbriefIdent = SimbriefIdent,
@@ -519,18 +504,32 @@ namespace EasyCPDLC
 
             // REAL WORLD / SAYINTENTIONS weather is fetched directly over HTTP and does
             // not need a VATSIM datalink connection; only the VATSIM (INFOREQ) path does.
-            // The source follows the global SETUP selection (ATC network / WX override).
-            Vns430WeatherSource wxSource = EffectiveWxSource();
-            bool directWeather =
-                (workflow.Kind == Vns430WorkflowKind.AocMetar || workflow.Kind == Vns430WorkflowKind.AocAtis) &&
-                wxSource != Vns430WeatherSource.Vatsim;
+            // The source comes from the request's own VIA field, which replaced the
+            // global SETUP > WX SOURCE switch; the choice is remembered so the next
+            // request opens on it.
+            bool weatherRequest =
+                workflow.Kind == Vns430WorkflowKind.AocMetar || workflow.Kind == Vns430WorkflowKind.AocAtis;
+            string weatherVia = weatherRequest ? workflow.Value("VIA") : string.Empty;
+            Vns430WeatherSource wxSource = string.IsNullOrWhiteSpace(weatherVia)
+                ? EffectiveWxSource()
+                : Vns430WeatherClient.ParseSource(weatherVia);
+            bool directWeather = weatherRequest && wxSource != Vns430WeatherSource.Vatsim;
+            if (weatherRequest)
+            {
+                SavedWxSourceOverride = Vns430WeatherClient.SourceLabel(wxSource);
+                Properties.Settings.Default.Save();
+            }
 
-            // SI datalink: either the whole network is SI, or just this PDC is routed
-            // there (PDC VIA = SI on VATSIM). Either way no VATSIM connection is
-            // required - the SI prerequisites are.
+            // SI datalink: the whole network is SI, this PDC is routed there (LOGON VIA
+            // = SI on VATSIM), or the request's own VIA field names SI. Either way no
+            // VATSIM connection is required - the SI prerequisites are.
             bool viaSiDatalink = IsSayIntentionsDatalinkActive ||
-                (workflow.Kind == Vns430WorkflowKind.AocPreDeparture && PdcRoutesToSayIntentions);
-            if (viaSiDatalink && !directWeather)
+                (workflow.Kind == Vns430WorkflowKind.AocPreDeparture && PdcRoutesToSayIntentions) ||
+                (!weatherRequest && workflow.Value("VIA") == "SI");
+            // A VATSIM-sourced METAR/ATIS is a Hoppie INFOREQ whatever network the rest
+            // of the session runs on, so it needs the VATSIM connection, not SI's keys.
+            bool vatsimWeather = weatherRequest && !directWeather;
+            if (viaSiDatalink && !directWeather && !vatsimWeather)
             {
                 if (!SayIntentionsDatalinkPrerequisitesMet)
                 {
@@ -599,7 +598,11 @@ namespace EasyCPDLC
                         break;
 
                     case Vns430WorkflowKind.AocOceanic:
-                        await SendCPDLCMessage(recipient, "CPDLC", message);
+                        // Oceanic clearance authorities differ per network, so the VIA
+                        // field decides rather than the recipient's address: a regional
+                        // code means nothing to the router on its own.
+                        await SendCPDLCMessage(recipient, "CPDLC", message, true,
+                            workflow.Value("VIA") == "SI" ? AcarsRoute.SayIntentions : AcarsRoute.Hoppie);
                         break;
 
                     case Vns430WorkflowKind.AocMetar:

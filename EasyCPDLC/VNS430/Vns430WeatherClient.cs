@@ -57,7 +57,9 @@ namespace EasyCPDLC
             {
                 return Vns430WeatherSource.RealWorld;
             }
-            if (v.StartsWith("SAY", StringComparison.Ordinal))
+            // "SI" is what the instruments display and what the per-request VIA field
+            // stores; "SAYINTENTIONS" is the token older settings were written with.
+            if (v == "SI" || v.StartsWith("SAY", StringComparison.Ordinal))
             {
                 return Vns430WeatherSource.SayIntentions;
             }

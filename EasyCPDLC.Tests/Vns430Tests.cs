@@ -898,6 +898,105 @@ namespace EasyCPDLC.Tests
             Assert.Equal(expectedY, pivot.Y);
         }
 
+        // Every AOC request carries its own network selector - the global ATC NETWORK /
+        // WX SOURCE switches are gone, so a page without VIA has no way to choose at all.
+        // LOADSHEET is deliberately exempt: it is generated locally, not transmitted.
+        [Theory]
+        [InlineData(nameof(Vns430WorkflowKind.AocTelex))]
+        [InlineData(nameof(Vns430WorkflowKind.AocMetar))]
+        [InlineData(nameof(Vns430WorkflowKind.AocAtis))]
+        [InlineData(nameof(Vns430WorkflowKind.AocOceanic))]
+        public void AocWorkflows_CarryAViaSelectorAsTheLastField(string kindName)
+        {
+            Vns430WorkflowKind kind = Enum.Parse<Vns430WorkflowKind>(kindName);
+            Vns430Workflow workflow = Vns430Workflow.Create(kind, new Vns430BackendSnapshot());
+
+            Vns430EditField via = Assert.Single(workflow.Fields, field => field.Key == "VIA");
+            Assert.True(via.IsOption);
+            Assert.Same(via, workflow.Fields[workflow.Fields.Count - 1]);
+        }
+
+        [Fact]
+        public void DatalinkVia_DefaultsToTheNetworkTheFlightIsOn()
+        {
+            Vns430Workflow onSi = Vns430Workflow.Create(
+                Vns430WorkflowKind.AocTelex, new Vns430BackendSnapshot { SayIntentionsNetwork = true });
+            Vns430Workflow onVatsim = Vns430Workflow.Create(
+                Vns430WorkflowKind.AocTelex, new Vns430BackendSnapshot { SayIntentionsNetwork = false });
+
+            Assert.Equal("SI", onSi.Value("VIA"));
+            Assert.Equal("HOPPIE", onVatsim.Value("VIA"));
+        }
+
+        // The weather VIA field replaced SETUP > WX SOURCE, so it must open on whatever
+        // source is currently in force or the selection silently resets every request.
+        [Theory]
+        [InlineData("REAL WORLD")]
+        [InlineData("SI")]
+        [InlineData("VATSIM")]
+        public void WeatherVia_OpensOnTheSourceInForce(string source)
+        {
+            Vns430BackendSnapshot snapshot = new() { WeatherSource = source };
+
+            foreach (Vns430WorkflowKind kind in new[] { Vns430WorkflowKind.AocMetar, Vns430WorkflowKind.AocAtis })
+            {
+                Vns430Workflow workflow = Vns430Workflow.Create(kind, snapshot);
+                Assert.Equal(source, workflow.Value("VIA"));
+
+                Vns430EditField via = workflow.Fields.Single(field => field.Key == "VIA");
+                Assert.Equal(new[] { "VATSIM", "REAL WORLD", "SI" }.OrderBy(o => o).ToArray(),
+                    via.Options.OrderBy(o => o).ToArray());
+            }
+        }
+
+        // "SI" is what the VIA field stores and what the instruments display; if it does
+        // not parse back to SayIntentions, every SI weather request silently becomes a
+        // VATSIM INFOREQ.
+        [Theory]
+        [InlineData("SI", nameof(Vns430WeatherSource.SayIntentions))]
+        [InlineData("SAYINTENTIONS", nameof(Vns430WeatherSource.SayIntentions))]
+        [InlineData("REAL WORLD", nameof(Vns430WeatherSource.RealWorld))]
+        [InlineData("VATSIM", nameof(Vns430WeatherSource.Vatsim))]
+        public void WeatherSourceLabels_RoundTripThroughParseSource(string label, string expectedName)
+        {
+            Vns430WeatherSource expected = Enum.Parse<Vns430WeatherSource>(expectedName);
+
+            Assert.Equal(expected, Vns430WeatherClient.ParseSource(label));
+            Assert.Equal(expected, Vns430WeatherClient.ParseSource(Vns430WeatherClient.SourceLabel(expected)));
+        }
+
+        // The CDU pins VIA to the bottom-right slot whatever its position in the field
+        // list, and the remaining fields close up around the gap it leaves.
+        [Fact]
+        public void CduRequestSlots_PinViaToTheBottomRightAndCloseTheGap()
+        {
+            MethodInfo slotField = typeof(MainForm).GetMethod(
+                "CduSlotField", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.NotNull(slotField);
+
+            Vns430Workflow oceanic = Vns430Workflow.Create(
+                Vns430WorkflowKind.AocOceanic, new Vns430BackendSnapshot());
+            int via = oceanic.Fields.FindIndex(field => field.Key == "VIA");
+
+            int Slot(int slot) => (int)slotField.Invoke(null, new object[] { oceanic, slot });
+
+            Assert.Equal(via, Slot(9));
+            for (int slot = 0; slot < via; slot++)
+            {
+                Assert.Equal(slot, Slot(slot));
+            }
+            // Slots between the last non-VIA field and the pinned one stay empty.
+            for (int slot = oceanic.Fields.Count - 1; slot < 9; slot++)
+            {
+                Assert.Equal(-1, Slot(slot));
+            }
+
+            // A workflow with no VIA field is unaffected.
+            Vns430Workflow atc = Vns430Workflow.Create(Vns430WorkflowKind.AtcLevel, new Vns430BackendSnapshot());
+            Assert.Equal(0, (int)slotField.Invoke(null, new object[] { atc, 0 }));
+            Assert.Equal(-1, (int)slotField.Invoke(null, new object[] { atc, 9 }));
+        }
+
         private static Bitmap RenderPanelState(Vns430PanelArtwork artwork, string control, string state)
         {
             Bitmap surface = new(960, 407);

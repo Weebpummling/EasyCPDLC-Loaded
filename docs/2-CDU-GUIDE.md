@@ -88,10 +88,11 @@ amber when a credential you need is missing.
 | Setting | Values |
 |---|---|
 | **INSTRUMENT** | `CDU` ↔ `GNS430` — switches which unit is on screen |
-| **ATC NETWORK** | `VATSIM` or `SI` (SayIntentions) |
-| **WX SOURCE** | `AUTO` (follows the network) / `VATSIM` / `REAL WORLD` / `SI` |
 | **HW KEYS** | `ON` lets a physical CDU drive the panel |
-| **LOGON VIA** | Which network CPDLC logons and `REQ CLR` use: `AUTO` (follows ATC NETWORK) / `SI` / `VATSIM`. Also selectable on the LOGON page itself. SI hands off to VATSIM controllers, so pilots on both can work either side |
+
+There is no network or weather switch here. Both are chosen where they apply:
+**LOGON VIA** on the `LOGON` page picks the network for CPDLC logons and `REQ CLR`,
+and every AOC request carries its own **VIA** field on the bottom-right line.
 
 ### Entering a value
 
@@ -180,19 +181,26 @@ Select one, then press **`EXEC`** to send.
 
 ![AOC menu](../assets/screenshots/cdu-aoc-menu.png)
 
+> Every AOC request page — `TELEX`, `METAR`, `ATIS`, `OCEANIC` — has a **VIA** selector
+> on the bottom-right line, directly above `SEND>`. It picks the network that request
+> goes out on, independently of the rest of the session: company telex on Hoppie while
+> ATC runs on SI, for instance. `LOADSHEET` has none — it is generated locally.
+
 - `<METAR` — enter an ICAO, send. Returns METAR + TAF.
 - `<ATIS` — enter an ICAO, pick `ARRIVAL` / `DEPARTURE`, optionally `AUTO REFRESH`.
 
-Where it comes from depends on **WX SOURCE** in `SETUP`:
+Both pages carry a **`REQUEST VIA`** selector on the bottom-right line, which picks
+where the answer comes from:
 
 | Source | METAR / TAF | ATIS | Needs a connection? |
 |---|---|---|---|
 | `VATSIM` | Hoppie `INFOREQ` | VATSIM D-ATIS | Yes |
 | `REAL WORLD` | aviationweather.gov | Real D-ATIS | **No** |
-| `SAYINTENTIONS` | SayIntentions `getWX` | SayIntentions ATIS + runways | **No** |
+| `SI` | SayIntentions `getWX` | SayIntentions ATIS + runways | **No** |
 
-`AUTO` follows your ATC network. Real-world and SayIntentions weather arrive without a
-datalink connection at all.
+The selector opens on whatever you used last, so it is a one-off choice rather than a
+per-request chore. Real-world and SayIntentions weather arrive without a datalink
+connection at all.
 
 ---
 

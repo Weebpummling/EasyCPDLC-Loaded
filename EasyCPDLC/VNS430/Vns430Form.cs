@@ -909,16 +909,13 @@ namespace EasyCPDLC.VNS430
                     SetTransient("ATC NETWORK " + backend.Vns430CycleAtcNetwork());
                     break;
                 case 4:
-                    SetTransient("WX SOURCE " + backend.Vns430CycleWxSource());
-                    break;
-                case 5:
                     SetTransient("LOGON VIA " + backend.Vns430CyclePdcVia());
                     break;
-                case 6:
+                case 5:
                     SetTransient("LOADING SIMBRIEF FP");
                     _ = ReloadSimbriefPlanAsync();
                     break;
-                case 7:
+                case 6:
                     // Destructive, so require a second press to confirm (the label shows
                     // "CONFIRM CLEAR ALL?" while armed).
                     if (clearAllArmed)
@@ -933,14 +930,14 @@ namespace EasyCPDLC.VNS430
                         SetTransient("PRESS AGAIN TO CLEAR");
                     }
                     break;
-                case 8:
+                case 7:
                     backend.Vns430OpenSettings();
                     SetTransient("SETTINGS OPENED");
                     break;
-                case 9:
+                case 8:
                     ToggleCompanionModule();
                     break;
-                case 10:
+                case 9:
                     pageBeforeOverlay = Vns430Page.Menu;
                     SetPage(Vns430Page.Help, false);
                     break;
@@ -1141,7 +1138,8 @@ namespace EasyCPDLC.VNS430
                 "ATC REQUEST MENU",
                 "AOC / TELEX MENU",
                 "ATC NETWORK: " + backend.Vns430AtcNetworkLabel(),
-                "WX SOURCE: " + backend.Vns430WxSourceLabel(),
+                // WX SOURCE lived here; it is now picked per request on the METAR/ATIS
+                // forms, where the VIA field sits next to the station it applies to.
                 "LOGON VIA: " + backend.Vns430PdcViaLabel(),
                 backend.Vns430SimbriefPlanLabel(),
                 clearAllArmed ? "CONFIRM CLEAR ALL?" : "CLEAR ALL MESSAGES",

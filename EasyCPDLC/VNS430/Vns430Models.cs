@@ -103,6 +103,11 @@ namespace EasyCPDLC.VNS430
         // (e.g. the TELEX VIA field) to the side the pilot is flying on.
         internal bool SayIntentionsNetwork { get; init; }
 
+        // The weather source currently in force (VATSIM / REAL WORLD / SI). The METAR
+        // and ATIS VIA fields open on this, so the per-request selector starts where the
+        // last one left off - it replaced the old SETUP > WX SOURCE switch.
+        internal string WeatherSource { get; init; } = "VATSIM";
+
         // Which network the current CPDLC session runs over, so the ATS UNIT read-out
         // can name it without a separate row.
         internal bool AtcUnitViaSayIntentions { get; init; }

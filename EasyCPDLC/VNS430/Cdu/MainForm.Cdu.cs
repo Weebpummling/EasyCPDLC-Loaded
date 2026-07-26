@@ -1086,9 +1086,36 @@ namespace EasyCPDLC
 
         // Request fields fill left LSK 1..5 then right LSK 1..5 (ten slots). LSK6 is
         // RETURN / SEND; the scratchpad is the dedicated bottom row.
-        private static (bool RightSide, int Lsk) CduFieldSlot(int fieldIndex)
+        private static (bool RightSide, int Lsk) CduFieldSlot(int slot)
         {
-            return fieldIndex < 5 ? (false, fieldIndex + 1) : (true, (fieldIndex - 5) + 1);
+            return slot < 5 ? (false, slot + 1) : (true, (slot - 5) + 1);
+        }
+
+        // The bottom-right slot, immediately above SEND>.
+        private const int CduViaSlot = 9;
+
+        /// <summary>
+        /// Maps a display slot to the workflow field that occupies it. A VIA selector is
+        /// pinned to the bottom of the page rather than taking its turn in the field
+        /// order, so every AOC page carries it in the same place; the remaining fields
+        /// close up around it. Returns -1 for an empty slot.
+        /// </summary>
+        private static int CduSlotField(Vns430Workflow workflow, int slot)
+        {
+            int via = workflow.Fields.FindIndex(field => field.Key == "VIA");
+            if (via < 0)
+            {
+                return slot < workflow.Fields.Count ? slot : -1;
+            }
+
+            if (slot == CduViaSlot)
+            {
+                return via;
+            }
+
+            // Fields declared after VIA shift up one to fill the gap it left.
+            int index = slot < via ? slot : slot + 1;
+            return index < workflow.Fields.Count ? index : -1;
         }
 
         private void RenderCduRequest(CduGrid grid, Vns430BackendSnapshot snapshot)
@@ -1102,10 +1129,16 @@ namespace EasyCPDLC
 
             grid.WriteCentered(CduLayout.TitleRow, Truncate(cduWorkflow.Title, 24), CduColor.White);
 
-            for (int i = 0; i < cduWorkflow.Fields.Count && i < 8; i++)
+            for (int slot = 0; slot < 10; slot++)
             {
-                Vns430EditField field = cduWorkflow.Fields[i];
-                (bool right, int lsk) = CduFieldSlot(i);
+                int fieldIndex = CduSlotField(cduWorkflow, slot);
+                if (fieldIndex < 0)
+                {
+                    continue;
+                }
+
+                Vns430EditField field = cduWorkflow.Fields[fieldIndex];
+                (bool right, int lsk) = CduFieldSlot(slot);
                 bool empty = string.IsNullOrWhiteSpace(field.CleanValue);
                 string value = empty ? (field.IsOption ? "----" : "[   ]") : field.CleanValue;
                 CduColor colour = empty ? CduColor.Grey : CduColor.Green;
@@ -1155,8 +1188,9 @@ namespace EasyCPDLC
                 return;
             }
 
-            int fieldIndex = rightSide ? 5 + (index - 1) : index - 1;
-            if (fieldIndex < 0 || fieldIndex >= cduWorkflow.Fields.Count)
+            int slot = rightSide ? 5 + (index - 1) : index - 1;
+            int fieldIndex = slot < 0 ? -1 : CduSlotField(cduWorkflow, slot);
+            if (fieldIndex < 0)
             {
                 return;
             }
@@ -1264,17 +1298,17 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(3), "<TECHNICAL", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(4), "<WINWING", CduColor.White);
 
-            // Right column: instrument selector (CDU <-> GNS430) and weather source.
+            // Right column: instrument selector (CDU <-> GNS430).
             //
-            // ATC NETWORK and LOGON VIA used to live here too. Both are gone: the
-            // network is now chosen per logon on the LOGON page, next to the thing it
-            // affects, so a second global switch could only contradict it.
+            // ATC NETWORK, LOGON VIA and WX SOURCE used to live here too. All three are
+            // gone: the network is chosen per logon on the LOGON page and the weather
+            // source per request on METAR/ATIS, each next to the thing it affects, so a
+            // second global switch could only contradict it.
             RenderCduSetupField(grid, 1, true, "INSTRUMENT", InstrumentText());
-            RenderCduSetupField(grid, 2, true, "WX SOURCE", WxSourceText());
 
             // Hardware keys: gates the MSFS module's CDU/DCDU L-vars so a physical CDU
             // (e.g. WinWing) can drive the LSKs and keypad through MobiFlight.
-            RenderCduSetupField(grid, 3, true, "HW KEYS", IsDcduCompanionModeEnabled() ? "ON" : "OFF");
+            RenderCduSetupField(grid, 2, true, "HW KEYS", IsDcduCompanionModeEnabled() ? "ON" : "OFF");
 
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
         }
@@ -1496,8 +1530,7 @@ namespace EasyCPDLC
             switch (index)
             {
                 case 1: CduCycleInstrument(); break;
-                case 2: CduCycleWxSource(); break;
-                case 3: CduToggleHardwareKeys(); break;
+                case 2: CduToggleHardwareKeys(); break;
             }
         }
 
@@ -1651,21 +1684,6 @@ namespace EasyCPDLC
                 cduStatusLine = "INSTRUMENT GNS430";
                 SelectGns430Instrument();
             }
-        }
-
-        // AUTO (follow network) -> VATSIM -> REAL WORLD -> SAYINTENTIONS -> AUTO.
-        private void CduCycleWxSource()
-        {
-            string current = SavedWxSourceOverride;
-            SavedWxSourceOverride = current switch
-            {
-                "" or null => "VATSIM",
-                "VATSIM" => "REAL WORLD",
-                "REAL WORLD" => "SAYINTENTIONS",
-                _ => string.Empty
-            };
-            Properties.Settings.Default.Save();
-            cduStatusLine = "WX SOURCE " + WxSourceText();
         }
 
         private void HandleCduSetupAccountLsk(bool rightSide, int index)

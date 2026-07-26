@@ -93,14 +93,15 @@ If something required is missing, the `<SETUP` item on the CDU menu turns **ambe
 
 ### Pick your network and weather
 
-`SETUP` right-hand column:
+There is no global network or weather switch. Both are chosen where they apply:
 
-- **ATC NETWORK** — `VATSIM` or `SI` (SayIntentions)
-- **WX SOURCE** — `AUTO` (follow the network), or force `VATSIM` / `REAL WORLD` /
-  `SAYINTENTIONS`
+- **LOGON VIA**, on the `LOGON` page — which network CPDLC logons and `REQ CLR` use
+- **VIA**, on each AOC request page (`TELEX`, `METAR`, `ATIS`, `OCEANIC`) — which
+  network that one request goes out on
 
-`REAL WORLD` pulls genuine METAR/TAF and real D-ATIS. `AUTO` uses VATSIM weather on
-VATSIM and SayIntentions weather on SI.
+On METAR and ATIS the choices are `VATSIM` / `REAL WORLD` / `SI`. `REAL WORLD` pulls
+genuine METAR/TAF and real D-ATIS; both it and `SI` arrive without a datalink
+connection. The selector opens on whatever you picked last.
 
 ### What SI mode changes
 
@@ -183,8 +184,9 @@ Long messages scroll with `PREV PAGE` / `NEXT PAGE`.
 
 ### Get weather
 
-`MENU` → `<AOC` → `METAR>` or `ATIS>`, enter the ICAO, send. Real-world and
-SayIntentions sources arrive without needing a datalink connection.
+`MENU` → `<AOC` → `METAR>` or `ATIS>`, enter the ICAO, pick the source on the **VIA**
+line, send. Real-world and SayIntentions sources arrive without needing a datalink
+connection.
 
 ### Generate a loadsheet (eLoadControl)
 

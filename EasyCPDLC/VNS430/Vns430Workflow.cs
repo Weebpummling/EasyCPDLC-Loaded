@@ -181,6 +181,26 @@ namespace EasyCPDLC.VNS430
             Vns430EditField Options(string key, string label, params string[] values) =>
                 new() { Key = key, Label = label, Options = values, Value = values.FirstOrDefault() ?? string.Empty };
 
+            // Every AOC page carries a VIA selector so the pilot picks the network per
+            // request instead of from a global setting. The instruments pin it to the
+            // bottom of the page, whatever order the fields are declared in.
+            //
+            // Datalink pages choose an ACARS network; the default follows the side the
+            // pilot is flying on, with VA traffic normally living on Hoppie.
+            Vns430EditField DatalinkVia() => Options("VIA", "SEND VIA",
+                snapshot.SayIntentionsNetwork ? new[] { "SI", "HOPPIE" } : new[] { "HOPPIE", "SI" });
+
+            // Weather pages choose a source instead: VATSIM goes out as a Hoppie INFOREQ,
+            // REAL WORLD and SI are fetched directly over HTTP. The current source leads
+            // so the selector opens where the last request left it.
+            Vns430EditField WeatherVia()
+            {
+                string[] sources = new[] { "VATSIM", "REAL WORLD", "SI" }
+                    .OrderBy(source => string.Equals(source, snapshot.WeatherSource, StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                    .ToArray();
+                return Options("VIA", "REQUEST VIA", sources);
+            }
+
             return kind switch
             {
                 Vns430WorkflowKind.AtcDirect => new() { Kind = kind, Title = "DIRECT REQUEST", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("VALUE", "WAYPOINT", 8, true), Options("DUE", "DUE TO", "NONE", "WX", "A/C"), Text("REMARKS", "REMARKS", 48) } },
@@ -189,17 +209,13 @@ namespace EasyCPDLC.VNS430
                 Vns430WorkflowKind.AtcWhenCanWe => new() { Kind = kind, Title = "WHEN CAN WE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Options("TYPE", "REQUEST", "HIGHER", "LOWER", "BACK ROUTE", "CLIMB", "DESCENT", "MACH", "SPEED", "DIRECT"), Text("VALUE", "VALUE", 8), Text("REMARKS", "REMARKS", 48) } },
                 Vns430WorkflowKind.AtcFreeText => new() { Kind = kind, Title = "ATC FREE TEXT", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("TEXT", "MESSAGE", 80, true) } },
                 Vns430WorkflowKind.AtcPositionReport => new() { Kind = kind, Title = "POSITION REPORT", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("FIX", "PPOS FIX", 7, true), Text("TIME", "TIME Z", 4, true, DateTime.UtcNow.ToString("HHmm")), Text("FL", "FL", 3, true), Text("NEXT", "NEXT FIX", 7, true), Text("ETA", "NEXT ETA", 4), Text("THEN", "THEN FIX", 7) } },
-                // VIA picks the ACARS network the telex leaves on. The default follows
-                // the active ATC network; VA traffic normally lives on Hoppie, so the
-                // choice is one cycle away either direction (the first option is the
-                // default).
-                Vns430WorkflowKind.AocTelex => new() { Kind = kind, Title = "AOC TELEX", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true), Options("VIA", "SEND VIA", snapshot.SayIntentionsNetwork ? new[] { "SI", "HOPPIE" } : new[] { "HOPPIE", "SI" }), Text("TEXT", "MESSAGE", 80, true) } },
-                Vns430WorkflowKind.AocMetar => new() { Kind = kind, Title = "METAR REQUEST", Fields = { Text("STATION", "STATION", 4, true, station) } },
+                Vns430WorkflowKind.AocTelex => new() { Kind = kind, Title = "AOC TELEX", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true), Text("TEXT", "MESSAGE", 80, true), DatalinkVia() } },
+                Vns430WorkflowKind.AocMetar => new() { Kind = kind, Title = "METAR REQUEST", Fields = { Text("STATION", "STATION", 4, true, station), WeatherVia() } },
                 // The ATIS TYPE default follows the same phase logic as the station
                 // prefill (the first option is the default).
-                Vns430WorkflowKind.AocAtis => new() { Kind = kind, Title = "ATIS REQUEST", Fields = { Text("STATION", "STATION", 4, true, station), Options("TYPE", "ATIS TYPE", snapshot.PreferArrivalStation ? new[] { "ARRIVAL", "DEPARTURE" } : new[] { "DEPARTURE", "ARRIVAL" }), Options("AUTO", "AUTO REFRESH", "OFF", "ON") } },
+                Vns430WorkflowKind.AocAtis => new() { Kind = kind, Title = "ATIS REQUEST", Fields = { Text("STATION", "STATION", 4, true, station), Options("TYPE", "ATIS TYPE", snapshot.PreferArrivalStation ? new[] { "ARRIVAL", "DEPARTURE" } : new[] { "DEPARTURE", "ARRIVAL" }), Options("AUTO", "AUTO REFRESH", "OFF", "ON"), WeatherVia() } },
                 Vns430WorkflowKind.AocPreDeparture => new() { Kind = kind, Title = "PREDEP CLEARANCE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("GATE", "STAND/GATE", 5, true), Text("ATIS", "ATIS", 1, true), Text("REMARKS", "REMARKS", 40) } },
-                Vns430WorkflowKind.AocOceanic => new() { Kind = kind, Title = "OCEANIC CLEARANCE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("ENTRY", "ENTRY POINT", 8, true), Text("ETA", "ENTRY ETA", 4, true), Text("MACH", "MACH", 2, true), Text("LEVEL", "FL", 3, true), Text("REMARKS", "REMARKS", 40) } },
+                Vns430WorkflowKind.AocOceanic => new() { Kind = kind, Title = "OCEANIC CLEARANCE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("ENTRY", "ENTRY POINT", 8, true), Text("ETA", "ENTRY ETA", 4, true), Text("MACH", "MACH", 2, true), Text("LEVEL", "FL", 3, true), Text("REMARKS", "REMARKS", 40), DatalinkVia() } },
                 _ => new() { Kind = kind, Title = "REQUEST" }
             };
         }

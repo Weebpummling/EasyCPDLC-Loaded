@@ -87,7 +87,6 @@ Press **`MENU`** for the page menu — this is where the shared settings live.
 | `ATC REQUEST MENU` | Jumps to requests |
 | `AOC / TELEX MENU` | Jumps to AOC |
 | `ATC NETWORK: …` | Cycles `VATSIM` ↔ `SI` |
-| `WX SOURCE: …` | Cycles `AUTO` / `VATSIM` / `REAL WORLD` / `SAYINTENTIONS` |
 | `CLEAR ALL MESSAGES` | Wipes the inbox — **press twice** to confirm |
 | `EASYCPDLC SETTINGS` | Opens the desktop settings window |
 | `MSFS MODULE: …` | Toggles the hardware bridge |
@@ -182,7 +181,10 @@ to review and send.
 eLoadControl configurations, you pick aircraft / cabin / format and confirm the
 passenger split, then generate. The finished loadsheet lands in the inbox.
 
-Weather source follows `MENU` → `WX SOURCE`, exactly like the CDU.
+Every request form except load control ends with a **VIA** field: the network the
+request goes out on for `AOC TELEX` and `OCEANIC CLEARANCE`, and the weather source
+(`VATSIM` / `REAL WORLD` / `SI`) for `METAR` and `ATIS`. It opens on whatever you used
+last, and is shared with the CDU — the old `MENU` → `WX SOURCE` item is gone.
 
 ### PDC
 
