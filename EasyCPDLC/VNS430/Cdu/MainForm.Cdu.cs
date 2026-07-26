@@ -62,6 +62,10 @@ namespace EasyCPDLC
         // so the row the pilot picked decides where the logon is sent.
         private readonly List<Vns430CpdlcCandidate> cduLogonCandidates = new();
 
+        // The station a manual logon was armed with. The scratchpad is cleared on
+        // arming, so the code is kept here to show on the MANUAL LOGON row.
+        private string cduManualLogonCode = string.Empty;
+
         // EXEC arming: a network-transmitting action (send request, logon, REQ CLR,
         // reply, generate loadsheet) is selected first, which highlights it and lights
         // the EXEC annunciator; pressing EXEC then runs it. Local actions stay immediate.
@@ -102,6 +106,7 @@ namespace EasyCPDLC
         {
             cduArmedAction = null;
             cduArmedKey = string.Empty;
+            cduManualLogonCode = string.Empty;
         }
 
         private bool CduArmed(string key) => cduArmedAction != null && cduArmedKey == key;
@@ -763,9 +768,13 @@ namespace EasyCPDLC
                     inverse: CduArmed("LOGON:" + i));
             }
 
-            // Manual code entry via the scratchpad, then return.
+            // Manual code entry: an empty field until a code is armed, then the code
+            // itself, so the row shows what will actually be sent.
             grid.WriteLeft(CduLayout.LabelRow(5), "MANUAL LOGON", CduColor.Cyan, small: true);
-            grid.WriteLeft(CduLayout.DataRow(5), "<LOGON", CduColor.White, inverse: CduArmed("LOGON:M"));
+            bool manualArmed = CduArmed("LOGON:M");
+            grid.WriteLeft(CduLayout.DataRow(5),
+                "<" + (manualArmed && cduManualLogonCode.Length > 0 ? cduManualLogonCode : "----"),
+                manualArmed ? CduColor.White : CduColor.Grey, inverse: manualArmed);
             grid.WriteLeft(CduLayout.DataRow(6), "<RETURN", CduColor.White);
 
             RenderCduScratchpad(grid);
@@ -785,7 +794,8 @@ namespace EasyCPDLC
                     Properties.Settings.Default.Save();
                     SyncSayIntentionsPolling();
                     UpdateOnlineStatusLabel();
-                    cduStatusLine = "LOGON VIA " + SavedPdcVia;
+                    // No status message: the row itself shows the new selection, so an
+                    // amber line underneath only repeated it.
                 }
                 else if (index == 3)
                 {
@@ -896,6 +906,7 @@ namespace EasyCPDLC
                 (network.Length > 0 ? " VIA " + network : string.Empty);
 
             cduScratchpad = string.Empty;
+            cduManualLogonCode = armKey == "LOGON:M" ? clean : string.Empty;
             CduArm(armKey, label, () =>
             {
                 cduStatusLine = label.Replace("LOGON ", "LOGON SENT ");
