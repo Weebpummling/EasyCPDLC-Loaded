@@ -471,11 +471,6 @@ namespace EasyCPDLC
             // Printing lives on the pages where a message is actually on screen, so
             // there is nothing here to print FROM. This page is logon and flight plan.
             grid.WriteLeft(CduLayout.DataRow(1), "<LOGON", CduColor.White);
-            grid.WriteLeft(CduLayout.LabelRow(2), "VATSIM PLAN", CduColor.Cyan, small: true);
-            // 13 columns, one more than a half row, so written from column 0 directly.
-            // Safe because the ROUTE value opposite is capped at 11 below, which leaves
-            // column 12 clear between them.
-            grid.Write(CduLayout.DataRow(2), 0, "<LOAD/REFRESH", CduColor.White, inverse: CduArmed("RELOADFP"));
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
 
             // Right column: live status read-out (the old top-row info, now in the display).
@@ -491,11 +486,15 @@ namespace EasyCPDLC
                 : "----";
             RenderCduRightStatus(grid, 1, "ATS UNIT", unitText,
                 loggedOn ? (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber) : CduColor.Grey);
-            // Capped at 11 rather than the usual 12 so it cannot reach column 12 and
-            // collide with the wider LOAD/REFRESH entry opposite it.
-            grid.WriteRight(CduLayout.LabelRow(2), "ROUTE", CduColor.Cyan, small: true);
-            grid.WriteRight(CduLayout.DataRow(2), Truncate(BuildRouteText(snapshot), CduGrid.HalfCols - 1), CduColor.White);
+            RenderCduRightStatus(grid, 2, "ROUTE", BuildRouteText(snapshot), CduColor.White);
             RenderCduRightStatus(grid, 3, "LOGON", string.IsNullOrWhiteSpace(snapshot.PendingLogon) ? "----" : DatalinkRouting.DisplayStation(snapshot.PendingLogon), CduColor.Cyan);
+
+            // Flight plan action on the right at LSK 4. "LOAD/REFRESH>" is 13 columns
+            // against the 12 a right entry has, so it is placed by column - safe here
+            // because nothing occupies the left of this row.
+            grid.WriteRight(CduLayout.LabelRow(4), "VATSIM PLAN", CduColor.Cyan, small: true);
+            grid.Write(CduLayout.DataRow(4), CduGrid.Cols - 13, "LOAD/REFRESH>", CduColor.White,
+                inverse: CduArmed("RELOADFP"));
         }
 
         private static void RenderCduRightStatus(CduGrid grid, int lsk, string label, string value, CduColor valueColour)
@@ -690,6 +689,16 @@ namespace EasyCPDLC
         {
             if (rightSide)
             {
+                if (index == 4)
+                {
+                    // Reloading the flight plan wipes the inbox for the new leg, so arm it.
+                    CduArm("RELOADFP", "LOAD/REFRESH FP + CLEAR", () =>
+                    {
+                        ReloadFlightPlanButton_Click(mainReloadFlightPlanButton, EventArgs.Empty);
+                        DeleteAllElement(this, EventArgs.Empty);
+                        cduStatusLine = "FP RELOADED";
+                    });
+                }
                 return;
             }
 
@@ -701,15 +710,6 @@ namespace EasyCPDLC
                     cduScratchpad = string.Empty;
                     cduStatusLine = string.Empty;
                     cduPage = CduPageId.Logon;
-                    break;
-                case 2:
-                    // Reloading the flight plan wipes the inbox for the new leg, so arm it.
-                    CduArm("RELOADFP", "RELOAD FP + CLEAR", () =>
-                    {
-                        ReloadFlightPlanButton_Click(mainReloadFlightPlanButton, EventArgs.Empty);
-                        DeleteAllElement(this, EventArgs.Empty);
-                        cduStatusLine = "FP RELOADED";
-                    });
                     break;
                 case 6: cduPage = CduPageId.Menu; break;
             }
