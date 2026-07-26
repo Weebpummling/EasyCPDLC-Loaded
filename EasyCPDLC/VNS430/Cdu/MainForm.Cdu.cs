@@ -439,15 +439,14 @@ namespace EasyCPDLC
         {
             RenderCduHeader(grid, "DLK STATUS", snapshot);
 
-            // Left column: actions on the LSKs. CONNECT/DISCONNECT is the VATSIM
-            // session specifically - on SI the datalink is live with no session, so
-            // using snapshot.Connected here offered to disconnect nothing.
-            grid.WriteLeft(CduLayout.DataRow(1), snapshot.VatsimConnected ? "<DISCONNECT" : "<CONNECT",
-                snapshot.VatsimConnected ? CduColor.Amber : CduColor.Green);
+            // Left column: actions on the LSKs. LOGON leads - it is the action that
+            // actually opens a datalink session. CONNECT/DISCONNECT used to sit here,
+            // but it only ever toggled the VATSIM client connection, which is neither
+            // required on SI nor the thing a pilot comes to this page to do.
+            grid.WriteLeft(CduLayout.DataRow(1), "<LOGON", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(2), "<RELOAD FP", CduColor.White, inverse: CduArmed("RELOADFP"));
             grid.WriteLeft(CduLayout.DataRow(3), "<PRINT LAST", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(4), "<REPRINT", CduColor.White);
-            grid.WriteLeft(CduLayout.DataRow(5), "<LOGON", CduColor.White);
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
 
             // Right column: live status read-out (the old top-row info, now in the display).
@@ -664,7 +663,13 @@ namespace EasyCPDLC
 
             switch (index)
             {
-                case 1: Vns430ToggleVatsimConnection(); break;
+                case 1:
+                    // Freshen discovery from the latest VATSIM/Hoppie data on entry.
+                    UpdateCpdlcDiscoveryFromVatsim();
+                    cduScratchpad = string.Empty;
+                    cduStatusLine = string.Empty;
+                    cduPage = CduPageId.Logon;
+                    break;
                 case 2:
                     // Reloading the flight plan wipes the inbox for the new leg, so arm it.
                     CduArm("RELOADFP", "RELOAD FP + CLEAR", () =>
@@ -676,13 +681,6 @@ namespace EasyCPDLC
                     break;
                 case 3: PrintButton_Click(refreshButtonVisual, EventArgs.Empty); break;
                 case 4: ReprintButton_Click(boeingReprintButton, EventArgs.Empty); break;
-                case 5:
-                    // Freshen discovery from the latest VATSIM/Hoppie data on entry.
-                    UpdateCpdlcDiscoveryFromVatsim();
-                    cduScratchpad = string.Empty;
-                    cduStatusLine = string.Empty;
-                    cduPage = CduPageId.Logon;
-                    break;
                 case 6: cduPage = CduPageId.Menu; break;
             }
         }
@@ -711,20 +709,28 @@ namespace EasyCPDLC
                 grid.WriteRight(CduLayout.DataRow(3), "REQ CLR>", CduColor.Green, inverse: CduArmed("REQCLR"));
             }
 
-            // Left column: online CPDLC logon candidates on LSK 1..4.
+            // Two choices, one per network, always in the same slot. The facility name
+            // goes on the caption row and the selectable line carries only the network
+            // and the code - "<VATSIM KZWY" is exactly the 12 columns available, so
+            // neither is ever clipped mid-word the way "KZWY NEW YO" was.
             cduLogonCandidates.Clear();
-            List<Vns430CpdlcCandidate> candidates = snapshot.CpdlcCandidates.Take(4).ToList();
+            List<Vns430CpdlcCandidate> candidates = snapshot.CpdlcCandidates.Take(2).ToList();
             for (int i = 0; i < candidates.Count; i++)
             {
-                cduLogonCandidates.Add(candidates[i]);
-                grid.WriteLeft(CduLayout.LabelRow(i + 1), Truncate(candidates[i].Reason, CduGrid.HalfCols), CduColor.Cyan, small: true);
+                Vns430CpdlcCandidate option = candidates[i];
+                cduLogonCandidates.Add(option);
+
+                bool available = !string.IsNullOrWhiteSpace(option.Code);
+                string network = option.Route == AcarsRoute.SayIntentions ? "SI" : "VATSIM";
+
+                grid.WriteLeft(CduLayout.LabelRow(i + 1),
+                    Truncate(available ? option.Controller : "NONE ONLINE", CduGrid.HalfCols),
+                    CduColor.Cyan, small: true);
                 grid.WriteLeft(CduLayout.DataRow(i + 1),
-                    "<" + Truncate(DatalinkRouting.DisplayStation(candidates[i].Code) + " " + candidates[i].Controller, CduGrid.HalfCols - 1),
-                    candidates[i].TunedMatch ? CduColor.Green : CduColor.White, inverse: CduArmed("LOGON:" + i));
-            }
-            if (candidates.Count == 0)
-            {
-                grid.WriteLeft(CduLayout.DataRow(2), " NO CPDLC ATC FOUND", CduColor.Grey);
+                    available ? "<" + network + " " + DatalinkRouting.DisplayStation(option.Code)
+                              : "<" + network + " ----",
+                    available ? (option.TunedMatch ? CduColor.Green : CduColor.White) : CduColor.Grey,
+                    inverse: CduArmed("LOGON:" + i));
             }
 
             // Manual code entry via the scratchpad, then return.
@@ -761,6 +767,13 @@ namespace EasyCPDLC
                     if (position < cduLogonCandidates.Count)
                     {
                         Vns430CpdlcCandidate picked = cduLogonCandidates[position];
+                        if (string.IsNullOrWhiteSpace(picked.Code))
+                        {
+                            // The VATSIM slot with nobody online - nothing to log on to.
+                            cduStatusLine = "NO VATSIM CPDLC ATC ONLINE";
+                            cduStatusError = true;
+                            break;
+                        }
                         CduLogonTo(picked.Code, "LOGON:" + position, picked.Route);
                     }
                     break;

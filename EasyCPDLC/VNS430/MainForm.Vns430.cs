@@ -338,74 +338,37 @@ namespace EasyCPDLC
                 enroute ? departureIcao : arrivalIcao);
             CpdlcAtsuDirectory.Atsu here = regional.FirstOrDefault();
 
-            // Ordered so the two networks are unmistakable and always in the same
-            // place: the VATSIM station first, then SayIntentions, then the rest.
-            // Each row carries its own route, so the same regional code can be offered
-            // on both sides - SI accepts the regional and local codes too.
-            List<Vns430CpdlcCandidate> ordered = new();
-
-            Vns430CpdlcCandidate vatsimBest = candidates.FirstOrDefault();
-            if (vatsimBest != null)
+            // Exactly two choices, always in the same place, so the pilot is picking a
+            // network rather than reading a list. A long list of the same codes twice
+            // was only ever confusing.
+            //
+            //   VATSIM - the controller discovery actually found. Left blank when not
+            //            connected or nobody is online: there is genuinely nothing to
+            //            log on to, and offering a guess would invite a dead logon.
+            //   SI     - the regional ATSU for where the aircraft is. SayIntentions
+            //            staffs every station, so a region code always works there.
+            Vns430CpdlcCandidate discovered = candidates.FirstOrDefault();
+            candidates = new List<Vns430CpdlcCandidate>
             {
-                ordered.Add(Route(vatsimBest, AcarsRoute.Hoppie));
-            }
-            else if (here != null)
-            {
-                ordered.Add(Route(new Vns430CpdlcCandidate
-                {
-                    Code = here.Code,
-                    Controller = here.Name
-                }, AcarsRoute.Hoppie));
-            }
-
-            // SayIntentions: the regional unit where the aircraft is when we know it,
-            // otherwise their always-on ATSU.
-            ordered.Add(Route(new Vns430CpdlcCandidate
-            {
-                Code = here?.Code ?? DatalinkRouting.SayIntentionsAtsu,
-                Controller = here?.Name ?? "ATC"
-            }, AcarsRoute.SayIntentions));
-
-            // Remaining discovered stations, then remaining regional suggestions.
-            foreach (Vns430CpdlcCandidate discovered in candidates.Skip(vatsimBest == null ? 0 : 1))
-            {
-                Add(ordered, Route(discovered, AcarsRoute.Hoppie));
-            }
-            foreach (CpdlcAtsuDirectory.Atsu unit in regional)
-            {
-                Add(ordered, Route(new Vns430CpdlcCandidate
-                {
-                    Code = unit.Code,
-                    Controller = unit.Name
-                }, AcarsRoute.Hoppie));
-            }
-
-            candidates = ordered.Take(4).ToList();
-
-            // Caption each row with the network it will actually leave on, so a row can
-            // never be mistaken for the other side's.
-            static Vns430CpdlcCandidate Route(Vns430CpdlcCandidate candidate, AcarsRoute route) =>
                 new()
                 {
-                    Code = candidate.Code,
-                    Controller = candidate.Controller,
-                    Frequency = candidate.Frequency,
-                    TunedMatch = candidate.TunedMatch,
-                    Route = route,
-                    Reason = route == AcarsRoute.SayIntentions ? "VIA SI" : "VIA VATSIM"
-                };
-
-            // Same code on the same network only once; the same code on the other
-            // network is a legitimately different row.
-            static void Add(List<Vns430CpdlcCandidate> list, Vns430CpdlcCandidate candidate)
-            {
-                if (list.Count < 4 &&
-                    !list.Any(existing => existing.Route == candidate.Route &&
-                        string.Equals(existing.Code, candidate.Code, StringComparison.OrdinalIgnoreCase)))
+                    Code = discovered?.Code ?? string.Empty,
+                    Controller = discovered?.Controller ?? string.Empty,
+                    Frequency = discovered?.Frequency ?? string.Empty,
+                    TunedMatch = discovered?.TunedMatch ?? false,
+                    Route = AcarsRoute.Hoppie,
+                    Reason = "VATSIM"
+                },
+                new()
                 {
-                    list.Add(candidate);
+                    Code = here?.Code ?? DatalinkRouting.SayIntentionsAtsu,
+                    Controller = here?.Name ?? "SAYINTENTIONS",
+                    Frequency = string.Empty,
+                    TunedMatch = false,
+                    Route = AcarsRoute.SayIntentions,
+                    Reason = "SI"
                 }
-            }
+            };
 
             string pdcStatus = (datalinkStatusText ?? string.Empty)
                 .Replace("PDC", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
