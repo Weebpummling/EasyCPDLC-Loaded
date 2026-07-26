@@ -565,14 +565,14 @@ namespace EasyCPDLC
                 grid.WriteLeft(CduLayout.DataRow(4 + i), "<" + responses[i], ReplyColour(responses[i]), inverse: CduArmed("REPLY:" + i));
             }
 
-            // Right LSK 3: unit toggle, shown only when the message actually carries
-            // convertible weights (a loadsheet that declares its units).
-            string sourceUnit = LoadsheetUnitConverter.DetectUnit(message.Text);
-            if (!string.IsNullOrWhiteSpace(sourceUnit))
+            // Unit toggle on the bottom-left, below any replies: rows 1..6 are the
+            // message body, so anything rendered there would sit on top of the text.
+            int unitSlot = CduUnitToggleSlot(message);
+            if (unitSlot > 0)
             {
-                string shown = cduUnitOverride ?? sourceUnit;
-                grid.WriteRight(CduLayout.LabelRow(3), "UNITS", CduColor.Cyan, small: true);
-                grid.WriteRight(CduLayout.DataRow(3), "IN " + LoadsheetUnitConverter.Other(shown) + ">",
+                string shown = cduUnitOverride ?? LoadsheetUnitConverter.DetectUnit(message.Text);
+                grid.WriteLeft(CduLayout.LabelRow(unitSlot), "UNITS", CduColor.Cyan, small: true);
+                grid.WriteLeft(CduLayout.DataRow(unitSlot), "<IN " + LoadsheetUnitConverter.Other(shown),
                     CduColor.White);
             }
 
@@ -580,6 +580,21 @@ namespace EasyCPDLC
             grid.WriteRight(CduLayout.DataRow(4), "PRINT>", CduColor.White);
             grid.WriteRight(CduLayout.DataRow(5), "REPRINT>", CduColor.White);
             grid.WriteRight(CduLayout.DataRow(6), "RETURN>", CduColor.White);
+        }
+
+        // Which bottom-left LSK carries the unit toggle, or 0 when the message has no
+        // determinable units. Sits directly below the reply keys so the two can never
+        // overlap, and clear of the body rows (1..6).
+        private static int CduUnitToggleSlot(Vns430MessageSnapshot message)
+        {
+            if (string.IsNullOrWhiteSpace(LoadsheetUnitConverter.DetectUnit(message?.Text)))
+            {
+                return 0;
+            }
+
+            int replies = Math.Min(3, message?.Responses?.Count ?? 0);
+            int slot = 4 + replies;
+            return slot <= CduLayout.LskCount ? slot : 0;
         }
 
         // The viewer's text: converted to the pilot's chosen unit when one is selected.
@@ -850,6 +865,16 @@ namespace EasyCPDLC
 
             if (!rightSide)
             {
+                // Unit toggle sits immediately below the replies on the bottom left.
+                if (index == CduUnitToggleSlot(message))
+                {
+                    cduUnitOverride = LoadsheetUnitConverter.Other(
+                        cduUnitOverride ?? LoadsheetUnitConverter.DetectUnit(message.Text));
+                    cduDetailScroll = 0;   // the converted sheet re-wraps
+                    cduStatusLine = "UNITS " + cduUnitOverride;
+                    return;
+                }
+
                 // Replies live on the bottom-left LSKs 4,5,6.
                 IReadOnlyList<string> responses = message.Responses ?? Array.Empty<string>();
                 int position = index - 4;
@@ -864,15 +889,6 @@ namespace EasyCPDLC
 
             switch (index)
             {
-                case 3:
-                    string sourceUnit = LoadsheetUnitConverter.DetectUnit(message.Text);
-                    if (!string.IsNullOrWhiteSpace(sourceUnit))
-                    {
-                        cduUnitOverride = LoadsheetUnitConverter.Other(cduUnitOverride ?? sourceUnit);
-                        cduDetailScroll = 0;   // the converted sheet re-wraps
-                        cduStatusLine = "UNITS " + cduUnitOverride;
-                    }
-                    break;
                 case 4: PrintDatalinkMessage(message.Source); break;
                 case 5: ReprintButton_Click(boeingReprintButton, EventArgs.Empty); break;
                 case 6:
