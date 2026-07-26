@@ -883,7 +883,7 @@ namespace EasyCPDLC.VNS430
         private void ActivateMenuItem(int index)
         {
             // Any menu action other than re-selecting CLEAR ALL cancels its armed confirm.
-            if (index != 6)
+            if (index != 7)
             {
                 clearAllArmed = false;
             }
@@ -913,6 +913,10 @@ namespace EasyCPDLC.VNS430
                     SetTransient("PDC VIA " + backend.Vns430CyclePdcVia());
                     break;
                 case 6:
+                    SetTransient("LOADING SIMBRIEF FP");
+                    _ = ReloadSimbriefPlanAsync();
+                    break;
+                case 7:
                     // Destructive, so require a second press to confirm (the label shows
                     // "CONFIRM CLEAR ALL?" while armed).
                     if (clearAllArmed)
@@ -927,18 +931,26 @@ namespace EasyCPDLC.VNS430
                         SetTransient("PRESS AGAIN TO CLEAR");
                     }
                     break;
-                case 7:
+                case 8:
                     backend.Vns430OpenSettings();
                     SetTransient("SETTINGS OPENED");
                     break;
-                case 8:
+                case 9:
                     ToggleCompanionModule();
                     break;
-                case 9:
+                case 10:
                     pageBeforeOverlay = Vns430Page.Menu;
                     SetPage(Vns430Page.Help, false);
                     break;
             }
+        }
+
+        private async Task ReloadSimbriefPlanAsync()
+        {
+            await backend.Vns430LoadSimbriefPlanAsync();
+            SetTransient(backend.Vns430SimbriefPlanLabel());
+            // The load page rebuilds its session from the new plan next time it opens.
+            loadSession = null;
         }
 
         private void ToggleCompanionModule()
@@ -1129,6 +1141,7 @@ namespace EasyCPDLC.VNS430
                 "ATC NETWORK: " + backend.Vns430AtcNetworkLabel(),
                 "WX SOURCE: " + backend.Vns430WxSourceLabel(),
                 "PDC VIA: " + backend.Vns430PdcViaLabel(),
+                backend.Vns430SimbriefPlanLabel(),
                 clearAllArmed ? "CONFIRM CLEAR ALL?" : "CLEAR ALL MESSAGES",
                 "EASYCPDLC SETTINGS",
                 "MSFS MODULE: " + companionInput.Status,

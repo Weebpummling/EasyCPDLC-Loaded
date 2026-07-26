@@ -403,6 +403,15 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.LabelRow(5), setupAttn ? "CHECK SETUP" : "CONFIG",
                 setupAttn ? CduColor.Amber : CduColor.Cyan, small: true);
             grid.WriteLeft(CduLayout.DataRow(5), "<SETUP", setupAttn ? CduColor.Amber : CduColor.White, inverse: setupAttn);
+
+            // Pull the current SimBrief OFP and refresh everything derived from it
+            // (navlog fixes, SI identity, eLoadControl source). EXEC-armed because it
+            // replaces the loaded plan.
+            grid.WriteRight(CduLayout.LabelRow(1),
+                SimbriefPlanLoaded ? Truncate(SimbriefPlanRoute, CduGrid.HalfCols) : "SIMBRIEF",
+                CduColor.Cyan, small: true);
+            grid.WriteRight(CduLayout.DataRow(1), SimbriefPlanLoaded ? "RELOAD FP>" : "LOAD FP>",
+                CduColor.White, inverse: CduArmed("SBFP"));
         }
 
         // SETUP wants attention when a credential the pilot needs to connect/operate is
@@ -564,6 +573,10 @@ namespace EasyCPDLC
         {
             if (rightSide)
             {
+                if (index == 1)
+                {
+                    CduArm("SBFP", (SimbriefPlanLoaded ? "RELOAD" : "LOAD") + " SIMBRIEF FP", CduLoadSimbriefPlan);
+                }
                 return;
             }
 
@@ -575,6 +588,18 @@ namespace EasyCPDLC
                 case 4: cduPage = CduPageId.Messages; break;
                 case 5: cduPage = CduPageId.Setup; break;
             }
+        }
+
+        private async void CduLoadSimbriefPlan()
+        {
+            cduStatusLine = "LOADING SIMBRIEF FP...";
+            RefreshCduDisplay();
+
+            await LoadSimbriefFlightPlanAsync();
+
+            cduStatusLine = SimbriefPlanLoaded ? "FP " + SimbriefPlanRoute : "FP LOAD FAILED";
+            cduStatusError = !SimbriefPlanLoaded;
+            RefreshCduDisplay();
         }
 
         private void HandleCduDlkLsk(bool rightSide, int index)

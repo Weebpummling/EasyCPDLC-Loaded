@@ -109,6 +109,11 @@ namespace EasyCPDLC
 
         internal string Vns430PdcViaLabel() => SavedPdcVia;
 
+        internal string Vns430SimbriefPlanLabel() =>
+            SimbriefPlanLoaded ? "RELOAD SIMBRIEF FP: " + SimbriefPlanRoute : "LOAD SIMBRIEF FP";
+
+        internal Task Vns430LoadSimbriefPlanAsync() => LoadSimbriefFlightPlanAsync();
+
         // AUTO -> SI -> VATSIM -> AUTO, mirroring the CDU SETUP cycle.
         internal string Vns430CyclePdcVia()
         {
