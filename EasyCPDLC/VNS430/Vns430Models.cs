@@ -103,6 +103,10 @@ namespace EasyCPDLC.VNS430
         // (e.g. the TELEX VIA field) to the side the pilot is flying on.
         internal bool SayIntentionsNetwork { get; init; }
 
+        // Which network the current CPDLC session runs over, so the ATS UNIT read-out
+        // can name it without a separate row.
+        internal bool AtcUnitViaSayIntentions { get; init; }
+
         // Aircraft identity from the loaded SimBrief plan (callsign, else registration),
         // empty when no plan is loaded. The CDU header shows this rather than the live
         // callsign, which outlives the flight it came from.

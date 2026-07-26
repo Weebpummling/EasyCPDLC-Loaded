@@ -451,18 +451,20 @@ namespace EasyCPDLC
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
 
             // Right column: live status read-out (the old top-row info, now in the display).
-            // "NETWORK", not "VATSIM": on SI the datalink is live without VATSIM, and SI
-            // itself hands flights off to VATSIM controllers - pilots may be on both.
-            // Name which side is up so CONNECTED is never ambiguous.
-            string networkState = snapshot.VatsimConnected ? "VATSIM"
-                : snapshot.Connected ? "SI"
-                : "OFFLINE";
-            RenderCduRightStatus(grid, 1, "NETWORK", networkState,
-                snapshot.Connected ? CduColor.Green : CduColor.Amber);
-            RenderCduRightStatus(grid, 2, "ATS UNIT", string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? "----" : DatalinkRouting.DisplayStation(snapshot.CurrentAtcUnit),
-                string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? CduColor.Grey : (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber));
-            RenderCduRightStatus(grid, 3, "ROUTE", BuildRouteText(snapshot), CduColor.White);
-            RenderCduRightStatus(grid, 4, "LOGON", string.IsNullOrWhiteSpace(snapshot.PendingLogon) ? "----" : DatalinkRouting.DisplayStation(snapshot.PendingLogon), CduColor.Cyan);
+            // ATS UNIT leads: whether a controller is logged on is the state that
+            // actually gates sending CPDLC. The old NETWORK row above it reported
+            // "connected" for two different things (a VATSIM session, or merely having
+            // SI credentials), so it could not be read as one fact - the network is now
+            // named alongside the unit instead, where it means something.
+            bool loggedOn = !string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit);
+            string unitText = loggedOn
+                ? DatalinkRouting.DisplayStation(snapshot.CurrentAtcUnit) +
+                    (snapshot.AtcUnitViaSayIntentions ? " VIA SI" : " VIA VATSIM")
+                : "----";
+            RenderCduRightStatus(grid, 1, "ATS UNIT", unitText,
+                loggedOn ? (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber) : CduColor.Grey);
+            RenderCduRightStatus(grid, 2, "ROUTE", BuildRouteText(snapshot), CduColor.White);
+            RenderCduRightStatus(grid, 3, "LOGON", string.IsNullOrWhiteSpace(snapshot.PendingLogon) ? "----" : DatalinkRouting.DisplayStation(snapshot.PendingLogon), CduColor.Cyan);
         }
 
         private static void RenderCduRightStatus(CduGrid grid, int lsk, string label, string value, CduColor valueColour)

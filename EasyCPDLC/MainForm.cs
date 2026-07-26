@@ -22252,7 +22252,17 @@ private static void DrawLogonVersionOnControl(Control control, Rectangle version
                 Logger.Debug(String.Format("PACKET SENT: net={0} | to={1} | type={2} | packetLen={3} | write={4}", networkName, SafeLogValue(recipient), SafeLogValue(messageType), (packetData ?? string.Empty).Length, _write));
                 var responseString = await response.Content.ReadAsStringAsync();
                 string printString = responseString.ToString().ToUpper().Trim();
-                Logger.Debug(String.Format("{0} RESPONSE: status={1} | length={2}", networkName, ClassifyHoppieResponseForLog(responseString), (responseString ?? string.Empty).Length));
+                Logger.Debug(String.Format("{0} RESPONSE: http={1} | status={2} | length={3}", networkName, (int)response.StatusCode, ClassifyHoppieResponseForLog(responseString), (responseString ?? string.Empty).Length));
+
+                // SayIntentions reports faults as real HTTP codes with a JSON body,
+                // where Hoppie always answers 200. Surface the reason instead of the
+                // generic network error, and honour their 401 back-off - it is sent
+                // after repeated invalid logons specifically so clients stop hammering.
+                if (TryHandleDatalinkErrorResponse(response, responseString, networkName, messageType, _write))
+                {
+                    UpdateSendingProgress(() => SendingProgress.Visible = false);
+                    return;
+                }
 
                 if (IsHoppieNetworkLoadResponse(printString))
                 {

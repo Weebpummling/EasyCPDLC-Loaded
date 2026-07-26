@@ -67,6 +67,14 @@ namespace EasyCPDLC
             {
                 try
                 {
+                    // Respect a 401 back-off: their WAF sends it precisely so a client
+                    // with a bad key stops retrying.
+                    if (DateTime.UtcNow < siBackoffUntilUtc)
+                    {
+                        await Task.Delay(SayIntentionsPollInterval, token);
+                        continue;
+                    }
+
                     // The poll needs a callsign for its 'from' field. The OFP fetch is
                     // cached, so this settles once and then only refreshes when stale.
                     if (string.IsNullOrWhiteSpace(callsign))
@@ -109,6 +117,75 @@ namespace EasyCPDLC
                 }
             }
             Logger.Debug("SayIntentions poll loop stopped");
+        }
+
+        // Set when SayIntentions answers 401 (repeated invalid logon). Their notes ask
+        // clients to back off gracefully rather than keep retrying a rejected key.
+        private DateTime siBackoffUntilUtc = DateTime.MinValue;
+        private static readonly TimeSpan SayIntentionsBackoff = TimeSpan.FromMinutes(5);
+
+        /// <summary>
+        /// Handles a non-Hoppie-style error response. Returns true when the response was
+        /// an error and the caller should stop processing it.
+        /// </summary>
+        private bool TryHandleDatalinkErrorResponse(
+            System.Net.Http.HttpResponseMessage response,
+            string body,
+            string networkName,
+            string messageType,
+            bool write)
+        {
+            if (response.IsSuccessStatusCode)
+            {
+                return false;
+            }
+
+            string reason = ExtractJsonErrorMessage(body);
+            Logger.Warn("{0} rejected a packet: HTTP {1} {2}", networkName, (int)response.StatusCode, reason);
+
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                siBackoffUntilUtc = DateTime.UtcNow.Add(SayIntentionsBackoff);
+                WriteMessage(
+                    "SI REJECTED THE LOGON REPEATEDLY - CHECK THE SI API KEY. PAUSING FOR " +
+                    (int)SayIntentionsBackoff.TotalMinutes + " MIN.",
+                    "SYSTEM", "SYSTEM");
+                return true;
+            }
+
+            // A poll failing is noise; a message the pilot sent failing is not.
+            if (write && messageType != "poll")
+            {
+                WriteMessage(
+                    networkName + " REJECTED THE MESSAGE: " + reason.ToUpperInvariant(),
+                    "SYSTEM", "SYSTEM");
+            }
+
+            return true;
+        }
+
+        private static string ExtractJsonErrorMessage(string body)
+        {
+            string text = (body ?? string.Empty).Trim();
+            if (text.StartsWith("{", StringComparison.Ordinal))
+            {
+                try
+                {
+                    JObject parsed = JObject.Parse(text);
+                    string error = (string)parsed["error"];
+                    string missing = parsed["missing"]?.ToString();
+                    if (!string.IsNullOrWhiteSpace(error))
+                    {
+                        return string.IsNullOrWhiteSpace(missing) ? error : error + " (" + missing + ")";
+                    }
+                }
+                catch (Exception)
+                {
+                    // Fall through to the raw body.
+                }
+            }
+
+            return text.Length == 0 ? "no detail" : (text.Length <= 80 ? text : text.Substring(0, 80));
         }
 
         internal bool IsSayIntentionsDatalinkActive =>

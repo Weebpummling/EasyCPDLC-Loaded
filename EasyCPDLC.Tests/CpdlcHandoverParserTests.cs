@@ -45,6 +45,18 @@ namespace EasyCPDLC.Tests
             Assert.Equal(expected, unit);
         }
 
+        // SayIntentions' documented format marks the code with a leading @ only:
+        // "/data2/XX//NE/HANDOVER @NEW_ATSU". Confirmed by their integration notes.
+        [Theory]
+        [InlineData("HANDOVER @KUSA", "KUSA")]
+        [InlineData("HANDOVER @EDYY", "EDYY")]
+        [InlineData("HANDOVER @KZDC_CTR", "KZDC")]
+        public void SayIntentionsSingleMarkerForm_IsParsed(string message, string expected)
+        {
+            Assert.True(CpdlcHandoverParser.TryParseNextUnit(message, out string unit));
+            Assert.Equal(expected, unit);
+        }
+
         // The real CPDLC term, and lowercase, both used in the wild.
         [Theory]
         [InlineData("NEXT DATA AUTHORITY KUSA", "KUSA")]

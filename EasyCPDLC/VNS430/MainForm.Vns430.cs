@@ -431,6 +431,8 @@ namespace EasyCPDLC
                 // connected, the SimConnect telemetry tracker otherwise (or both).
                 PreferArrivalStation = flightPhaseEnrouteSeen || simPhase.ReachedCruise,
                 SayIntentionsNetwork = siMode,
+                AtcUnitViaSayIntentions = currentUnit.Length > 0 && DatalinkRouting.RoutesToSayIntentions(
+                    AcarsRoute.Auto, "CPDLC", currentUnit, siMode),
                 SimbriefIdent = SimbriefIdent,
                 Messages = messages,
                 AtcUnitOnline = currentUnit.Length > 0 &&

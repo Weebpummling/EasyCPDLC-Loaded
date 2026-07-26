@@ -30,9 +30,11 @@ namespace EasyCPDLC
             @"^\s*(HANDOVER|NEXT\s+DATA\s+AUTHORITY|NDA)\b",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        // A code wrapped in the @...@ highlight markers is unambiguous, so it wins.
+        // A code marked with @ is unambiguous, so it wins. The closing @ is optional:
+        // SayIntentions sends "/data2/XX//NE/HANDOVER @NEW_ATSU" with a leading marker
+        // only, while Hoppie-network controllers commonly wrap it as @CODE@.
         private static readonly Regex Delimited = new(
-            @"@\s*([A-Z0-9]{3,4}(?:_[A-Z0-9]{1,4})?)\s*@",
+            @"@\s*([A-Z0-9]{3,4}(?:_[A-Z0-9]{1,4})?)\s*@?",
             RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         // Otherwise: a bare ATSU code (KUSA, EDYY, EURW) or a controller callsign
