@@ -3748,6 +3748,7 @@ private System.Windows.Forms.Label airbusAocSendLabel;
             ConfigureTrayIcon();
             RestoreVns430CompanionHost();
             SyncSayIntentionsPolling();
+            EnsurePendingLoadsheetTimer();
             ConfigureMainFrameButtonHotspots();
             StartVpilotBridge();
             dcduFrame.Paint += DcduFrame_PaintPrinterButton;

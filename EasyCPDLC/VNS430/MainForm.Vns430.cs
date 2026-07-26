@@ -725,23 +725,24 @@ namespace EasyCPDLC
                 Vns430LoadEditionByFlight[session.Flight.FlightKey] = Math.Max(edition, result.EditionNumber);
 
                 // Simulated loading time: the sheet is generated now but delivered when
-                // the ground crew "finishes". INSTANT keeps the one-second minimum.
+                // the ground crew "finishes". Queued on disk rather than held in a
+                // Task.Delay, so closing the app cannot swallow it. INSTANT falls
+                // through to the immediate path below.
                 int loadingMinutes = session.LoadingMinutes;
                 if (loadingMinutes > 0)
                 {
-                    SimbriefLoadsheetData flight = session.Flight;
-                    _ = Task.Run(async () =>
+                    string pendingBody = ELoadLoadsheetUnits.EnsureUnitsLine(
+                        string.IsNullOrWhiteSpace(result?.AcarsMessage) ? result?.Loadsheet : result.AcarsMessage);
+                    if (string.IsNullOrWhiteSpace(pendingBody))
                     {
-                        await Task.Delay(TimeSpan.FromMinutes(loadingMinutes));
-                        try
-                        {
-                            BeginInvoke(new Action(() => ReceiveELoadControlLoadsheet(result, flight, false)));
-                        }
-                        catch (Exception)
-                        {
-                            // The form is gone; nothing to deliver to.
-                        }
-                    });
+                        return new Vns430OperationResult { Status = "NO LOADSHEET RETURNED" };
+                    }
+
+                    string pendingCallsign = string.IsNullOrWhiteSpace(callsign)
+                        ? ((session.Flight.Airline ?? string.Empty) + (session.Flight.FlightNumber ?? string.Empty)).Trim()
+                        : callsign.Trim();
+
+                    SchedulePendingLoadsheet(pendingBody, pendingCallsign, loadingMinutes);
                     return new Vns430OperationResult { Success = true, Status = "LOADSHEET IN " + loadingMinutes + " MIN" };
                 }
 
