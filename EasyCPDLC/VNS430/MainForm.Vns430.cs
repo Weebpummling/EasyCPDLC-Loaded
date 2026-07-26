@@ -113,6 +113,25 @@ namespace EasyCPDLC
         internal AcarsRoute Vns430LogonRoute() =>
             PdcRoutesToSayIntentions ? AcarsRoute.SayIntentions : AcarsRoute.Hoppie;
 
+        /// <summary>
+        /// The regional ATSU for where the aircraft is: the departure region until
+        /// cruise, the destination region after. Falls back to the SayIntentions ATSU
+        /// when the routing is not in the directory.
+        /// </summary>
+        internal string RegionalAtsuCode()
+        {
+            bool simbriefBacked = IsSayIntentionsDatalinkActive || PdcRoutesToSayIntentions;
+            string departureIcao = simbriefBacked ? SayIntentionsDeparture() : AirbusAocDeparture();
+            string arrivalIcao = simbriefBacked ? SayIntentionsArrival() : AirbusAocArrival();
+            bool enroute = flightPhaseEnrouteSeen || simPhase.ReachedCruise;
+
+            CpdlcAtsuDirectory.Atsu unit = CpdlcAtsuDirectory.SuggestFor(
+                enroute ? arrivalIcao : departureIcao,
+                enroute ? departureIcao : arrivalIcao).FirstOrDefault();
+
+            return unit?.Code ?? DatalinkRouting.SayIntentionsAtsu;
+        }
+
         internal string Vns430SimbriefPlanLabel() =>
             SimbriefPlanLoaded ? "RELOAD SIMBRIEF FP: " + SimbriefPlanRoute : "LOAD SIMBRIEF FP";
 
@@ -333,14 +352,7 @@ namespace EasyCPDLC
             // until cruise, the destination region after - the same phase marker the
             // weather prefill uses. This is what a pilot logs on to at flight start,
             // before any controller has been matched to the flight.
-            bool simbriefBacked = siNetworkActive || PdcRoutesToSayIntentions;
-            string departureIcao = simbriefBacked ? SayIntentionsDeparture() : AirbusAocDeparture();
-            string arrivalIcao = simbriefBacked ? SayIntentionsArrival() : AirbusAocArrival();
-            bool enroute = flightPhaseEnrouteSeen || simPhase.ReachedCruise;
-            IReadOnlyList<CpdlcAtsuDirectory.Atsu> regional = CpdlcAtsuDirectory.SuggestFor(
-                enroute ? arrivalIcao : departureIcao,
-                enroute ? departureIcao : arrivalIcao);
-            CpdlcAtsuDirectory.Atsu here = regional.FirstOrDefault();
+            CpdlcAtsuDirectory.Atsu here = CpdlcAtsuDirectory.Find(RegionalAtsuCode());
 
             // Exactly two choices, always in the same place, so the pilot is picking a
             // network rather than reading a list. A long list of the same codes twice

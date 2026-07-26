@@ -11942,7 +11942,8 @@ private System.Windows.Forms.Label airbusAocSendLabel;
                     return;
                 }
 
-                recipient = DatalinkRouting.SayIntentionsAtsu;
+                // The regional unit for where the aircraft is, not SI's generic ATSU.
+                recipient = RegionalAtsuCode();
                 clearanceCallsign = FirstNonBlank(GetConnectedPilotCallsign(), siFlightCallsign);
                 departure = SayIntentionsDeparture();
                 arrival = SayIntentionsArrival();

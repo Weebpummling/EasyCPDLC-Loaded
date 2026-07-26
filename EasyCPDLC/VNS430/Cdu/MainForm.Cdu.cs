@@ -292,7 +292,6 @@ namespace EasyCPDLC
                     break;
                 case CduPageId.Aoc:
                     RenderCduRequestMenu(grid, snapshot, "AOC / TELEX", CduAocMenuItems);
-                    grid.WriteRight(CduLayout.DataRow(1), "LOADSHEET>", CduColor.White);
                     break;
                 case CduPageId.Request:
                     RenderCduRequest(grid, snapshot);
@@ -820,8 +819,11 @@ namespace EasyCPDLC
             Vns430BackendSnapshot snapshot = GetVns430Snapshot();
             cduWorkflow = Vns430Workflow.Create(Vns430WorkflowKind.AocPreDeparture, snapshot);
 
+            // On SI, address the regional unit for where the aircraft is rather than
+            // their generic ATSU - SayIntentions staffs every station, so the clearance
+            // should come from the facility that would actually issue it.
             string recipient = PdcRoutesToSayIntentions
-                ? DatalinkRouting.SayIntentionsAtsu
+                ? RegionalAtsuCode()
                 : (pdcDiscoveryLogonCode ?? string.Empty).Trim().ToUpperInvariant();
             SetCduWorkflowField("RECIPIENT", recipient);
             SetCduWorkflowField("GATE", "----");
@@ -960,7 +962,7 @@ namespace EasyCPDLC
 
         // ---- ATC / AOC request pages --------------------------------------
 
-        private static readonly (string Label, Vns430WorkflowKind Kind)[] CduAtcMenuItems =
+        private static readonly (string Label, Vns430WorkflowKind? Kind)[] CduAtcMenuItems =
         {
             ("DIRECT TO", Vns430WorkflowKind.AtcDirect),
             ("LEVEL", Vns430WorkflowKind.AtcLevel),
@@ -969,17 +971,21 @@ namespace EasyCPDLC
             ("FREE TEXT", Vns430WorkflowKind.AtcFreeText)
         };
 
-        private static readonly (string Label, Vns430WorkflowKind Kind)[] CduAocMenuItems =
+        // AOC has no PDC entry: a clearance request is reached from the LOGON page via
+        // REQ CLR, where the network selection and availability that govern it live.
+        // Having a second, unguarded route to the same request was only a way to send
+        // it to the wrong place. LOADSHEET takes the slot.
+        private static readonly (string Label, Vns430WorkflowKind? Kind)[] CduAocMenuItems =
         {
             ("TELEX", Vns430WorkflowKind.AocTelex),
             ("METAR", Vns430WorkflowKind.AocMetar),
             ("ATIS", Vns430WorkflowKind.AocAtis),
-            ("PDC", Vns430WorkflowKind.AocPreDeparture),
+            ("LOADSHEET", null),
             ("OCEANIC", Vns430WorkflowKind.AocOceanic)
         };
 
         private void RenderCduRequestMenu(CduGrid grid, Vns430BackendSnapshot snapshot, string title,
-            (string Label, Vns430WorkflowKind Kind)[] items)
+            (string Label, Vns430WorkflowKind? Kind)[] items)
         {
             RenderCduHeader(grid, title, snapshot);
             for (int i = 0; i < items.Length && i < 5; i++)
@@ -1004,16 +1010,11 @@ namespace EasyCPDLC
 
         private void HandleCduAocLsk(bool rightSide, int index)
         {
-            if (rightSide && index == 1)
-            {
-                CduOpenLoadControl();
-                return;
-            }
             HandleCduRequestMenuSelection(rightSide, index, CduAocMenuItems);
         }
 
         private void HandleCduRequestMenuSelection(bool rightSide, int index,
-            (string Label, Vns430WorkflowKind Kind)[] items)
+            (string Label, Vns430WorkflowKind? Kind)[] items)
         {
             if (rightSide)
             {
@@ -1027,7 +1028,14 @@ namespace EasyCPDLC
             int position = index - 1;
             if (position >= 0 && position < items.Length && position < 5)
             {
-                cduWorkflow = Vns430Workflow.Create(items[position].Kind, GetVns430Snapshot());
+                // A null kind is a page rather than a request workflow (LOADSHEET).
+                if (items[position].Kind is not Vns430WorkflowKind kind)
+                {
+                    CduOpenLoadControl();
+                    return;
+                }
+
+                cduWorkflow = Vns430Workflow.Create(kind, GetVns430Snapshot());
                 cduScratchpad = string.Empty;
                 cduStatusLine = string.Empty;
                 cduPage = CduPageId.Request;
