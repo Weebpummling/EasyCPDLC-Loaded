@@ -695,19 +695,28 @@ namespace EasyCPDLC
             grid.WriteRight(CduLayout.DataRow(1), unit,
                 string.IsNullOrWhiteSpace(snapshot.CurrentAtcUnit) ? CduColor.Grey : (snapshot.AtcUnitOnline ? CduColor.Green : CduColor.Amber));
 
+            // Which network the clearance request goes to, selectable here so it is
+            // decided next to the button that acts on it rather than buried in SETUP.
+            // Shows the effective side, so AUTO resolves to the network it would use.
+            grid.WriteRight(CduLayout.LabelRow(2), "PDC VIA", CduColor.Cyan, small: true);
+            grid.WriteRight(CduLayout.DataRow(2),
+                (PdcRoutesToSayIntentions ? "SI" : "VATSIM") + ">", CduColor.White);
+
+            // Availability sits directly above the action it gates.
             string pdc = string.IsNullOrWhiteSpace(snapshot.PdcStatus) ? "----" : snapshot.PdcStatus;
             if (!string.IsNullOrWhiteSpace(snapshot.PdcLogonCode))
             {
                 pdc += " " + DatalinkRouting.DisplayStation(snapshot.PdcLogonCode);
             }
-            grid.WriteRight(CduLayout.LabelRow(2), "PDC", CduColor.Cyan, small: true);
-            grid.WriteRight(CduLayout.DataRow(2), Truncate(pdc, CduGrid.HalfCols),
-                snapshot.PdcAllowReqClr ? CduColor.Green : CduColor.White);
+            grid.WriteRight(CduLayout.LabelRow(3), Truncate(pdc, CduGrid.HalfCols),
+                snapshot.PdcAllowReqClr ? CduColor.Green : CduColor.Cyan, small: true);
 
-            if (snapshot.PdcAllowReqClr)
-            {
-                grid.WriteRight(CduLayout.DataRow(3), "REQ CLR>", CduColor.Green, inverse: CduArmed("REQCLR"));
-            }
+            // Always shown, greyed when the selected network has no PDC to offer - on
+            // VATSIM that means no online controller advertises one. Hiding it made the
+            // page look broken; greyed says "this exists, just not here right now".
+            grid.WriteRight(CduLayout.DataRow(3), "REQ CLR>",
+                snapshot.PdcAllowReqClr ? CduColor.Green : CduColor.Grey,
+                inverse: snapshot.PdcAllowReqClr && CduArmed("REQCLR"));
 
             // Two choices, one per network, always in the same slot. The facility name
             // goes on the caption row and the selectable line carries only the network
@@ -746,8 +755,28 @@ namespace EasyCPDLC
             cduStatusLine = string.Empty;
             if (rightSide)
             {
-                if (index == 3)
+                if (index == 2)
                 {
+                    // Pick the network the clearance goes to. Writes an explicit side
+                    // rather than leaving AUTO, so the choice made here is the choice
+                    // that is used.
+                    SavedPdcVia = PdcRoutesToSayIntentions ? "VATSIM" : "SI";
+                    Properties.Settings.Default.Save();
+                    SyncSayIntentionsPolling();
+                    UpdateOnlineStatusLabel();
+                    cduStatusLine = "PDC VIA " + SavedPdcVia;
+                }
+                else if (index == 3)
+                {
+                    if (!GetVns430Snapshot().PdcAllowReqClr)
+                    {
+                        cduStatusLine = PdcRoutesToSayIntentions
+                            ? "PDC NOT READY - CHECK SI SETUP"
+                            : "NO VATSIM PDC AT THIS FIELD";
+                        cduStatusError = true;
+                        return;
+                    }
+
                     // REQ CLR opens the PREDEP CLEARANCE request page (same page as the
                     // AOC menu) with the recipient, stand and ATIS prefilled, so the
                     // pilot reviews and completes the request rather than firing a

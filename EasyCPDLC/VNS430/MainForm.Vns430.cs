@@ -575,7 +575,11 @@ namespace EasyCPDLC
                         break;
 
                     case Vns430WorkflowKind.AocPreDeparture:
-                        await SendCPDLCMessage(recipient, "TELEX", message);
+                        // PDC VIA decides the network explicitly. Content routing would
+                        // send a regional code (KUSA) to Hoppie even with SI selected,
+                        // because only the SI ATSU itself is recognised by address.
+                        await SendCPDLCMessage(recipient, "TELEX", message, true,
+                            PdcRoutesToSayIntentions ? AcarsRoute.SayIntentions : AcarsRoute.Hoppie);
                         break;
 
                     case Vns430WorkflowKind.AocOceanic:
