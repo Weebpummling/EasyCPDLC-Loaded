@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -286,10 +286,10 @@ namespace EasyCPDLC.VNS430
                     DrawLogon(display, state);
                     break;
                 case Vns430Page.AtcMenu:
-                    DrawChoiceMenu(display, "ATC REQUESTS", new[] { "DIRECT TO", "LEVEL", "SPEED", "WHEN CAN WE", "FREE TEXT" }, state);
+                    DrawChoiceMenu(display, "ATC REQUESTS", Vns430RequestMenus.Labels(Vns430RequestMenus.Atc), state);
                     break;
                 case Vns430Page.AocMenu:
-                    DrawChoiceMenu(display, "AOC / COMPANY", new[] { "AOC TELEX", "METAR", "ATIS", "PREDEP CLEARANCE", "OCEANIC CLEARANCE", "LOAD CONTROL" }, state);
+                    DrawChoiceMenu(display, "AOC / COMPANY", Vns430RequestMenus.Labels(Vns430RequestMenus.Aoc), state);
                     break;
                 case Vns430Page.AtcRequest:
                 case Vns430Page.AocRequest:

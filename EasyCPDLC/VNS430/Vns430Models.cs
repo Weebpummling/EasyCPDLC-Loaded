@@ -1,4 +1,5 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using System.Linq;
 
 namespace EasyCPDLC.VNS430
 {
@@ -37,8 +38,6 @@ namespace EasyCPDLC.VNS430
         AtcSpeed,
         AtcWhenCanWe,
         AtcFreeText,
-        // AtcPositionReport must stay within the contiguous Atc block: the VNS430
-        // panel maps its ATC menu to kinds by index arithmetic from AtcDirect.
         AtcPositionReport,
         AocTelex,
         AocMetar,
@@ -48,6 +47,51 @@ namespace EasyCPDLC.VNS430
         // Company position report (ICAO E1). Prefilled from the route tracker and live
         // position, then armed and sent by the pilot like any other AOC request.
         AocCompanyPosition
+    }
+
+    /// <summary>
+    /// One row of a GNS430 request menu. A null <see cref="Kind"/> means the row opens a
+    /// page rather than a workflow - LOAD CONTROL is the only one.
+    /// </summary>
+    internal sealed record Vns430MenuRow(string Label, Vns430WorkflowKind? Kind);
+
+    /// <summary>
+    /// The GNS430's ATC and AOC menus, in one place.
+    ///
+    /// These were previously a label array in the renderer and a separate positional
+    /// mapping in the form, and the two had already drifted: the renderer drew five ATC
+    /// rows while the form allowed the selection onto a sixth, so POSITION REP was
+    /// reachable but never displayed. Both sides now read the same table, so a row
+    /// cannot exist without a label or be selected without being drawn.
+    /// </summary>
+    internal static class Vns430RequestMenus
+    {
+        internal static readonly Vns430MenuRow[] Atc =
+        {
+            new("DIRECT TO", Vns430WorkflowKind.AtcDirect),
+            new("LEVEL", Vns430WorkflowKind.AtcLevel),
+            new("SPEED", Vns430WorkflowKind.AtcSpeed),
+            new("WHEN CAN WE", Vns430WorkflowKind.AtcWhenCanWe),
+            new("FREE TEXT", Vns430WorkflowKind.AtcFreeText),
+            new("POSITION REP", Vns430WorkflowKind.AtcPositionReport)
+        };
+
+        // The company position report (AocCompanyPosition) is deliberately absent.
+        // Reporting position to an airline ops desk is an airline function; this is a
+        // light-GA navigator and its pilots have no company to report to. It stays a CDU
+        // feature. Vns430AocMenuTests keeps it off this menu.
+        internal static readonly Vns430MenuRow[] Aoc =
+        {
+            new("AOC TELEX", Vns430WorkflowKind.AocTelex),
+            new("METAR", Vns430WorkflowKind.AocMetar),
+            new("ATIS", Vns430WorkflowKind.AocAtis),
+            new("PREDEP CLEARANCE", Vns430WorkflowKind.AocPreDeparture),
+            new("OCEANIC CLEARANCE", Vns430WorkflowKind.AocOceanic),
+            new("LOAD CONTROL", null)
+        };
+
+        internal static string[] Labels(Vns430MenuRow[] rows) =>
+            rows.Select(row => row.Label).ToArray();
     }
 
     internal sealed class Vns430MessageSnapshot

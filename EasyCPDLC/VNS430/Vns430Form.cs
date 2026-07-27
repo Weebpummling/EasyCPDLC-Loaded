@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -127,25 +127,6 @@ namespace EasyCPDLC.VNS430
         private Vns430LoadControlSession loadSession;
         private bool operationBusy;
         private string operationStatus = string.Empty;
-
-        private static readonly string[] AtcMenuItems =
-        {
-            "DIRECT TO", "LEVEL", "SPEED", "WHEN CAN WE", "FREE TEXT", "POSITION REP"
-        };
-
-        // These map to Vns430WorkflowKind by index arithmetic from AocTelex (see
-        // ActivateMenuItem), so the order must stay in step with the enum block, and the
-        // last entry must remain LOAD CONTROL - it is intercepted by index before the
-        // arithmetic runs. Vns430AocMenuTests pins both.
-        //
-        // The company position report (AocCompanyPosition) is deliberately NOT here.
-        // Reporting position to an airline ops desk is an airline function; this is a
-        // light-GA navigator and its pilots have no company to report to. It stays a CDU
-        // feature, which is also what keeps it out of reach of the arithmetic above.
-        private static readonly string[] AocMenuItems =
-        {
-            "AOC TELEX", "METAR", "ATIS", "PREDEP CLEARANCE", "OCEANIC CLEARANCE", "LOAD CONTROL"
-        };
 
         private sealed class PanelButton
         {
@@ -650,7 +631,7 @@ namespace EasyCPDLC.VNS430
 
             if (page == Vns430Page.AtcMenu || page == Vns430Page.AocMenu)
             {
-                int count = page == Vns430Page.AtcMenu ? AtcMenuItems.Length : AocMenuItems.Length;
+                int count = page == Vns430Page.AtcMenu ? Vns430RequestMenus.Atc.Length : Vns430RequestMenus.Aoc.Length;
                 selectedIndex = Wrap(selectedIndex + direction, count);
                 return;
             }
@@ -817,17 +798,21 @@ namespace EasyCPDLC.VNS430
                     break;
 
                 case Vns430Page.AtcMenu:
-                    BeginWorkflow((Vns430WorkflowKind)(selectedIndex + (int)Vns430WorkflowKind.AtcDirect));
-                    break;
-
                 case Vns430Page.AocMenu:
-                    if (selectedIndex == AocMenuItems.Length - 1)
+                    Vns430MenuRow[] rows = page == Vns430Page.AtcMenu ? Vns430RequestMenus.Atc : Vns430RequestMenus.Aoc;
+                    if (selectedIndex < 0 || selectedIndex >= rows.Length)
                     {
-                        await OpenLoadControlAsync();
+                        break;
+                    }
+
+                    // A row with no kind is a page, not a request.
+                    if (rows[selectedIndex].Kind is Vns430WorkflowKind selected)
+                    {
+                        BeginWorkflow(selected);
                     }
                     else
                     {
-                        BeginWorkflow((Vns430WorkflowKind)(selectedIndex + (int)Vns430WorkflowKind.AocTelex));
+                        await OpenLoadControlAsync();
                     }
                     break;
 
@@ -2220,7 +2205,7 @@ namespace EasyCPDLC.VNS430
             }
             else if ((page == Vns430Page.AtcMenu || page == Vns430Page.AocMenu) && screenY >= 12 && screenY < 112 && screenX >= 59)
             {
-                int count = page == Vns430Page.AtcMenu ? AtcMenuItems.Length : AocMenuItems.Length;
+                int count = page == Vns430Page.AtcMenu ? Vns430RequestMenus.Atc.Length : Vns430RequestMenus.Aoc.Length;
                 int first = Math.Max(0, selectedIndex - 5);
                 selectedIndex = Math.Clamp(first + (int)((screenY - 12) / 14), 0, count - 1);
                 cursorActive = true;
