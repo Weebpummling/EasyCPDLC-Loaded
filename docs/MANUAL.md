@@ -51,7 +51,7 @@ Everything numbered is **optional**. The app runs on its own with mouse and keyb
 3. Right-click the tray icon → **Connection credentials…** and enter your **VATSIM
    CID** and **Hoppie logon code**. (SimBrief / eLoadControl / SayIntentions are
    optional — add them if you use those features.)
-4. On the CDU: `MENU` → `<DLK` → `<CONNECT`.
+4. On the CDU: `MENU` → `<DLK` → `<CONNECT`, then **`EXEC`**.
 5. Read [Before you connect](#-before-you-connect) first — it matters.
 
 That is the whole software install. No dependencies, no runtime to install.
@@ -98,8 +98,8 @@ If something required is missing, the `<SETUP` item on the CDU menu turns **ambe
 There is no global network or weather switch. Both are chosen where they apply:
 
 - **LOGON VIA**, on the `LOGON` page — which network CPDLC logons and `REQ CLR` use
-- **VIA**, on each AOC request page (`TELEX`, `METAR`, `ATIS`, `OCEANIC`) — which
-  network that one request goes out on
+- **VIA**, on each AOC request page (`TELEX`, `METAR`, `ATIS`, `OCEANIC`, `POS RPT`)
+  — which network that one request goes out on
 
 On METAR and ATIS the choices are `VATSIM` / `REAL WORLD` / `SI`. `REAL WORLD` pulls
 genuine METAR/TAF and real D-ATIS; both it and `SI` arrive without a datalink
@@ -119,15 +119,17 @@ the weather:
 - **Do not run another SI ACARS client at the same time** — SayIntentions' own
   "ACARS Bridge" app, or an aircraft connected to SI ACARS directly, competes for
   the same messages exactly like a second Hoppie client would.
-- **LOGON VIA** (the LOGON page, SETUP, or the GNS430 menu) picks which network
-  CPDLC logons and the clearance request use:
-  `AUTO` follows ATC NETWORK, `SI` or `VATSIM` forces one side. SayIntentions hands
-  flights off to VATSIM controllers on their end, so a pilot can be on both at once
-  and take the PDC from either.
+- **LOGON VIA** (on the CDU's `LOGON` page, or the GNS430 menu) picks which network
+  CPDLC logons and the clearance request use: `AUTO` follows the ATC network, `SI` or
+  `VATSIM` forces one side. SayIntentions hands flights off to VATSIM controllers on
+  their end, so a pilot can be on both at once and take the PDC from either.
+- **ATC NETWORK** itself is only settable from the **GNS430 menu**. On the CDU it is
+  inferred: `LOGON VIA` decides per logon, and each AOC request decides per request.
 
 ### Pick your instrument
 
-Tray → **Instrument** → **737 CDU** or **GNS430**. Only one runs at a time.
+Tray → **Instrument** → **737 CDU** or **GNS430**, or CDU `SETUP` → **INSTRUMENT**.
+Only one runs at a time; selecting one hides the other.
 
 ---
 
@@ -153,11 +155,11 @@ This is your safety net: nothing is sent by a stray keypress.
 
 ```text
 MENU
- ├─ <DLK      status, connect/disconnect, logon, print, reload flight plan
- ├─ <ATC      CPDLC requests (direct, level, speed, when can we, free text, pos rep)
- ├─ <AOC      telex, METAR, ATIS, PDC, oceanic, loadsheet
+ ├─ <DLK      VATSIM session, ATC logon, live status, reload flight plan
+ ├─ <ATC      CPDLC requests (direct, level, speed, when can we, free text) + POS REP
+ ├─ <AOC      telex, METAR, ATIS, loadsheet, oceanic + company POS RPT and address
  ├─ <MSG      inbox: RECEIVED / SENT / clear all
- └─ <SETUP    account, printer, technical, winwing, network, weather, hardware keys
+ └─ <SETUP    account, printer, technical, winwing, instrument, hardware keys
 ```
 
 ---
@@ -166,9 +168,14 @@ MENU
 
 ### Connect and log on to ATC
 
-1. `MENU` → `<DLK` → `<CONNECT`
-2. `<LOGON` — pick an online CPDLC facility from the list (or type a 4-letter code)
+1. `MENU` → `<DLK` → `<CONNECT` (LSK2), then **`EXEC`** — it reads `<DISCONNECT` in
+   green once the session is up
+2. `<LOGON` — pick an online CPDLC facility from the list, or type a 4-letter code into
+   the scratchpad and press `MANUAL LOGON` at LSK5
 3. Press **`EXEC`** to send the logon
+
+There is nothing to connect on SI: with the API key and a filed SimBrief plan the
+datalink is live immediately. `<CONNECT` is the VATSIM session specifically.
 
 ### Send a request
 
@@ -186,14 +193,14 @@ Long messages scroll with `PREV PAGE` / `NEXT PAGE`.
 
 ### Get weather
 
-`MENU` → `<AOC` → `METAR>` or `ATIS>`, enter the ICAO, pick the source on the **VIA**
+`MENU` → `<AOC` → `<METAR` or `<ATIS`, enter the ICAO, pick the source on the **VIA**
 line, send. Real-world and SayIntentions sources arrive without needing a datalink
 connection.
 
 ### Generate a loadsheet (eLoadControl)
 
 1. Set your **SimBrief** user and **eLoadControl API key** first
-2. `MENU` → `<AOC` → `LOADSHEET>`
+2. `MENU` → `<AOC` → `<LOADSHEET`
 3. Pick aircraft variant, cabin, and format; confirm the passenger split
 4. `GENERATE>` then **`EXEC`** (this uses one eLoadControl API request)
 5. The loadsheet lands in `<RECEIVED`, tagged `LOADSHEET`, and can be printed

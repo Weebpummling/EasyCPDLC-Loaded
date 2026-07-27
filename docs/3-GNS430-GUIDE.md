@@ -1,4 +1,4 @@
-# 3 · GNS430 walkthrough
+﻿# 3 · GNS430 walkthrough
 
 The GNS430 is the second instrument: a knob-driven unit modelled on the Garmin GNS 430,
 with its bezel controls remapped to the datalink.
@@ -83,10 +83,10 @@ Press **`MENU`** for the page menu — this is where the shared settings live.
 
 | Item | Does |
 |---|---|
-| `CONNECT / DISCONNECT VATSIM` | Toggles the datalink |
+| `CONNECT / DISCONNECT VATSIM` | Starts or ends the VATSIM session (nothing to connect on SI) |
 | `ATC REQUEST MENU` | Jumps to requests |
 | `AOC / TELEX MENU` | Jumps to AOC |
-| `ATC NETWORK: …` | Cycles `VATSIM` ↔ `SI` |
+| `ATC NETWORK: …` | Cycles `VATSIM` ↔ `SI`. **Only settable here** — the CDU infers it from `LOGON VIA` and the per-request `VIA` |
 | `CLEAR ALL MESSAGES` | Wipes the inbox — **press twice** to confirm |
 | `EASYCPDLC SETTINGS` | Opens the desktop settings window |
 | `MSFS MODULE: …` | Toggles the hardware bridge |
@@ -170,7 +170,7 @@ Press **`PROC`** for the AOC menu.
 | `AOC TELEX` | Free-text company message |
 | `METAR` | Weather for a station |
 | `ATIS` | ATIS for a station |
-| `PREDEP CLEARANCE` | PDC request |
+| `PREDEP CLEARANCE` | PDC request. Still here on the GNS430; the CDU reaches a clearance only from `LOGON` → `REQ CLR>`, where availability and network selection are enforced |
 | `OCEANIC CLEARANCE` | Oceanic clearance request |
 | `LOAD CONTROL` | eLoadControl loadsheet generation |
 
@@ -180,6 +180,10 @@ to review and send.
 **Load control** walks the same path as the CDU: it pulls your SimBrief flight and
 eLoadControl configurations, you pick aircraft / cabin / format and confirm the
 passenger split, then generate. The finished loadsheet lands in the inbox.
+
+> The **company position report** (`POS RPT`) and the company ACARS address are on the
+> CDU's AOC page only. The GNS430 has no entry for them yet; switch instruments to send
+> one.
 
 Every request form except load control ends with a **VIA** field: the network the
 request goes out on for `AOC TELEX` and `OCEANIC CLEARANCE`, and the weather source

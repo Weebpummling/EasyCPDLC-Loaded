@@ -1,4 +1,4 @@
-# 2 · Boeing 737 CDU walkthrough
+﻿# 2 · Boeing 737 CDU walkthrough
 
 The CDU is the default instrument: a 24 × 14 character MCDU driven by twelve
 line-select keys, a full alphanumeric keypad, and the `EXEC` / `CLR` / `MENU` /
@@ -56,11 +56,11 @@ Press `MENU` at any time to come back here.
 
 ```text
 MENU
- ├─ <DLK      connection, ATC logon, print, reload flight plan
- ├─ <ATC      CPDLC requests
- ├─ <AOC      telex, weather, PDC, oceanic, loadsheet
+ ├─ <DLK      VATSIM session, ATC logon, live status, reload flight plan
+ ├─ <ATC      CPDLC requests + POS REP
+ ├─ <AOC      telex, METAR, ATIS, loadsheet, oceanic, company POS RPT
  ├─ <MSG      inbox — RECEIVED / SENT / clear all
- └─ <SETUP    credentials, printer, network, weather, hardware
+ └─ <SETUP    account, printer, technical, winwing, instrument, hardware keys
 ```
 
 `<MSG` turns **amber with an unread count** when traffic is waiting. `<SETUP` turns
@@ -106,11 +106,16 @@ press the line-select key next to the field. Press `CLR` to backspace.
 **On VATSIM:**
 
 1. `MENU` → `<DLK`
-2. `<CONNECT` — the right column shows `VATSIM CONNECTED`
+2. `<CONNECT` (LSK2, under `VATSIM SESSION`) then **`EXEC`** — it reads `<DISCONNECT`
+   in green once the session is up, and `ATS UNIT` on the right starts reporting
 3. `<LOGON` — online CPDLC facilities are listed automatically; a tuned-frequency
    match shows in green
-4. Select a facility (or type a 4-letter code and press `<LOGON`)
+4. Select a facility (or type a 4-letter code into the scratchpad and press
+   `MANUAL LOGON` at LSK5)
 5. Press **`EXEC`** to transmit
+
+> Connecting announces your callsign on the network and disconnecting ends the session
+> mid-flight, so both are EXEC-armed like any transmit.
 
 **On SI (SayIntentions):** there is nothing to connect. With your SI API key and a
 filed SimBrief plan in place, the datalink is live immediately — the `LOGON` page
@@ -119,8 +124,12 @@ CPDLC route to the SayIntentions ACARS network automatically. Your callsign come
 from the SimBrief OFP, so file it before you request. Hoppie keeps being polled in
 parallel: VA telex and loadsheets still arrive.
 
-`<DLK` also has `<RELOAD FP` (re-fetch the SimBrief plan — this also clears the inbox
-for the new leg, so it is EXEC-armed) and `<PRINT LAST` / `<REPRINT`.
+The `<DLK` right column is a live read-out: **ATS UNIT** (the logged-on facility and
+which network it is on), **ROUTE**, and **LOGON** (a logon in flight). `LOAD/REFRESH>`
+at RSK4 re-fetches the SimBrief plan — this also clears the inbox for the new leg, so
+it is EXEC-armed.
+
+Printing lives on the pages where a message is actually on screen, not here.
 
 ---
 
@@ -171,7 +180,8 @@ On a CPDLC message the available replies appear on the lower-left keys —
 `<WILCO`, `<UNABLE`, `<STANDBY`, `<ROGER`, `<AFFIRM`, `<NEGATIVE` as appropriate.
 Select one, then press **`EXEC`** to send.
 
-`PRINT>` and `REPRINT>` are on the right.
+`PRINT>` is on the right — printing is offered on the pages where a message is
+actually on screen, and nowhere else.
 
 ---
 
@@ -181,10 +191,22 @@ Select one, then press **`EXEC`** to send.
 
 ![AOC menu](../assets/screenshots/cdu-aoc-menu.png)
 
-> Every AOC request page — `TELEX`, `METAR`, `ATIS`, `OCEANIC` — has a **VIA** selector
-> on the bottom-right line, directly above `SEND>`. It picks the network that request
-> goes out on, independently of the rest of the session: company telex on Hoppie while
-> ATC runs on SI, for instance. `LOADSHEET` has none — it is generated locally.
+The left column is `TELEX`, `METAR`, `ATIS`, `LOADSHEET`, `OCEANIC`. The right column
+carries the company services:
+
+| Key | Does |
+|---|---|
+| `POS RPT>` (RSK1) | Company position report, prefilled — see [Company position reports](MANUAL.md#company-position-reports-fmc-wpr). Greyed until an address is set |
+| `COMPANY` (RSK2) | Your operator's Hoppie address, or **NOT SET** in amber. Type it into the scratchpad and press the key; press with an empty scratchpad to clear |
+
+> Every AOC request page — `TELEX`, `METAR`, `ATIS`, `OCEANIC`, `POS RPT` — has a
+> **VIA** selector on the bottom-right line, directly above `SEND>`. It picks the network
+> that request goes out on, independently of the rest of the session: company telex on
+> Hoppie while ATC runs on SI, for instance. `LOADSHEET` has none — it is generated
+> locally.
+>
+> There is no `PDC` entry here. A clearance request is reached from the `LOGON` page via
+> `REQ CLR>`, where the network selection and availability that govern it live.
 
 - `<METAR` — enter an ICAO, send. Returns METAR + TAF.
 - `<ATIS` — enter an ICAO, pick `ARRIVAL` / `DEPARTURE`, optionally `AUTO REFRESH`.
@@ -242,7 +264,7 @@ printers), the paper profile (`4 INCH` or `80MM`), cut mode and feed lines.
 Run **`PRINT>` test** in **mock file** mode first — it writes a preview and hex dump
 without using paper — then switch to ESC/POS for a real print.
 
-Print the open message with `PRINT>`; `REPRINT>` repeats the last job. Inbound items
+Print the open message with `PRINT>`. Inbound items
 are review-first and never auto-print unless you enable auto-print by category.
 
 ---

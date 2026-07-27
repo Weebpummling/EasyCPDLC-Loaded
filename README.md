@@ -1,4 +1,4 @@
-# EasyCPDLC-Loaded
+﻿# EasyCPDLC-Loaded
 
 ![Version](https://img.shields.io/badge/version-1.1.0-brightgreen)
 ![.NET](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet)
@@ -81,7 +81,7 @@ automatically however they reached you.
 1. Extract the release ZIP somewhere permanent and run **`EasyCPDLC.exe`**.
 2. Tray icon → **Connection credentials…** → enter your **VATSIM CID** and
    **Hoppie logon code**.
-3. On the CDU: `MENU` → `<DLK` → `<CONNECT`.
+3. On the CDU: `MENU` → `<DLK` → `<CONNECT`, then **`EXEC`**.
 
 That's the whole install — the app is self-contained, with no runtime to install.
 Full detail, including the optional bridges, is in

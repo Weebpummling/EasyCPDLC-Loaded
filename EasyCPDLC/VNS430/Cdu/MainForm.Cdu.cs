@@ -477,6 +477,19 @@ namespace EasyCPDLC
             // Printing lives on the pages where a message is actually on screen, so
             // there is nothing here to print FROM. This page is logon and flight plan.
             grid.WriteLeft(CduLayout.DataRow(1), "<LOGON", CduColor.White);
+
+            // The VATSIM session itself. This used to be a CONNECT key against a NETWORK
+            // row that reported "connected" for two different things, which is why the
+            // row went - but the session toggle had to come back: with the CDU docked
+            // over the main window there is no other way to start a VATSIM session, and
+            // without one the Hoppie poll never runs. Labelled for the session it
+            // actually controls rather than for "the datalink" in general.
+            grid.WriteLeft(CduLayout.LabelRow(2), "VATSIM SESSION", CduColor.Cyan, small: true);
+            grid.WriteLeft(CduLayout.DataRow(2),
+                snapshot.VatsimConnected ? "<DISCONNECT" : "<CONNECT",
+                snapshot.VatsimConnected ? CduColor.Green : CduColor.White,
+                inverse: CduArmed("VATSIMCONN"));
+
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
 
             // Right column: live status read-out (the old top-row info, now in the display).
@@ -717,6 +730,18 @@ namespace EasyCPDLC
                     cduStatusLine = string.Empty;
                     cduPage = CduPageId.Logon;
                     break;
+
+                case 2:
+                    // Connecting announces the callsign on the network and disconnecting
+                    // ends the session mid-flight, so both are armed like any transmit.
+                    bool live = Connected;
+                    CduArm("VATSIMCONN", live ? "DISCONNECT VATSIM" : "CONNECT VATSIM", () =>
+                    {
+                        Vns430ToggleVatsimConnection();
+                        cduStatusLine = live ? "DISCONNECTING" : "CONNECTING";
+                    });
+                    break;
+
                 case 6: cduPage = CduPageId.Menu; break;
             }
         }
