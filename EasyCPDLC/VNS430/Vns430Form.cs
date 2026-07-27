@@ -2073,6 +2073,14 @@ namespace EasyCPDLC.VNS430
         // MobiFlight hardware keybinds will actually drive the panel.
         internal bool CompanionModuleActive => companionInput != null && companionInput.ModuleActive;
 
+        /// <summary>
+        /// Live user-aircraft position from the companion SimConnect subscription, for
+        /// the FMC position reports. Exposed here because this form owns the connection;
+        /// the reporting itself belongs to the backend.
+        /// </summary>
+        internal bool TryGetCompanionPosition(out double latitude, out double longitude, out double altitudeFt, out double groundSpeedKt) =>
+            companionInput.TryGetPosition(out latitude, out longitude, out altitudeFt, out groundSpeedKt);
+
         internal bool SetDcduCompanionMode(bool enabled, out string error)
         {
             error = string.Empty;

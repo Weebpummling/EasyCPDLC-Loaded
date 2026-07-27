@@ -45,13 +45,21 @@ namespace EasyCPDLC.VNS430
         private ulong lastDisplayHash;
         private double telemetryAltitudeFt;
         private bool telemetryOnGround;
+        private double telemetryLatitude;
+        private double telemetryLongitude;
+        private double telemetryGroundSpeedKt;
         private DateTime lastTelemetryUtc = DateTime.MinValue;
 
+        // Field order must match the AddToDataDefinition calls below exactly - SimConnect
+        // fills this struct positionally, so a mismatch silently scrambles every value.
         [StructLayout(LayoutKind.Sequential, Pack = 1)]
         private struct SimTelemetryPacket
         {
             internal double AltitudeFt;
             internal double OnGround;   // SIM ON GROUND as FLOAT64: 0.0 / 1.0
+            internal double Latitude;
+            internal double Longitude;
+            internal double GroundSpeedKt;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -176,6 +184,23 @@ namespace EasyCPDLC.VNS430
             onGround = telemetryOnGround;
             return Enabled && DateTime.UtcNow - lastTelemetryUtc < TelemetryFreshness;
         }
+
+        /// <summary>
+        /// Latest user-aircraft position, if fresh. Feeds the FMC position reports (ICAO
+        /// equipment code E1), so the app can report without FSUIPC being installed.
+        /// </summary>
+        internal bool TryGetPosition(out double latitude, out double longitude, out double altitudeFt, out double groundSpeedKt)
+        {
+            latitude = telemetryLatitude;
+            longitude = telemetryLongitude;
+            altitudeFt = telemetryAltitudeFt;
+            groundSpeedKt = telemetryGroundSpeedKt;
+
+            // 0,0 is in the Atlantic and is what the sim reports before a flight loads;
+            // treating it as a real fix would fire a report at the wrong moment.
+            bool plausible = Math.Abs(latitude) > 0.0001 || Math.Abs(longitude) > 0.0001;
+            return Enabled && plausible && DateTime.UtcNow - lastTelemetryUtc < TelemetryFreshness;
+        }
         internal string Status { get; private set; } = "OFF";
         internal event Action<Vns430Command> CommandReceived;
 
@@ -253,7 +278,10 @@ namespace EasyCPDLC.VNS430
                 // checks above: a host that refuses these calls costs the phase feed,
                 // never the whole companion channel.
                 if (SimConnect_AddToDataDefinition(connection, TelemetryDefinitionId, "PLANE ALTITUDE", "feet", SimDataTypeFloat64, 0f, 0) >= 0 &&
-                    SimConnect_AddToDataDefinition(connection, TelemetryDefinitionId, "SIM ON GROUND", "bool", SimDataTypeFloat64, 0f, 1) >= 0)
+                    SimConnect_AddToDataDefinition(connection, TelemetryDefinitionId, "SIM ON GROUND", "bool", SimDataTypeFloat64, 0f, 1) >= 0 &&
+                    SimConnect_AddToDataDefinition(connection, TelemetryDefinitionId, "PLANE LATITUDE", "degrees", SimDataTypeFloat64, 0f, 2) >= 0 &&
+                    SimConnect_AddToDataDefinition(connection, TelemetryDefinitionId, "PLANE LONGITUDE", "degrees", SimDataTypeFloat64, 0f, 3) >= 0 &&
+                    SimConnect_AddToDataDefinition(connection, TelemetryDefinitionId, "GPS GROUND SPEED", "knots", SimDataTypeFloat64, 0f, 4) >= 0)
                 {
                     SimConnect_RequestDataOnSimObject(
                         connection, TelemetryRequestId, TelemetryDefinitionId,
@@ -454,6 +482,9 @@ namespace EasyCPDLC.VNS430
                         Marshal.PtrToStructure<SimTelemetryPacket>(IntPtr.Add(data, ClientDataPayloadOffset));
                     telemetryAltitudeFt = telemetry.AltitudeFt;
                     telemetryOnGround = telemetry.OnGround >= 0.5;
+                    telemetryLatitude = telemetry.Latitude;
+                    telemetryLongitude = telemetry.Longitude;
+                    telemetryGroundSpeedKt = telemetry.GroundSpeedKt;
                     lastTelemetryUtc = DateTime.UtcNow;
                 }
                 return;

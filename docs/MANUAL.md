@@ -19,8 +19,9 @@ read [Quick start](#quick-start).
 8. [Optional: mirror to a WinWing CDU](#optional-mirror-to-a-winwing-cdu)
 9. [Optional: vPilot bridge](#optional-vpilot-bridge)
 10. [Optional: printing](#optional-printing)
-11. [Test mode](#test-mode)
-12. [Troubleshooting](#troubleshooting)
+11. [Company position reports](#company-position-reports-fmc-wpr)
+12. [Test mode](#test-mode)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -89,6 +90,7 @@ Enter them either way:
 | **SimBrief** username/ID | Flight plan + loadsheet source data |
 | **eLoadControl API key** | Loadsheet generation |
 | **SayIntentions API key** | SayIntentions network + weather |
+| **Company ACARS address** | [Company position reports](#company-position-reports-fmc-wpr) — blank disables them |
 
 If something required is missing, the `<SETUP` item on the CDU menu turns **amber**.
 
@@ -273,6 +275,36 @@ then a real test print.
 > stated dimensions first — not just the "80 mm" paper width. Receipt printers vary a
 > lot in body size and where the cut slot sits, and a facade cut for another chassis
 > will not line up.
+
+---
+
+## Company position reports (FMC WPR)
+
+Automatic position reports to your operator as each enroute waypoint is sequenced —
+the AOC service ICAO calls **E1**, *FMC waypoint position reporting over ACARS*.
+
+1. Tray → **Connection credentials…** → **Company ACARS address** (your VA's Hoppie
+   address). Blank means the feature is off, so nothing can go out to a station you
+   didn't name.
+2. CDU `SETUP` → **POS RPT** → `ON`.
+3. Load a SimBrief flight plan.
+
+From then on, each time you pass an enroute fix the app downlinks something like:
+
+```text
+POS01 DLH6YM /OVR ETRAT 1423 F350 /PSN N4712.3 W00812.4 /NXT ROLIS 1442 /FLW OSMEL /GS 468
+```
+
+Position comes from the sim — via the MSFS module if it's running, otherwise FSUIPC.
+Without either, `POS RPT` shows amber: it is armed but has nothing to report.
+
+SID and STAR fixes are skipped deliberately; they sequence every couple of minutes and
+would bury the ops desk during departure and arrival. Reports go to your company over
+Hoppie regardless of which network ATC is on, because that is where the operator's
+ACARS address lives.
+
+> This is separate from the `POS REP` on the ATC pages. That one you compose yourself
+> and send to a controller; this one is automatic and goes to your airline.
 
 ---
 

@@ -1310,7 +1310,34 @@ namespace EasyCPDLC
             // (e.g. WinWing) can drive the LSKs and keypad through MobiFlight.
             RenderCduSetupField(grid, 2, true, "HW KEYS", IsDcduCompanionModeEnabled() ? "ON" : "OFF");
 
+            // FMC waypoint position reporting to the company (ICAO equipment code E1).
+            // Amber when armed but unusable, so the pilot is not left believing the ops
+            // desk is being fed when nothing is going out.
+            bool posArmed = FmcPositionReportsEnabled;
+            RenderCduSetupField(grid, 3, true, "POS RPT", posArmed ? "ON" : "OFF",
+                posArmed && !FmcPositionReportsReady ? CduColor.Amber : CduColor.Green);
+
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
+        }
+
+        // Arms FMC waypoint position reporting to the company. Says why it cannot run
+        // rather than just flipping to ON and doing nothing.
+        private void CduToggleFmcPositionReports()
+        {
+            bool enable = !FmcPositionReportsEnabled;
+            FmcPositionReportsEnabled = enable;
+            Properties.Settings.Default.Save();
+
+            if (!enable)
+            {
+                cduStatusLine = "POS RPT OFF";
+                return;
+            }
+
+            cduStatusLine = string.IsNullOrWhiteSpace(SavedAocAddress) ? "SET COMPANY ADDRESS"
+                : string.IsNullOrWhiteSpace(logonCode) ? "SET HOPPIE CODE"
+                : !FmcPositionReportsReady ? "POS RPT ON - LOAD FLIGHT PLAN"
+                : "POS RPT ON";
         }
 
         // WX source display: AUTO when following the network, otherwise the chosen source.
@@ -1494,10 +1521,11 @@ namespace EasyCPDLC
         private static string PrinterProfileText(DatalinkPrinterProfile profile) =>
             profile == DatalinkPrinterProfile.CitizenCtS4000_112Mm ? "4 INCH" : "80MM";
 
-        private static void RenderCduSetupField(CduGrid grid, int lsk, bool right, string label, string value)
+        private static void RenderCduSetupField(CduGrid grid, int lsk, bool right, string label, string value,
+            CduColor? valueColour = null)
         {
             bool empty = string.IsNullOrWhiteSpace(value);
-            CduColor colour = empty ? CduColor.Grey : CduColor.Green;
+            CduColor colour = empty ? CduColor.Grey : valueColour ?? CduColor.Green;
             string shown = empty ? "----" : value;
             if (right)
             {
@@ -1531,6 +1559,7 @@ namespace EasyCPDLC
             {
                 case 1: CduCycleInstrument(); break;
                 case 2: CduToggleHardwareKeys(); break;
+                case 3: CduToggleFmcPositionReports(); break;
             }
         }
 

@@ -346,3 +346,8 @@ output/vns430-reference/
 # Locally generated simulator packages.
 EasyCPDLC/VNS430/MSFS2024Module/BuiltPackage/
 EasyCPDLC/VNS430/MSFS2024Module/Bridge/BuiltPackage/
+
+# GTN 650Xi screen captures used as design reference during GTN650 development.
+# These are Garmin's screens: they stay local, and only the measurements derived
+# from them are committed.
+output/gtn650xi-reference/

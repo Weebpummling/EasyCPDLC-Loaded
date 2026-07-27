@@ -3757,6 +3757,7 @@ private System.Windows.Forms.Label airbusAocSendLabel;
             ConfigureTrayIcon();
             RestoreVns430CompanionHost();
             SyncSayIntentionsPolling();
+            EnsureFmcPositionReportTimer();
             EnsurePendingLoadsheetTimer();
             ConfigureMainFrameButtonHotspots();
             StartVpilotBridge();
