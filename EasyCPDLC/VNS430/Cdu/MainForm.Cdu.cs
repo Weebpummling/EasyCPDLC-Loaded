@@ -15,7 +15,7 @@ namespace EasyCPDLC
     // Airbus/Boeing code paths untouched.
     public partial class MainForm
     {
-        private enum CduPageId
+        internal enum CduPageId
         {
             Menu,
             Dlk,
@@ -1065,6 +1065,10 @@ namespace EasyCPDLC
             grid.WriteRight(CduLayout.DataRow(2),
                 (addressed ? snapshot.CompanyAddress : "NOT SET") + ">",
                 addressed ? CduColor.Green : CduColor.Amber);
+
+            // The company address is typed here, so the page needs the scratchpad line -
+            // without it the keypad looks dead even once the typing is accepted.
+            RenderCduScratchpad(grid);
         }
 
         private void HandleCduAocLsk(bool rightSide, int index)
@@ -1297,8 +1301,20 @@ namespace EasyCPDLC
             }
         }
 
-        private bool CduScratchpadActive() =>
-            cduPage is CduPageId.Request or CduPageId.Logon or CduPageId.SetupAccount or CduPageId.SetupPrinter;
+        /// <summary>
+        /// Pages that accept typing. Any page with a line key that reads
+        /// <c>cduScratchpad</c> must be here, or the keypad is silently dead on it: the
+        /// characters go nowhere and the line key consumes an empty buffer. Static and
+        /// internal so a test can hold it to that rule.
+        /// </summary>
+        internal static bool CduPageAcceptsScratchpad(CduPageId page) =>
+            page is CduPageId.Request
+                 or CduPageId.Logon
+                 or CduPageId.Aoc          // company address
+                 or CduPageId.SetupAccount
+                 or CduPageId.SetupPrinter;
+
+        private bool CduScratchpadActive() => CduPageAcceptsScratchpad(cduPage);
 
         private void CduScratchpadType(char c)
         {
