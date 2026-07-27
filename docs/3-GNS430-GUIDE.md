@@ -181,9 +181,10 @@ to review and send.
 eLoadControl configurations, you pick aircraft / cabin / format and confirm the
 passenger split, then generate. The finished loadsheet lands in the inbox.
 
-> The **company position report** (`POS RPT`) and the company ACARS address are on the
-> CDU's AOC page only. The GNS430 has no entry for them yet; switch instruments to send
-> one.
+> There is no company position report here, by design. Reporting position to an
+> airline ops desk is an airline function, and this is a light-GA navigator — its
+> pilots have no company to report to. `POS RPT` and the company ACARS address are
+> CDU-only; switch instruments if you fly for a VA and want them.
 
 Every request form except load control ends with a **VIA** field: the network the
 request goes out on for `AOC TELEX` and `OCEANIC CLEARANCE`, and the weather source

@@ -133,6 +133,15 @@ namespace EasyCPDLC.VNS430
             "DIRECT TO", "LEVEL", "SPEED", "WHEN CAN WE", "FREE TEXT", "POSITION REP"
         };
 
+        // These map to Vns430WorkflowKind by index arithmetic from AocTelex (see
+        // ActivateMenuItem), so the order must stay in step with the enum block, and the
+        // last entry must remain LOAD CONTROL - it is intercepted by index before the
+        // arithmetic runs. Vns430AocMenuTests pins both.
+        //
+        // The company position report (AocCompanyPosition) is deliberately NOT here.
+        // Reporting position to an airline ops desk is an airline function; this is a
+        // light-GA navigator and its pilots have no company to report to. It stays a CDU
+        // feature, which is also what keeps it out of reach of the arithmetic above.
         private static readonly string[] AocMenuItems =
         {
             "AOC TELEX", "METAR", "ATIS", "PREDEP CLEARANCE", "OCEANIC CLEARANCE", "LOAD CONTROL"

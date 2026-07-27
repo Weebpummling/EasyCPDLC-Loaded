@@ -325,6 +325,9 @@ tracking them would leave the page pointing at a departure fix for the whole cru
 
 > This is separate from the `POS REP` on the ATC pages. That one you compose yourself
 > and send to a controller; this one is prefilled and goes to your airline.
+>
+> It is a **CDU-only** feature. The GNS430 is a light-GA navigator and deliberately has
+> no company reporting — position reports to an ops desk are an airline function.
 
 ---
 
