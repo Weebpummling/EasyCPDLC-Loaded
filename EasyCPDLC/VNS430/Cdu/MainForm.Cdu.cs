@@ -1,4 +1,4 @@
-using EasyCPDLC.VNS430;
+﻿using EasyCPDLC.VNS430;
 using EasyCPDLC.VNS430.Cdu;
 using System;
 using System.Collections.Generic;
@@ -309,6 +309,7 @@ namespace EasyCPDLC
                     break;
                 case CduPageId.Aoc:
                     RenderCduRequestMenu(grid, snapshot, "AOC / TELEX", CduAocMenuItems);
+                    RenderCduAocCompany(grid, snapshot);
                     break;
                 case CduPageId.Request:
                     RenderCduRequest(grid, snapshot);
@@ -1050,8 +1051,53 @@ namespace EasyCPDLC
             HandleCduRequestMenuSelection(rightSide, index, CduAtcMenuItems);
         }
 
+        // Right column of the AOC page: the company position report, and the address it
+        // goes to. The address is an ordinary Hoppie recipient rather than a credential,
+        // so it is set here next to the thing that uses it - and shown here so nobody
+        // opens the report page only to find it has nowhere to go.
+        private void RenderCduAocCompany(CduGrid grid, Vns430BackendSnapshot snapshot)
+        {
+            bool addressed = !string.IsNullOrWhiteSpace(snapshot.CompanyAddress);
+
+            grid.WriteRight(CduLayout.DataRow(1), "POS RPT>", addressed ? CduColor.White : CduColor.Grey);
+
+            grid.WriteRight(CduLayout.LabelRow(2), "COMPANY", CduColor.Cyan, small: true);
+            grid.WriteRight(CduLayout.DataRow(2),
+                (addressed ? snapshot.CompanyAddress : "NOT SET") + ">",
+                addressed ? CduColor.Green : CduColor.Amber);
+        }
+
         private void HandleCduAocLsk(bool rightSide, int index)
         {
+            if (rightSide && index == 1)
+            {
+                if (string.IsNullOrWhiteSpace(SavedAocAddress))
+                {
+                    cduStatusLine = "SET COMPANY ADDRESS";
+                    cduStatusError = true;
+                    return;
+                }
+
+                cduWorkflow = Vns430Workflow.Create(Vns430WorkflowKind.AocCompanyPosition, GetVns430Snapshot());
+                cduScratchpad = string.Empty;
+                cduStatusLine = string.Empty;
+                cduPage = CduPageId.Request;
+                return;
+            }
+
+            // Typed address moves into the field; an empty scratchpad clears it, matching
+            // how every other CDU field behaves.
+            if (rightSide && index == 2)
+            {
+                SavedAocAddress = cduScratchpad;
+                Properties.Settings.Default.Save();
+                cduStatusLine = string.IsNullOrWhiteSpace(cduScratchpad)
+                    ? "COMPANY ADDRESS CLEARED"
+                    : "COMPANY " + SavedAocAddress;
+                cduScratchpad = string.Empty;
+                return;
+            }
+
             HandleCduRequestMenuSelection(rightSide, index, CduAocMenuItems);
         }
 
@@ -1310,34 +1356,7 @@ namespace EasyCPDLC
             // (e.g. WinWing) can drive the LSKs and keypad through MobiFlight.
             RenderCduSetupField(grid, 2, true, "HW KEYS", IsDcduCompanionModeEnabled() ? "ON" : "OFF");
 
-            // FMC waypoint position reporting to the company (ICAO equipment code E1).
-            // Amber when armed but unusable, so the pilot is not left believing the ops
-            // desk is being fed when nothing is going out.
-            bool posArmed = FmcPositionReportsEnabled;
-            RenderCduSetupField(grid, 3, true, "POS RPT", posArmed ? "ON" : "OFF",
-                posArmed && !FmcPositionReportsReady ? CduColor.Amber : CduColor.Green);
-
             grid.WriteLeft(CduLayout.DataRow(6), "<MENU", CduColor.White);
-        }
-
-        // Arms FMC waypoint position reporting to the company. Says why it cannot run
-        // rather than just flipping to ON and doing nothing.
-        private void CduToggleFmcPositionReports()
-        {
-            bool enable = !FmcPositionReportsEnabled;
-            FmcPositionReportsEnabled = enable;
-            Properties.Settings.Default.Save();
-
-            if (!enable)
-            {
-                cduStatusLine = "POS RPT OFF";
-                return;
-            }
-
-            cduStatusLine = string.IsNullOrWhiteSpace(SavedAocAddress) ? "SET COMPANY ADDRESS"
-                : string.IsNullOrWhiteSpace(logonCode) ? "SET HOPPIE CODE"
-                : !FmcPositionReportsReady ? "POS RPT ON - LOAD FLIGHT PLAN"
-                : "POS RPT ON";
         }
 
         // WX source display: AUTO when following the network, otherwise the chosen source.
@@ -1559,7 +1578,6 @@ namespace EasyCPDLC
             {
                 case 1: CduCycleInstrument(); break;
                 case 2: CduToggleHardwareKeys(); break;
-                case 3: CduToggleFmcPositionReports(); break;
             }
         }
 

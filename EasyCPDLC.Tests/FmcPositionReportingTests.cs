@@ -1,4 +1,4 @@
-using EasyCPDLC;
+﻿using EasyCPDLC;
 using System;
 using System.Collections.Generic;
 using Xunit;
@@ -161,47 +161,66 @@ namespace EasyCPDLC.Tests
         [Fact]
         public void Report_CarriesOverflownFixPositionAndTheNextTwoFixes()
         {
-            List<FmcRouteFix> route = Route();
-            FmcAircraftState state = new(47.205, -8.205, 35000, 468);
-
             string report = FmcPositionReport.Format(
-                1, "dlh6ym", route[0], new DateTime(2026, 7, 26, 14, 23, 0, DateTimeKind.Utc),
-                state, route[1], route[2]);
+                1, "dlh6ym", "ALPHA", "1423", "350",
+                positionValid: true, latitude: 47.205, longitude: -8.205,
+                nextIdent: "BRAVO", nextEta: "1442", followingIdent: "CHARL", groundSpeedKt: 468);
 
             Assert.StartsWith("POS01 DLH6YM", report);
             Assert.Contains("/OVR ALPHA 1423 F350", report);
             Assert.Contains("/PSN N4712.3 W00812.3", report);
-            Assert.Contains("/NXT BRAVO", report);
+            Assert.Contains("/NXT BRAVO 1442", report);
             Assert.Contains("/FLW CHARL", report);
             Assert.Contains("/GS 468", report);
         }
 
+        // Every element except the position is a page field the pilot can clear, so the
+        // report has to stay well formed when they do rather than emitting empty tags.
         [Fact]
-        public void Report_OmitsTheEtaWhenStopped()
+        public void Report_OmitsSectionsTheFieldsLeaveBlank()
         {
-            List<FmcRouteFix> route = Route();
-            FmcAircraftState stopped = new(50.0, 0.0, 0, 0);
-
             string report = FmcPositionReport.Format(
-                1, "DLH6YM", route[0], DateTime.UtcNow, stopped, route[1], route[2]);
-
-            Assert.Contains("/NXT BRAVO", report);
-            Assert.DoesNotContain("/GS", report);
-        }
-
-        [Fact]
-        public void Report_HandlesTheLastFixWithNothingAhead()
-        {
-            List<FmcRouteFix> route = Route();
-            FmcAircraftState state = new(50.0, 4.5, 35000, 450);
-
-            string report = FmcPositionReport.Format(
-                9, "DLH6YM", route[3], DateTime.UtcNow, state, null, null);
+                9, "DLH6YM", "DELTA", "1500", "350",
+                positionValid: true, latitude: 50.0, longitude: 4.5,
+                nextIdent: "", nextEta: "", followingIdent: "", groundSpeedKt: 0);
 
             Assert.Contains("POS09", report);
             Assert.Contains("/OVR DELTA", report);
             Assert.DoesNotContain("/NXT", report);
             Assert.DoesNotContain("/FLW", report);
+            Assert.DoesNotContain("/GS", report);
+        }
+
+        // No sim feed means no coordinates. Reporting 0N 0E - a point in the Atlantic -
+        // would be worse than reporting no position at all.
+        [Fact]
+        public void Report_OmitsThePositionWhenTheSimIsNotFeedingOne()
+        {
+            string report = FmcPositionReport.Format(
+                1, "DLH6YM", "ALPHA", "1423", "350",
+                positionValid: false, latitude: 0, longitude: 0,
+                nextIdent: "BRAVO", nextEta: "", followingIdent: "", groundSpeedKt: 0);
+
+            Assert.DoesNotContain("/PSN", report);
+            Assert.Contains("/OVR ALPHA", report);
+        }
+
+        [Fact]
+        public void Report_AcceptsAFlightLevelTypedWithOrWithoutItsPrefix()
+        {
+            string plain = FmcPositionReport.Format(1, "X", "A", "1200", "350", false, 0, 0, "", "", "", 0);
+            string prefixed = FmcPositionReport.Format(1, "X", "A", "1200", "F350", false, 0, 0, "", "", "", 0);
+
+            Assert.Contains(" F350", plain);
+            Assert.Equal(plain, prefixed);
+        }
+
+        [Fact]
+        public void FlightLevel_IsThreeDigitsOfHundredsOfFeet()
+        {
+            Assert.Equal("350", FmcPositionReport.FlightLevel(35000));
+            Assert.Equal("090", FmcPositionReport.FlightLevel(9000));
+            Assert.Equal("000", FmcPositionReport.FlightLevel(-500));
         }
 
         // The ETA is distance-over-ground-speed from the report time. Computed here from
@@ -209,20 +228,27 @@ namespace EasyCPDLC.Tests
         // 60 NM anywhere but the equator - at 50N these fixes are 57.9 NM apart, and
         // asserting a round number would be testing the wrong thing.
         [Fact]
-        public void Report_EtaIsDistanceOverGroundSpeedFromTheReportTime()
+        public void EstimateEta_IsDistanceOverGroundSpeedFromTheReportTime()
         {
             List<FmcRouteFix> route = Route();
             DateTime utc = new(2026, 7, 26, 14, 0, 0, DateTimeKind.Utc);
             const double groundSpeed = 60;
-            FmcAircraftState state = new(50.0, 0.0, 35000, groundSpeed);
 
             double distance = FmcGeo.DistanceNm(50.0, 0.0, route[1].Latitude, route[1].Longitude);
             string expected = utc.AddHours(distance / groundSpeed).ToString("HHmm");
 
-            string report = FmcPositionReport.Format(1, "DLH6YM", route[0], utc, state, route[1], null);
-
-            Assert.Contains("/NXT BRAVO " + expected, report);
+            Assert.Equal(expected, FmcPositionReport.EstimateEta(utc, 50.0, 0.0, groundSpeed, route[1]));
             Assert.InRange(distance, 57.0, 59.0);
+        }
+
+        [Fact]
+        public void EstimateEta_IsEmptyWhenItCannotBeEstimated()
+        {
+            List<FmcRouteFix> route = Route();
+            DateTime utc = DateTime.UtcNow;
+
+            Assert.Equal(string.Empty, FmcPositionReport.EstimateEta(utc, 50, 0, 0, route[1]));
+            Assert.Equal(string.Empty, FmcPositionReport.EstimateEta(utc, 50, 0, 450, null));
         }
     }
 }

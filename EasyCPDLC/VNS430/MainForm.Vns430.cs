@@ -374,6 +374,11 @@ namespace EasyCPDLC
                 .Replace("PDC", string.Empty, StringComparison.OrdinalIgnoreCase).Trim();
 
             bool siMode = IsSayIntentionsDatalinkActive;
+
+            FillFmcSnapshotFields(
+                out string company, out string overflownFix, out string nextFix, out string followingFix, out string nextEta,
+                out bool positionValid, out double latitude, out double longitude, out double altitudeFt, out double groundSpeedKt);
+
             return new Vns430BackendSnapshot
             {
                 // To the instruments, Connected means "the datalink is usable". On SI
@@ -395,6 +400,17 @@ namespace EasyCPDLC
                 PreferArrivalStation = flightPhaseEnrouteSeen || simPhase.ReachedCruise,
                 SayIntentionsNetwork = siMode,
                 WeatherSource = Vns430WeatherSourceLabel(),
+                CompanyAddress = company,
+                CompanyReportSequence = NextFmcReportSequence,
+                OverflownFix = overflownFix,
+                NextFix = nextFix,
+                FollowingFix = followingFix,
+                NextFixEta = nextEta,
+                PositionValid = positionValid,
+                Latitude = latitude,
+                Longitude = longitude,
+                AltitudeFt = altitudeFt,
+                GroundSpeedKt = groundSpeedKt,
                 AtcUnitViaSayIntentions = currentUnit.Length > 0 && DatalinkRouting.RoutesToSayIntentions(
                     AcarsRoute.Auto, "CPDLC", currentUnit, siMode),
                 SimbriefIdent = SimbriefIdent,
@@ -595,6 +611,17 @@ namespace EasyCPDLC
                         // because only the SI ATSU itself is recognised by address.
                         await SendCPDLCMessage(recipient, "TELEX", message, true,
                             PdcRoutesToSayIntentions ? AcarsRoute.SayIntentions : AcarsRoute.Hoppie);
+                        break;
+
+                    case Vns430WorkflowKind.AocCompanyPosition:
+                        await SendCPDLCMessage(recipient, "TELEX", message, true,
+                            workflow.Value("VIA") == "SI" ? AcarsRoute.SayIntentions : AcarsRoute.Hoppie);
+                        // Only a report that actually went out consumes a number, so a
+                        // failed send does not leave a gap in the operator's sequence.
+                        ConsumeFmcReportSequence();
+                        // Remember the address the pilot actually used.
+                        SavedAocAddress = recipient;
+                        Properties.Settings.Default.Save();
                         break;
 
                     case Vns430WorkflowKind.AocOceanic:

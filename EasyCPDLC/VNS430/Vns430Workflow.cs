@@ -144,6 +144,16 @@ namespace EasyCPDLC.VNS430
                     (string.IsNullOrWhiteSpace(remarks) ? string.Empty : " " + remarks),
                 Vns430WorkflowKind.AocMetar => "METAR " + Value("STATION"),
                 Vns430WorkflowKind.AocAtis => "ATIS " + Value("STATION") + " " + Value("TYPE"),
+                // Every element except the position is a field the pilot can correct on
+                // the page; the coordinates are taken live, because a typed coordinate is
+                // worse than none.
+                Vns430WorkflowKind.AocCompanyPosition => FmcPositionReport.Format(
+                    snapshot.CompanyReportSequence,
+                    string.IsNullOrWhiteSpace(snapshot.SimbriefIdent) ? snapshot.Callsign : snapshot.SimbriefIdent,
+                    Value("OVER"), Value("TIME"), Value("FL"),
+                    snapshot.PositionValid, snapshot.Latitude, snapshot.Longitude,
+                    Value("NEXT"), Value("ETA"), Value("THEN"),
+                    snapshot.GroundSpeedKt),
                 _ => string.Empty
             };
         }
@@ -216,6 +226,27 @@ namespace EasyCPDLC.VNS430
                 Vns430WorkflowKind.AocAtis => new() { Kind = kind, Title = "ATIS REQUEST", Fields = { Text("STATION", "STATION", 4, true, station), Options("TYPE", "ATIS TYPE", snapshot.PreferArrivalStation ? new[] { "ARRIVAL", "DEPARTURE" } : new[] { "DEPARTURE", "ARRIVAL" }), Options("AUTO", "AUTO REFRESH", "OFF", "ON"), WeatherVia() } },
                 Vns430WorkflowKind.AocPreDeparture => new() { Kind = kind, Title = "PREDEP CLEARANCE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("GATE", "STAND/GATE", 5, true), Text("ATIS", "ATIS", 1, true), Text("REMARKS", "REMARKS", 40) } },
                 Vns430WorkflowKind.AocOceanic => new() { Kind = kind, Title = "OCEANIC CLEARANCE", Fields = { Text("RECIPIENT", "RECIPIENT", 8, true, recipient), Text("ENTRY", "ENTRY POINT", 8, true), Text("ETA", "ENTRY ETA", 4, true), Text("MACH", "MACH", 2, true), Text("LEVEL", "FL", 3, true), Text("REMARKS", "REMARKS", 40), DatalinkVia() } },
+                // Opens filled in from the route tracker and live telemetry: the pilot
+                // reviews, corrects anything the sim got wrong, arms and sends. Nothing
+                // goes out on its own.
+                Vns430WorkflowKind.AocCompanyPosition => new()
+                {
+                    Kind = kind,
+                    Title = "COMPANY POS RPT",
+                    Fields =
+                    {
+                        Text("RECIPIENT", "COMPANY", 8, true, snapshot.CompanyAddress),
+                        Text("OVER", "OVERFLEW", 7, true, snapshot.OverflownFix),
+                        Text("TIME", "TIME Z", 4, true, DateTime.UtcNow.ToString("HHmm")),
+                        Text("FL", "FL", 3, true, snapshot.PositionValid ? FmcPositionReport.FlightLevel(snapshot.AltitudeFt) : string.Empty),
+                        Text("NEXT", "NEXT FIX", 7, false, snapshot.NextFix),
+                        Text("ETA", "NEXT ETA", 4, false, snapshot.NextFixEta),
+                        Text("THEN", "THEN FIX", 7, false, snapshot.FollowingFix),
+                        // Company traffic, so Hoppie leads whatever network ATC is on -
+                        // that is where the operator's ACARS address lives.
+                        Options("VIA", "SEND VIA", "HOPPIE", "SI")
+                    }
+                },
                 _ => new() { Kind = kind, Title = "REQUEST" }
             };
         }

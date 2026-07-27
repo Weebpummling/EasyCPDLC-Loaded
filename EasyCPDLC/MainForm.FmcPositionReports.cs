@@ -1,45 +1,40 @@
-using EasyCPDLC.VNS430;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace EasyCPDLC
 {
     /// <summary>
-    /// FMC waypoint position reporting over ACARS - ICAO equipment code E1.
+    /// Company position reporting - the AOC service ICAO calls E1, FMC waypoint position
+    /// reporting over ACARS.
     ///
-    /// This is the AOC half of the datalink, not ATC: as each route fix is sequenced the
-    /// aircraft downlinks a position report to the operator. It is what an airline's ops
-    /// desk watches a flight with, and it is the one datalink service the app previously
-    /// could not honestly claim.
-    ///
-    /// Deliberately separate from the CPDLC position report on the ATC pages: that one is
-    /// composed by the pilot and addressed to a controller. This one is automatic and
-    /// addressed to the company.
+    /// The aircraft equipment sends these on its own; this app does not. It tracks the
+    /// route passively so the report page opens already filled in with where you are and
+    /// which fixes are next, and then the pilot arms and sends it like any other request.
+    /// Nothing here transmits: an automatic downlink the pilot never saw is the one thing
+    /// a datalink client should not do behind their back.
     /// </summary>
     public partial class MainForm
     {
         private const string AocAddressSettingName = "AocAddress";
-        private const string FmcReportsEnabledSettingName = "FmcPositionReports";
-        private const string FmcReportIntervalSettingName = "FmcPositionReportInterval";
 
-        // Position is sampled often enough to catch a fix at cruise speed without
-        // hammering the sim: 8 NM of capture radius is ~1 minute at 480 kt.
-        private static readonly TimeSpan FmcSampleInterval = TimeSpan.FromSeconds(10);
+        // Fast enough to catch a fix at cruise (8 NM of capture is ~1 minute at 480 kt)
+        // without polling the sim harder than the flight-phase feed already does.
+        private static readonly TimeSpan FmcSampleInterval = TimeSpan.FromSeconds(5);
 
-        private System.Windows.Forms.Timer fmcReportTimer;
-        private bool fmcTickRunning;
+        private System.Windows.Forms.Timer fmcTrackTimer;
         private FmcWaypointSequencer fmcSequencer;
         private string fmcRouteSignature = string.Empty;
-        private int fmcReportSequence;
         private DateTime fmcLastSampleUtc = DateTime.MinValue;
-        private DateTime fmcLastReportUtc = DateTime.MinValue;
+
+        private string fmcOverflownFix = string.Empty;
+        private int fmcReportSequence;
 
         /// <summary>
-        /// Hoppie address of the operator that receives the reports. Blank disables the
-        /// whole feature: reports must never go somewhere the pilot did not name.
+        /// Hoppie address of the operator that receives the reports - an ordinary
+        /// recipient callsign, not a credential, which is why it is set on the AOC page
+        /// next to the report it addresses.
         /// </summary>
         internal static string SavedAocAddress
         {
@@ -47,40 +42,18 @@ namespace EasyCPDLC
             set => SaveFixedStringSetting(AocAddressSettingName, (value ?? string.Empty).Trim().ToUpperInvariant());
         }
 
-        internal static bool FmcPositionReportsEnabled
-        {
-            get => string.Equals(ReadFixedStringSetting(FmcReportsEnabledSettingName, "OFF"), "ON", StringComparison.OrdinalIgnoreCase);
-            set => SaveFixedStringSetting(FmcReportsEnabledSettingName, value ? "ON" : "OFF");
-        }
+        /// <summary>Next report number, consumed when one is actually sent.</summary>
+        internal int NextFmcReportSequence => fmcReportSequence >= 99 ? 1 : fmcReportSequence + 1;
 
-        /// <summary>
-        /// Extra periodic report in minutes; 0 means waypoint sequencing only, which is
-        /// what E1 actually describes. The periodic option exists for oceanic legs where
-        /// fixes can be an hour apart.
-        /// </summary>
-        internal static int FmcPositionReportIntervalMinutes
+        internal void ConsumeFmcReportSequence()
         {
-            get
-            {
-                string value = ReadFixedStringSetting(FmcReportIntervalSettingName, "0");
-                return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int minutes)
-                    ? Math.Clamp(minutes, 0, 120)
-                    : 0;
-            }
-            set => SaveFixedStringSetting(FmcReportIntervalSettingName, Math.Clamp(value, 0, 120).ToString(CultureInfo.InvariantCulture));
+            fmcReportSequence = NextFmcReportSequence;
         }
-
-        /// <summary>Whether the feature can run at all: armed, addressed, and with a route.</summary>
-        internal bool FmcPositionReportsReady =>
-            FmcPositionReportsEnabled &&
-            !string.IsNullOrWhiteSpace(SavedAocAddress) &&
-            !string.IsNullOrWhiteSpace(logonCode) &&
-            BuildFmcRoute().Count > 0;
 
         /// <summary>
         /// Route fixes from the loaded SimBrief plan, enroute only. SID and STAR legs are
-        /// dropped for the same reason the ATC report list drops them: they sequence in
-        /// minutes and would bury the ops desk in reports during departure and arrival.
+        /// dropped: they sequence every couple of minutes, so tracking them would leave
+        /// the report page pointing at a departure fix for the whole cruise.
         /// </summary>
         private List<FmcRouteFix> BuildFmcRoute()
         {
@@ -115,10 +88,6 @@ namespace EasyCPDLC
             return route;
         }
 
-        /// <summary>
-        /// A cheap identity for the loaded route, so a new flight plan resets the
-        /// sequencer instead of continuing from the old flight's waypoint.
-        /// </summary>
         private static string FmcRouteSignature(IReadOnlyList<FmcRouteFix> route) =>
             route.Count + ":" + string.Join(">", route.Select(fix => fix.Ident));
 
@@ -126,7 +95,7 @@ namespace EasyCPDLC
         /// Live position, preferring the SimConnect telemetry the companion bridge
         /// already subscribes to and falling back to FSUIPC when that is what is running.
         /// </summary>
-        private bool TryGetFmcAircraftState(out FmcAircraftState state)
+        internal bool TryGetFmcAircraftState(out FmcAircraftState state)
         {
             state = default;
 
@@ -158,60 +127,39 @@ namespace EasyCPDLC
         }
 
         /// <summary>
-        /// Runs on its own timer rather than inside a poll loop: the Hoppie loop only
-        /// exists while VATSIM-connected and the SI loop only when an SI key is set, but
-        /// position reporting is a property of being in a flight, not of either network.
+        /// Passive route tracking on its own timer: the Hoppie loop only runs while
+        /// VATSIM-connected and the SI loop only when an SI key is set, but where the
+        /// aircraft is along its route has nothing to do with either.
         /// </summary>
         private void EnsureFmcPositionReportTimer()
         {
-            if (fmcReportTimer != null)
+            if (fmcTrackTimer != null)
             {
                 return;
             }
 
-            fmcReportTimer = new System.Windows.Forms.Timer { Interval = 5000 };
-            fmcReportTimer.Tick += async (_, __) =>
+            fmcTrackTimer = new System.Windows.Forms.Timer { Interval = 5000 };
+            fmcTrackTimer.Tick += (_, __) =>
             {
-                // The send is awaited, so a slow network round trip must not stack ticks.
-                if (fmcTickRunning)
-                {
-                    return;
-                }
-
-                fmcTickRunning = true;
                 try
                 {
-                    await TickFmcPositionReportsAsync();
+                    TrackFmcRoute();
                 }
                 catch (Exception ex)
                 {
-                    Logger.Debug("FMC position report tick failed: " + ex.Message);
-                }
-                finally
-                {
-                    fmcTickRunning = false;
+                    Logger.Debug("FMC route tracking failed: " + ex.Message);
                 }
             };
-            fmcReportTimer.Start();
+            fmcTrackTimer.Start();
         }
 
         /// <summary>
-        /// Called from the periodic tick. Samples position, sequences the route, and
-        /// downlinks a report when a fix is passed (or the periodic timer expires).
+        /// Advances the sequencer against the current position. Records which fix was
+        /// last overflown so the report page can open already filled in. Sends nothing.
         /// </summary>
-        internal async Task TickFmcPositionReportsAsync()
+        private void TrackFmcRoute()
         {
-            if (DebugUiPreviewMode)
-            {
-                return;
-            }
-
-            if (!FmcPositionReportsEnabled || string.IsNullOrWhiteSpace(SavedAocAddress))
-            {
-                return;
-            }
-
-            if (DateTime.UtcNow - fmcLastSampleUtc < FmcSampleInterval)
+            if (DebugUiPreviewMode || DateTime.UtcNow - fmcLastSampleUtc < FmcSampleInterval)
             {
                 return;
             }
@@ -226,11 +174,13 @@ namespace EasyCPDLC
             string signature = FmcRouteSignature(route);
             if (fmcSequencer == null || signature != fmcRouteSignature)
             {
+                // A new flight plan starts a new flight: reset the tracker and the report
+                // numbering rather than carrying the last leg's state into it.
                 fmcRouteSignature = signature;
                 fmcSequencer = new FmcWaypointSequencer(route);
+                fmcOverflownFix = string.Empty;
                 fmcReportSequence = 0;
-                fmcLastReportUtc = DateTime.MinValue;
-                Logger.Debug("FMC position reports armed for " + route.Count + " enroute fixes");
+                Logger.Debug("FMC route tracking armed for " + route.Count + " enroute fixes");
             }
 
             if (!TryGetFmcAircraftState(out FmcAircraftState state))
@@ -239,51 +189,37 @@ namespace EasyCPDLC
             }
 
             FmcRouteFix passed = fmcSequencer.Update(state.Latitude, state.Longitude);
-            bool periodicDue = FmcPositionReportIntervalMinutes > 0 &&
-                fmcLastReportUtc != DateTime.MinValue &&
-                DateTime.UtcNow - fmcLastReportUtc >= TimeSpan.FromMinutes(FmcPositionReportIntervalMinutes);
-
-            if (passed == null && !periodicDue)
+            if (passed != null)
             {
-                return;
+                fmcOverflownFix = passed.Ident;
             }
-
-            // A periodic report has not overflown anything; name the fix being tracked so
-            // the ops desk still knows where the aircraft is against the plan.
-            FmcRouteFix reference = passed ?? fmcSequencer.Active;
-            if (reference == null)
-            {
-                return;
-            }
-
-            await SendFmcPositionReportAsync(reference, state);
         }
 
-        private async Task SendFmcPositionReportAsync(FmcRouteFix reference, FmcAircraftState state)
+        /// <summary>
+        /// Everything the AOC position report page needs, folded into the snapshot the
+        /// instruments already read.
+        /// </summary>
+        private void FillFmcSnapshotFields(
+            out string company, out string overflown, out string next, out string following, out string eta,
+            out bool positionValid, out double latitude, out double longitude, out double altitudeFt, out double groundSpeedKt)
         {
-            string address = SavedAocAddress;
-            if (string.IsNullOrWhiteSpace(address))
+            company = SavedAocAddress;
+            overflown = fmcOverflownFix;
+            next = fmcSequencer?.Active?.Ident ?? string.Empty;
+            following = fmcSequencer?.Next?.Ident ?? string.Empty;
+            eta = string.Empty;
+
+            positionValid = TryGetFmcAircraftState(out FmcAircraftState state);
+            latitude = state.Latitude;
+            longitude = state.Longitude;
+            altitudeFt = state.AltitudeFt;
+            groundSpeedKt = state.GroundSpeedKt;
+
+            if (positionValid && fmcSequencer?.Active != null)
             {
-                return;
+                eta = FmcPositionReport.EstimateEta(
+                    DateTime.UtcNow, latitude, longitude, groundSpeedKt, fmcSequencer.Active);
             }
-
-            fmcReportSequence = fmcReportSequence >= 99 ? 1 : fmcReportSequence + 1;
-            fmcLastReportUtc = DateTime.UtcNow;
-
-            string report = FmcPositionReport.Format(
-                fmcReportSequence,
-                string.IsNullOrWhiteSpace(callsign) ? SimbriefIdent : callsign,
-                reference,
-                DateTime.UtcNow,
-                state,
-                fmcSequencer?.Active,
-                fmcSequencer?.Next);
-
-            Logger.Debug("FMC position report " + fmcReportSequence + " over " + reference.Ident);
-
-            // Company traffic, so always Hoppie - the operator's ACARS address lives
-            // there whichever network ATC is on.
-            await SendCPDLCMessage(address, "TELEX", report, true, AcarsRoute.Hoppie);
         }
     }
 }

@@ -1,4 +1,4 @@
-# EasyCPDLC-Loaded — Manual
+﻿# EasyCPDLC-Loaded — Manual
 
 A hardware and software bridge for simulated datalink systems.
 
@@ -90,7 +90,6 @@ Enter them either way:
 | **SimBrief** username/ID | Flight plan + loadsheet source data |
 | **eLoadControl API key** | Loadsheet generation |
 | **SayIntentions API key** | SayIntentions network + weather |
-| **Company ACARS address** | [Company position reports](#company-position-reports-fmc-wpr) — blank disables them |
 
 If something required is missing, the `<SETUP` item on the CDU menu turns **amber**.
 
@@ -280,31 +279,45 @@ then a real test print.
 
 ## Company position reports (FMC WPR)
 
-Automatic position reports to your operator as each enroute waypoint is sequenced —
+A position report to your operator, prefilled from the route and your live position —
 the AOC service ICAO calls **E1**, *FMC waypoint position reporting over ACARS*.
 
-1. Tray → **Connection credentials…** → **Company ACARS address** (your VA's Hoppie
-   address). Blank means the feature is off, so nothing can go out to a station you
-   didn't name.
-2. CDU `SETUP` → **POS RPT** → `ON`.
-3. Load a SimBrief flight plan.
+`MENU` → `<AOC`. The right column shows **COMPANY** — your operator's Hoppie address,
+or **NOT SET** in amber. Type an address into the scratchpad and press the line key to
+set it; press it with an empty scratchpad to clear it. It is an ordinary Hoppie
+recipient, not a credential, which is why it lives here rather than in the tray.
 
-From then on, each time you pass an enroute fix the app downlinks something like:
+With an address set, `POS RPT>` opens the report already filled in:
+
+| Field | Prefilled from |
+|---|---|
+| `COMPANY` | the address you set |
+| `OVERFLEW` | the last enroute fix the app saw you pass |
+| `TIME Z` | now |
+| `FL` | your altitude |
+| `NEXT FIX` / `NEXT ETA` | the next fix, and an ETA from your ground speed |
+| `THEN FIX` | the one after |
+| `VIA` | `HOPPIE` — company traffic, whichever network ATC is on |
+
+Correct anything the sim got wrong, then `SEND>` and **`EXEC`** like any other request.
+It sends:
 
 ```text
 POS01 DLH6YM /OVR ETRAT 1423 F350 /PSN N4712.3 W00812.4 /NXT ROLIS 1442 /FLW OSMEL /GS 468
 ```
 
-Position comes from the sim — via the MSFS module if it's running, otherwise FSUIPC.
-Without either, `POS RPT` shows amber: it is armed but has nothing to report.
+**Nothing is sent automatically.** The app tracks where you are along the route so the
+page opens filled in; the transmit is always yours. Report numbering (`POS01`, `POS02`…)
+advances only on a report that actually goes out, and resets when you load a new plan.
 
-SID and STAR fixes are skipped deliberately; they sequence every couple of minutes and
-would bury the ops desk during departure and arrival. Reports go to your company over
-Hoppie regardless of which network ATC is on, because that is where the operator's
-ACARS address lives.
+Position comes from the sim — via the MSFS module if it's running, otherwise FSUIPC.
+Without either, the coordinates are simply left out rather than reported as `0N 0E`.
+
+SID and STAR fixes are skipped deliberately: they sequence every couple of minutes, so
+tracking them would leave the page pointing at a departure fix for the whole cruise.
 
 > This is separate from the `POS REP` on the ATC pages. That one you compose yourself
-> and send to a controller; this one is automatic and goes to your airline.
+> and send to a controller; this one is prefilled and goes to your airline.
 
 ---
 

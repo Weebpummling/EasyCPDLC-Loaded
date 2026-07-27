@@ -44,7 +44,10 @@ namespace EasyCPDLC.VNS430
         AocMetar,
         AocAtis,
         AocPreDeparture,
-        AocOceanic
+        AocOceanic,
+        // Company position report (ICAO E1). Prefilled from the route tracker and live
+        // position, then armed and sent by the pilot like any other AOC request.
+        AocCompanyPosition
     }
 
     internal sealed class Vns430MessageSnapshot
@@ -120,6 +123,26 @@ namespace EasyCPDLC.VNS430
 
         // Controller-online / datalink discovery, kept fresh by the backend's 15 s
         // VATSIM + Hoppie refresh loop.
+        // Company (AOC) position reporting. The address is a plain Hoppie recipient, so
+        // it lives on the AOC page rather than with the credentials; the fix idents come
+        // from the passive route tracker and prefill the report page.
+        internal string CompanyAddress { get; init; } = string.Empty;
+        internal string OverflownFix { get; init; } = string.Empty;
+        internal string NextFix { get; init; } = string.Empty;
+        internal string FollowingFix { get; init; } = string.Empty;
+        internal string NextFixEta { get; init; } = string.Empty;
+
+        /// <summary>Number the next company report will carry (POS01, POS02, ...).</summary>
+        internal int CompanyReportSequence { get; init; } = 1;
+
+        // Live aircraft state, when the sim is feeding it. Used to prefill the position
+        // report; PositionValid is false when there is nothing trustworthy to report.
+        internal bool PositionValid { get; init; }
+        internal double Latitude { get; init; }
+        internal double Longitude { get; init; }
+        internal double AltitudeFt { get; init; }
+        internal double GroundSpeedKt { get; init; }
+
         internal bool AtcUnitOnline { get; init; }
         internal IReadOnlyList<Vns430CpdlcCandidate> CpdlcCandidates { get; init; } = new Vns430CpdlcCandidate[0];
         internal string PdcStatus { get; init; } = string.Empty;

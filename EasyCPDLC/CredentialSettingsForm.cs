@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -11,7 +11,6 @@ namespace EasyCPDLC
         private readonly TextBox simbriefBox = new();
         private readonly TextBox eloadBox = new();
         private readonly TextBox sayIntentionsBox = new();
-        private readonly TextBox aocAddressBox = new();
 
         internal CredentialSettingsForm()
         {
@@ -22,7 +21,7 @@ namespace EasyCPDLC
             MinimizeBox = false;
             ShowInTaskbar = false;
             TopMost = true;
-            ClientSize = new Size(520, 454);
+            ClientSize = new Size(520, 404);
             BackColor = Color.FromArgb(9, 17, 23);
             ForeColor = Color.FromArgb(218, 238, 242);
             Font = new Font("Segoe UI", 9.2f, FontStyle.Regular);
@@ -39,21 +38,17 @@ namespace EasyCPDLC
             AddField("SimBrief username / pilot ID", simbriefBox, 20, 196, false, 64);
             AddField("eLoadControl API key", eloadBox, 20, 246, true, 128);
             AddField("SayIntentions API key", sayIntentionsBox, 20, 296, true, 128);
-            // Not a secret - it is the operator's public ACARS address - so it is shown
-            // in clear. Blank switches FMC position reporting off entirely.
-            AddField("Company ACARS address", aocAddressBox, 20, 346, false, 8);
 
             cidBox.Text = MainForm.SavedCID > 0 ? MainForm.SavedCID.ToString() : string.Empty;
             hoppieBox.Text = MainForm.SavedHoppieCode;
             simbriefBox.Text = MainForm.SimbriefID;
             eloadBox.Text = MainForm.SavedELoadControlApiKey;
             sayIntentionsBox.Text = MainForm.SavedSayIntentionsApiKey;
-            aocAddressBox.Text = MainForm.SavedAocAddress;
 
             CheckBox reveal = new()
             {
                 Text = "Show protected codes",
-                Location = new Point(20, 400),
+                Location = new Point(20, 350),
                 Size = new Size(190, 28),
                 ForeColor = ForeColor,
                 BackColor = BackColor
@@ -66,9 +61,9 @@ namespace EasyCPDLC
             };
             Controls.Add(reveal);
 
-            Button cancel = NewButton("Cancel", 322, 402, 82);
+            Button cancel = NewButton("Cancel", 322, 352, 82);
             cancel.DialogResult = DialogResult.Cancel;
-            Button save = NewButton("Save", 414, 402, 82);
+            Button save = NewButton("Save", 414, 352, 82);
             save.Click += SaveClicked;
             Controls.Add(cancel);
             Controls.Add(save);
@@ -131,7 +126,6 @@ namespace EasyCPDLC
                 MainForm.SimbriefID = simbriefBox.Text.Trim();
                 MainForm.SavedELoadControlApiKey = eloadBox.Text.Trim();
                 MainForm.SavedSayIntentionsApiKey = sayIntentionsBox.Text.Trim();
-                MainForm.SavedAocAddress = aocAddressBox.Text.Trim();
                 Properties.Settings.Default.Save();
                 DialogResult = DialogResult.OK;
                 Close();

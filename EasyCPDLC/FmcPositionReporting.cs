@@ -172,56 +172,111 @@ namespace EasyCPDLC
     /// </summary>
     internal static class FmcPositionReport
     {
+        /// <summary>
+        /// Builds the report from the values shown on the CDU page.
+        ///
+        /// Everything except the position is a field the pilot can see and correct
+        /// before sending, which is why these are strings rather than route objects: by
+        /// the time this is called the values are whatever is on screen, not whatever the
+        /// sequencer thought. The position is the one thing taken live, because a
+        /// hand-typed coordinate is worse than no coordinate.
+        /// </summary>
         internal static string Format(
             int sequence,
             string callsign,
-            FmcRouteFix overflown,
-            DateTime utc,
-            FmcAircraftState state,
-            FmcRouteFix next,
-            FmcRouteFix following)
+            string overflownIdent,
+            string timeHHmm,
+            string flightLevel,
+            bool positionValid,
+            double latitude,
+            double longitude,
+            string nextIdent,
+            string nextEta,
+            string followingIdent,
+            double groundSpeedKt)
         {
             System.Text.StringBuilder report = new();
             report.Append("POS")
                   .Append(Math.Clamp(sequence, 1, 99).ToString("00", CultureInfo.InvariantCulture))
                   .Append(' ')
-                  .Append((callsign ?? string.Empty).Trim().ToUpperInvariant());
+                  .Append(Clean(callsign, "----"));
 
-            report.Append(" /OVR ").Append(Ident(overflown))
-                  .Append(' ').Append(utc.ToString("HHmm", CultureInfo.InvariantCulture))
-                  .Append(' ').Append(FlightLevel(state.AltitudeFt));
+            report.Append(" /OVR ").Append(Clean(overflownIdent, "----"));
 
-            report.Append(" /PSN ").Append(Latitude(state.Latitude))
-                  .Append(' ').Append(Longitude(state.Longitude));
-
-            if (next != null)
+            string time = Clean(timeHHmm, string.Empty);
+            if (time.Length > 0)
             {
-                report.Append(" /NXT ").Append(Ident(next));
-                string eta = Eta(utc, state, next);
-                if (!string.IsNullOrEmpty(eta))
+                report.Append(' ').Append(time);
+            }
+
+            string level = Clean(flightLevel, string.Empty);
+            if (level.Length > 0)
+            {
+                report.Append(" F").Append(level.TrimStart('F'));
+            }
+
+            if (positionValid)
+            {
+                report.Append(" /PSN ").Append(Latitude(latitude))
+                      .Append(' ').Append(Longitude(longitude));
+            }
+
+            string next = Clean(nextIdent, string.Empty);
+            if (next.Length > 0)
+            {
+                report.Append(" /NXT ").Append(next);
+                string eta = Clean(nextEta, string.Empty);
+                if (eta.Length > 0)
                 {
                     report.Append(' ').Append(eta);
                 }
             }
 
-            if (following != null)
+            string following = Clean(followingIdent, string.Empty);
+            if (following.Length > 0)
             {
-                report.Append(" /FLW ").Append(Ident(following));
+                report.Append(" /FLW ").Append(following);
             }
 
-            if (state.GroundSpeedKt > 0)
+            if (groundSpeedKt > 0)
             {
-                report.Append(" /GS ").Append(Math.Round(state.GroundSpeedKt).ToString("0", CultureInfo.InvariantCulture));
+                report.Append(" /GS ").Append(Math.Round(groundSpeedKt).ToString("0", CultureInfo.InvariantCulture));
             }
 
             return report.ToString();
         }
 
-        private static string Ident(FmcRouteFix fix) =>
-            string.IsNullOrWhiteSpace(fix?.Ident) ? "----" : fix.Ident.Trim().ToUpperInvariant();
+        private static string Clean(string value, string fallback)
+        {
+            string cleaned = (value ?? string.Empty).Trim().ToUpperInvariant();
+            return cleaned.Length == 0 ? fallback : cleaned;
+        }
 
-        private static string FlightLevel(double altitudeFt) =>
-            "F" + Math.Round(Math.Max(0, altitudeFt) / 100.0).ToString("000", CultureInfo.InvariantCulture);
+        /// <summary>Altitude in feet as the three-digit level the page shows.</summary>
+        internal static string FlightLevel(double altitudeFt) =>
+            Math.Round(Math.Max(0, altitudeFt) / 100.0).ToString("000", CultureInfo.InvariantCulture);
+
+        /// <summary>
+        /// ETA at a fix from the present position and ground speed, as HHmm. Empty when
+        /// it cannot be estimated - a made-up time on a position report is worse than a
+        /// missing one.
+        /// </summary>
+        internal static string EstimateEta(DateTime utc, double latitude, double longitude,
+            double groundSpeedKt, FmcRouteFix target)
+        {
+            if (target == null || groundSpeedKt < 40)
+            {
+                return string.Empty;
+            }
+
+            double hours = FmcGeo.DistanceNm(latitude, longitude, target.Latitude, target.Longitude) / groundSpeedKt;
+            if (double.IsNaN(hours) || double.IsInfinity(hours) || hours > 24)
+            {
+                return string.Empty;
+            }
+
+            return utc.AddHours(hours).ToString("HHmm", CultureInfo.InvariantCulture);
+        }
 
         /// <summary>
         /// ARINC-style latitude: hemisphere, whole degrees, then minutes to one decimal.
