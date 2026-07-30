@@ -292,9 +292,14 @@ namespace EasyCPDLC
                 return DatalinkMessageCategory.Cpdlc;
             }
 
+            // LOADSHEET belongs here too. A loadsheet the VA sends arrives as a TELEX
+            // and classified fine, but the ones this app generates are written with
+            // type "LOADSHEET" - which fell through to Other, making them unprintable
+            // and invisible to IsELoadControlLoadsheet, which tests printability first.
             if (string.Equals(type, "TELEX", StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(type, "INFO", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(type, "AOC", StringComparison.OrdinalIgnoreCase))
+                string.Equals(type, "AOC", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(type, "LOADSHEET", StringComparison.OrdinalIgnoreCase))
             {
                 return DatalinkMessageCategory.TelexAoc;
             }
